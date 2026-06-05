@@ -1,0 +1,12 @@
+# Local ArcGIS project files and scratch work
+*.aprx
+*.aprx.lock
+*.gdb/
+*.sde
+scratch/
+exports/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
