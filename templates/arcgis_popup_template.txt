@@ -1,0 +1,7 @@
+Parcel PIN: {par_pin}
+Owner: {propertyowner}
+Use: {usedesc}
+Tax Status: {taxdesc}
+Acreage: {par_calcacreag}
+Fair Market Total: {fairmarkettotal}
+Prior Delinquency Years: {prior_years}

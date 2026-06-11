@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vacant Land Triage Area Analysis</title>
+  <style>
+    body { margin: 0; background: #FCFCFD; color: #1F2430; font-family: Aptos, Segoe UI, Arial, sans-serif; }
+    main { max-width: 1040px; margin: 0 auto; padding: 40px 24px 64px; }
+    h1 { font-size: 34px; margin: 0 0 24px; }
+    h2 { font-size: 22px; margin: 36px 0 12px; }
+    p, li { font-size: 16px; line-height: 1.55; }
+    .summary { background: #fff; border: 1px solid #E6E8F0; padding: 18px 22px; }
+    .summary li { margin: 8px 0; }
+    img { display: block; max-width: 100%; background: #fff; border: 1px solid #E6E8F0; }
+    table { border-collapse: collapse; width: 100%; background: #fff; margin-top: 10px; font-size: 14px; }
+    th, td { text-align: left; border-bottom: 1px solid #E6E8F0; padding: 9px 10px; }
+    th { color: #464C55; background: #F4F5F7; }
+    .note { color: #6F768A; font-size: 14px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Vacant Land Triage Area Analysis</h1>
+
+  <h2>Executive Summary</h2>
+  <ul class="summary">
+    <li><strong>The strongest named-neighborhood concentrations are in Perry South, Larimer, Hazelwood, and Homewood.</strong> Perry South has 553 residential-ish vacant parcels in the EPP-linked neighborhood view.</li>
+    <li><strong>The highest ZIP-level residential vacancy penetration is in 15219.0.</strong> Its filtered vacant residential parcel share is 35.3% of residential assessment parcels.</li>
+    <li><strong>The map should use two scales.</strong> Zoomed-out views should compare ZIP penetration and named-neighborhood concentration; zoomed-in views should inspect parcel clusters in Homewood, Larimer, Perry South, Middle Hill, and Hazelwood.</li>
+  </ul>
+
+  <h2>Named neighborhoods show where to zoom in</h2>
+  <p><strong>Use this as the cluster-finding view.</strong> The named-neighborhood data comes from EPP-linked parcels, so it is best interpreted as concentration among the inventory that has neighborhood names, not a complete citywide neighborhood rate.</p>
+  <img src="assets/neighborhood_vacancy_concentration.png" alt="Ranked bar chart of named neighborhoods by residential vacant parcels">
+  <table>
+    <thead><tr><th>Neighborhood</th><th>Residential vacant parcels</th><th>Vacant acres</th><th>5+ prior-year parcels</th><th>EPP vacant-like share</th></tr></thead>
+    <tbody>
+      <tr><td>Perry South</td><td>553</td><td>39.79</td><td>148</td><td>88.4</td></tr>
+<tr><td>Larimer</td><td>525</td><td>32.0</td><td>39</td><td>81.6</td></tr>
+<tr><td>Hazelwood</td><td>466</td><td>31.06</td><td>18</td><td>89.3</td></tr>
+<tr><td>Homewood North</td><td>442</td><td>27.08</td><td>46</td><td>87.7</td></tr>
+<tr><td>Middle Hill</td><td>432</td><td>20.59</td><td>135</td><td>74.3</td></tr>
+<tr><td>Homewood South</td><td>416</td><td>24.99</td><td>22</td><td>78.4</td></tr>
+<tr><td>Garfield</td><td>337</td><td>19.39</td><td>18</td><td>80.0</td></tr>
+<tr><td>Beltzhoover</td><td>298</td><td>20.41</td><td>20</td><td>86.3</td></tr>
+    </tbody>
+  </table>
+
+  <h2>ZIP penetration gives a cleaner rate denominator</h2>
+  <p><strong>Use this as the area-average view.</strong> ZIP penetration divides filtered residential-ish vacant parcels by all residential assessment parcels in the ZIP, which makes it more defensible as a rate.</p>
+  <img src="assets/zip_vacancy_penetration.png" alt="Ranked bar chart of ZIP vacancy penetration">
+  <table>
+    <thead><tr><th>ZIP</th><th>Total residential parcels</th><th>Vacant parcels</th><th>Vacant penetration</th><th>Median building age</th></tr></thead>
+    <tbody>
+      <tr><td>15219.0</td><td>4232.0</td><td>1492.0</td><td>35.3</td><td>106.0</td></tr>
+<tr><td>15208.0</td><td>5186.0</td><td>1782.0</td><td>34.4</td><td>106.0</td></tr>
+<tr><td>15235.0</td><td>316.0</td><td>103.0</td><td>32.6</td><td>91.0</td></tr>
+<tr><td>15120.0</td><td>801.0</td><td>222.0</td><td>27.7</td><td>69.0</td></tr>
+<tr><td>15233.0</td><td>1353.0</td><td>371.0</td><td>27.4</td><td>126.0</td></tr>
+<tr><td>15214.0</td><td>5233.0</td><td>1401.0</td><td>26.8</td><td>106.0</td></tr>
+<tr><td>15221.0</td><td>2219.0</td><td>594.0</td><td>26.8</td><td>98.0</td></tr>
+<tr><td>15207.0</td><td>6210.0</td><td>1552.0</td><td>25.0</td><td>105.0</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Recommended next steps</h2>
+  <ol>
+    <li>Keep the ArcGIS parcel map as the zoom-in diagnostic view.</li>
+    <li>Add the ZIP chart and named-neighborhood chart to the layout as evidence panels.</li>
+    <li>Create two map bookmarks: one wide city view and one zoomed-in Homewood/Hill District or Larimer/Perry South detail view.</li>
+    <li>If a true neighborhood boundary table becomes available, replace the EPP concentration table with a true neighborhood vacancy-rate choropleth.</li>
+  </ol>
+
+  <h2>Caveats and assumptions</h2>
+  <p class="note">Residential-ish vacant parcels exclude obvious infrastructure, government, rail, utility, commercial, industrial, right-of-way, park, cemetery, air-rights, warehouse, and office categories, and exclude parcels above 2 acres. ZIP penetration uses assessment residential parcels as the denominator. Named-neighborhood concentration uses EPP-linked parcels because clean neighborhood names were not available in the all-parcel denominator.</p>
+</main>
+</body>
+</html>

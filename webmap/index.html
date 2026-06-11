@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vacant Land Triage Map</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="map-panel" aria-label="Vacant land triage map">
+        <div id="viewDiv"></div>
+        <div class="map-title-card" aria-label="Map title">
+          <span class="map-title">Vacant Land Redevelopment Triage</span>
+          <span class="map-subtitle">Residential-focused parcel extract</span>
+        </div>
+        <div class="map-legend" id="mapLegend" aria-label="Prior-year triage legend"></div>
+        <div class="map-status" id="mapStatus">Loading residential vacant parcels...</div>
+      </section>
+
+      <aside class="insight-panel" aria-label="Vacant land analysis report">
+        <header class="report-header">
+          <p class="eyebrow">URA vacant land triage</p>
+          <h1>Residential vacancy is clustered, not evenly spread.</h1>
+          <p>
+            This publishable map focuses on small residential or residential-adjacent vacant parcels,
+            excluding large anomaly parcels and infrastructure-like land. Use it citywide first, then
+            zoom into clusters for parcel triage.
+          </p>
+        </header>
+
+        <section class="kpi-grid" aria-label="Key map metrics">
+          <article class="kpi">
+            <span class="kpi-value">20,488</span>
+            <span class="kpi-label">mapped parcels</span>
+          </article>
+          <article class="kpi">
+            <span class="kpi-value">3,590</span>
+            <span class="kpi-label">11+ prior years</span>
+          </article>
+          <article class="kpi">
+            <span class="kpi-value">35.3%</span>
+            <span class="kpi-label">top ZIP penetration</span>
+          </article>
+          <article class="kpi">
+            <span class="kpi-value">553</span>
+            <span class="kpi-label">top neighborhood count</span>
+          </article>
+        </section>
+
+        <section class="controls-section" aria-label="Map filters and bookmarks">
+          <div class="section-heading">
+            <h2>Filter Map</h2>
+            <button id="resetFilters" type="button">Reset</button>
+          </div>
+          <div class="filter-list" id="bandFilters"></div>
+          <div class="bookmark-row" aria-label="Area bookmarks">
+            <button class="bookmark" data-center="-79.9959,40.4406" data-zoom="12" type="button">Citywide</button>
+            <button class="bookmark" data-center="-79.9105,40.4572" data-zoom="14" type="button">Homewood</button>
+            <button class="bookmark" data-center="-79.9706,40.4467" data-zoom="14" type="button">Hill District</button>
+            <button class="bookmark" data-center="-80.0140,40.4682" data-zoom="14" type="button">Perry South</button>
+            <button class="bookmark" data-center="-79.9137,40.4668" data-zoom="14" type="button">Larimer</button>
+          </div>
+        </section>
+
+        <section class="insight-section">
+          <h2>What Stands Out</h2>
+          <p>
+            ZIPs 15219 and 15208 are the strongest rate-based signals: more than one-third of
+            residential assessment parcels are vacant-like in the current extract. Neighborhood
+            counts point to Perry South, Larimer, Hazelwood, Homewood North, Middle Hill, and
+            Homewood South as the clearest cluster review areas.
+          </p>
+        </section>
+
+        <section class="chart-section">
+          <div class="chart-card">
+            <h2>Neighborhood Concentration</h2>
+            <img src="assets/neighborhood_vacancy_concentration.png" alt="Bar chart of residential vacant parcel concentration by neighborhood" />
+          </div>
+          <div class="chart-card">
+            <h2>ZIP Vacancy Penetration</h2>
+            <img src="assets/zip_vacancy_penetration.png" alt="Bar chart of residential vacant parcel penetration by ZIP code" />
+          </div>
+        </section>
+
+        <section class="table-section">
+          <h2>Priority Area Readout</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Area</th>
+                  <th>Signal</th>
+                  <th>Measure</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>15219</td><td>Highest ZIP vacancy penetration</td><td>35.3%</td></tr>
+                <tr><td>15208</td><td>Second highest ZIP vacancy penetration</td><td>34.4%</td></tr>
+                <tr><td>Perry South</td><td>Largest neighborhood parcel count</td><td>553</td></tr>
+                <tr><td>Larimer</td><td>Second largest neighborhood parcel count</td><td>525</td></tr>
+                <tr><td>Homewood North</td><td>Strong cluster and field-review candidate</td><td>442</td></tr>
+                <tr><td>Middle Hill</td><td>Large count with long prior-year tail</td><td>432</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="method-section">
+          <h2>Analyst Notes</h2>
+          <p>
+            This app uses a residential-focused extract: parcels under 2 acres, removing road,
+            rail, utility, public-service, industrial, commercial, and other non-residential
+            anomaly categories. ZIP rates use all residential assessment parcels as the denominator.
+            Neighborhood counts are EPP-linked concentrations, so treat them as cluster signals
+            rather than final neighborhood-wide vacancy rates.
+          </p>
+        </section>
+      </aside>
+    </main>
+
+    <script src="https://js.arcgis.com/4.30/"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,4 +1,34 @@
-# Init Explore: Vacant Land Redevelopment Triage Map
+# Vacant Land Redevelopment Triage Map
+
+This repository publishes a lightweight web map and analysis package for exploring
+vacant land redevelopment triage in Pittsburgh. It combines a public-facing
+ArcGIS Maps SDK parcel map, prior-year delinquency bands, ZIP and neighborhood
+context charts, and the SQL/scripts used to reproduce the analysis from the
+read-only source data.
+
+## Published Links
+
+- GitHub Pages web app: <https://rutomo-ura.github.io/vacant-land-triage-map/>
+- ArcGIS Online item: <https://urap.maps.arcgis.com/home/item.html?id=19022018e35b4b72a2d30cba2d56c8e2>
+
+## What Is In The Web App
+
+- Full citywide parcel map for the residential-focused vacant land extract.
+- Prior-year triage filters for `No known prior years`, `1-4`, `5-10`, and `11+`.
+- Bookmarks for citywide review plus Homewood, Hill District, Perry South, and Larimer.
+- KPI cards, priority-area readout, and contextual charts for ZIP vacancy penetration
+  and named-neighborhood concentration.
+- A public bundle that omits owner names and keeps internal database access out of the
+  static site.
+
+## Current Analysis Highlights
+
+- The public web map includes 20,488 residential-focused vacant parcels.
+- 3,590 mapped parcels fall in the `11+ prior years` triage band.
+- ZIPs `15219` and `15208` show the strongest rate-based vacancy signals in the
+  current extract.
+- Perry South, Larimer, Hazelwood, Homewood North, Middle Hill, and Homewood South
+  are the clearest named-neighborhood cluster review areas.
 
 ## Goal
 
@@ -53,12 +83,29 @@ Useful fields:
 | `par_calcacreag` | Parcel acreage |
 | `fairmarketbuilding` | Building value |
 | `fairmarkettotal` | Total fair market value |
-| `propertyowner` | Owner name |
+| `propertyowner` | Owner name for internal analyst workflows; omitted from the public web map bundle |
 | `usedesc` | Use description |
 | `taxdesc` | Tax status description |
 | `prior_years` | Number of prior delinquent tax years |
 
 ## Fast Project Plan
+
+Afternoon companion files:
+
+- `docs/afternoon_arcgis_work_plan.md` gives the step-by-step working checklist.
+- `sql/vacant_land_read_only_exploration.sql` packages the read-only SQL exploration queries.
+- `templates/arcgis_popup_template.txt` has the popup text for ArcGIS Pro.
+- `scripts/build_live_arcgis_map.py` can build the map from a live ArcGIS `.sde` connection inside ArcGIS Pro.
+- `scripts/export_postgres_snapshot.ps1` is the CSV/JSON fallback if live ArcGIS data access is blocked.
+- `scripts/import_geojson_fallback_arcgis.py` imports the generated GeoJSON fallback into ArcGIS Pro.
+- `scripts/style_and_zoom_live_layer_arcgis.py` makes the live layer visually obvious and zooms to it.
+- `scripts/create_triage_band_layers_arcgis.py` creates four readable live legend layers by prior-year band.
+- `scripts/export_area_analysis.ps1` exports ZIP penetration and named-neighborhood concentration tables.
+- `scripts/render_area_analysis_report.py` creates the analytical HTML report and chart PNGs.
+- `sql/area_vacancy_analysis.sql` documents the area-level SQL logic.
+- `reports/vacant_land_area_analysis.html` is the current analysis report.
+- `webmap/` is the publishable ArcGIS Maps SDK web map with report sidebar.
+- `docs/index.html` is the GitHub Pages copy of the web app.
 
 ### Hour 1: Connect and Add Data
 

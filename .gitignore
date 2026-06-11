@@ -6,6 +6,13 @@
 scratch/
 exports/
 
+# Python generated cache
+__pycache__/
+*.pyc*
+.matplotlib-cache/
+.webmap-server.*.log
+webmap_publish_package.zip
+
 # OS/editor noise
 .DS_Store
 Thumbs.db
