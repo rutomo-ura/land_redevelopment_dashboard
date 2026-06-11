@@ -2,29 +2,29 @@ const bands = [
   {
     value: "11+ prior years",
     label: "11+ prior years",
-    color: "#65528f",
-    outline: "#372a5a",
+    color: "#111820",
+    outline: "#000000",
     count: 3590
   },
   {
     value: "5-10 prior years",
     label: "5-10 prior years",
-    color: "#4a929b",
-    outline: "#265f68",
+    color: "#0098d3",
+    outline: "#005f88",
     count: 841
   },
   {
     value: "1-4 prior years",
     label: "1-4 prior years",
-    color: "#e2b84f",
-    outline: "#9c771e",
+    color: "#f0c24b",
+    outline: "#9f7411",
     count: 1920
   },
   {
     value: "No known prior years",
     label: "No known prior years",
-    color: "#bfc8c9",
-    outline: "#6d7a7d",
+    color: "#c7d0d5",
+    outline: "#65727b",
     count: 14137
   }
 ];
