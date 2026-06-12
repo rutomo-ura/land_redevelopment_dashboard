@@ -31,6 +31,7 @@ const bands = [
 
 const activeBands = new Set(bands.map((band) => band.value));
 const statusNode = document.getElementById("mapStatus");
+const zipFocusCard = document.getElementById("zipFocusCard");
 
 const neighborhoodChartData = [
   { label: "Perry South", value: 553 },
@@ -44,14 +45,14 @@ const neighborhoodChartData = [
 ];
 
 const zipChartData = [
-  { label: "15219", value: 35.3, suffix: "%" },
-  { label: "15208", value: 34.4, suffix: "%" },
-  { label: "15235", value: 32.6, suffix: "%" },
-  { label: "15120", value: 27.7, suffix: "%" },
-  { label: "15233", value: 27.4, suffix: "%" },
-  { label: "15214", value: 26.8, suffix: "%" },
-  { label: "15221", value: 26.8, suffix: "%" },
-  { label: "15207", value: 25.0, suffix: "%" }
+  { label: "15219 - Central Pittsburgh / Hill District", zip: "15219", value: 35.3, suffix: "%" },
+  { label: "15208 - Homewood / Point Breeze", zip: "15208", value: 34.4, suffix: "%" },
+  { label: "15235 - Penn Hills area", zip: "15235", value: 32.6, suffix: "%" },
+  { label: "15120 - Homestead area", zip: "15120", value: 27.7, suffix: "%" },
+  { label: "15233 - North Side / Manchester", zip: "15233", value: 27.4, suffix: "%" },
+  { label: "15214 - North Side / Observatory Hill", zip: "15214", value: 26.8, suffix: "%" },
+  { label: "15221 - Wilkinsburg / East End", zip: "15221", value: 26.8, suffix: "%" },
+  { label: "15207 - Hazelwood / Greenfield", zip: "15207", value: 25.0, suffix: "%" }
 ];
 
 function formatNumber(value) {
@@ -98,6 +99,16 @@ function buildPopupContent(feature) {
 function setStatus(message, isHidden = false) {
   statusNode.textContent = message;
   statusNode.classList.toggle("is-hidden", isHidden);
+}
+
+function setZipFocus(item) {
+  zipFocusCard.innerHTML = `
+    <span class="zip-focus-kicker">ZIP focus</span>
+    <strong>${escapeHtml(item.label)}</strong>
+    <span>${item.value.toFixed(1)}${escapeHtml(item.suffix ?? "")} residential vacancy penetration</span>
+    <em>Click the active ZIP row again or use Citywide to clear.</em>
+  `;
+  zipFocusCard.classList.remove("is-hidden");
 }
 
 function buildWhereClause() {
@@ -167,15 +178,18 @@ function renderBarChart(containerId, data) {
     const percent = Math.max((item.value / maxValue) * 100, 3);
     const suffix = item.suffix ?? "";
     const valueLabel = suffix ? `${item.value.toFixed(1)}${suffix}` : formatNumber(item.value);
+    const tagName = item.zip ? "button" : "div";
+    const zipAttrs = item.zip ? ` type="button" data-zip="${escapeHtml(item.zip)}"` : "";
+    const buttonClass = item.zip ? " chart-row-button" : "";
 
     return `
-      <div class="chart-row">
+      <${tagName} class="chart-row${buttonClass}"${zipAttrs}>
         <div class="chart-label">${escapeHtml(item.label)}</div>
         <div class="chart-track" aria-hidden="true">
           <span class="chart-bar" style="width:${percent}%"></span>
         </div>
         <div class="chart-value">${escapeHtml(valueLabel)}</div>
-      </div>
+      </${tagName}>
     `;
   }).join("");
 }
@@ -187,12 +201,13 @@ require([
   "esri/Map",
   "esri/views/MapView",
   "esri/layers/GeoJSONLayer",
+  "esri/layers/FeatureLayer",
   "esri/widgets/Home",
   "esri/widgets/Search",
   "esri/widgets/BasemapToggle",
   "esri/widgets/Legend",
   "esri/widgets/Expand"
-], (Map, MapView, GeoJSONLayer, Home, Search, BasemapToggle, Legend, Expand) => {
+], (Map, MapView, GeoJSONLayer, FeatureLayer, Home, Search, BasemapToggle, Legend, Expand) => {
   const renderer = {
     type: "unique-value",
     field: "prior_band",
@@ -224,9 +239,30 @@ require([
     }
   });
 
+  const zipBoundaryLayer = new FeatureLayer({
+    url: "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/2",
+    title: "Selected ZIP Code Boundary",
+    outFields: ["ZCTA5", "BASENAME"],
+    definitionExpression: "1=0",
+    visible: true,
+    opacity: 1,
+    renderer: {
+      type: "simple",
+      symbol: {
+        type: "simple-fill",
+        color: [0, 152, 211, 0.08],
+        outline: {
+          color: [0, 152, 211, 1],
+          width: 3
+        }
+      }
+    },
+    popupEnabled: false
+  });
+
   const map = new Map({
     basemap: "topo-vector",
-    layers: [parcelLayer]
+    layers: [parcelLayer, zipBoundaryLayer]
   });
 
   const view = new MapView({
@@ -247,6 +283,9 @@ require([
     }
   });
 
+  let selectedZip = null;
+  let parcelLayerView = null;
+
   view.ui.add(new Home({ view }), "top-left");
   view.ui.add(new Search({ view, includeDefaultSources: true }), "top-right");
   view.ui.add(new BasemapToggle({ view, nextBasemap: "satellite" }), "bottom-right");
@@ -260,11 +299,73 @@ require([
   renderMapLegend();
   renderBandFilters(parcelLayer);
 
+  view.whenLayerView(parcelLayer).then((layerView) => {
+    parcelLayerView = layerView;
+  });
+
+  function clearZipSelection() {
+    selectedZip = null;
+    zipBoundaryLayer.definitionExpression = "1=0";
+    zipFocusCard.classList.add("is-hidden");
+    document.querySelectorAll("[data-zip]").forEach((row) => row.classList.remove("is-active"));
+
+    if (parcelLayerView) {
+      parcelLayerView.filter = null;
+    }
+  }
+
   document.querySelectorAll(".bookmark").forEach((button) => {
     button.addEventListener("click", () => {
+      if (button.textContent.trim() === "Citywide") clearZipSelection();
       const center = button.dataset.center.split(",").map(Number);
       const zoom = Number(button.dataset.zoom);
       view.goTo({ center, zoom }, { duration: 750 });
+    });
+  });
+
+  document.querySelectorAll("[data-zip]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const zip = button.dataset.zip;
+      const item = zipChartData.find((candidate) => candidate.zip === zip);
+
+      if (selectedZip === zip) {
+        clearZipSelection();
+        setStatus("ZIP boundary filter cleared.", false);
+        setTimeout(() => setStatus("", true), 2500);
+        return;
+      }
+
+      selectedZip = zip;
+      document.querySelectorAll("[data-zip]").forEach((row) => {
+        row.classList.toggle("is-active", row === button);
+      });
+
+      zipBoundaryLayer.definitionExpression = `ZCTA5 = '${zip.replaceAll("'", "''")}'`;
+      setZipFocus(item);
+      setStatus("", true);
+
+      try {
+        const query = zipBoundaryLayer.createQuery();
+        query.where = zipBoundaryLayer.definitionExpression;
+        query.returnGeometry = true;
+        query.outFields = ["ZCTA5"];
+        const result = await zipBoundaryLayer.queryFeatures(query);
+        const feature = result.features[0];
+
+        if (feature?.geometry?.extent) {
+          if (parcelLayerView) {
+            parcelLayerView.filter = {
+              geometry: feature.geometry,
+              spatialRelationship: "intersects"
+            };
+          }
+
+          await view.goTo(feature.geometry.extent.expand(1.2), { duration: 650 });
+        }
+      } catch (error) {
+        console.error(error);
+        setStatus(`Could not load the ${zip} boundary from Census TIGERweb.`, false);
+      }
     });
   });
 
