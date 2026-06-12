@@ -535,6 +535,13 @@ button:hover {
   white-space: nowrap;
 }
 
+.chart-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
 .table-wrap {
   overflow: auto;
   background: var(--panel-strong);

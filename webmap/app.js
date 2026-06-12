@@ -45,14 +45,25 @@ const neighborhoodChartData = [
 ];
 
 const zipChartData = [
-  { label: "15219 - Central Pittsburgh / Hill District", zip: "15219", value: 35.3, suffix: "%" },
-  { label: "15208 - Homewood / Point Breeze", zip: "15208", value: 34.4, suffix: "%" },
-  { label: "15235 - Penn Hills area", zip: "15235", value: 32.6, suffix: "%" },
-  { label: "15120 - Homestead area", zip: "15120", value: 27.7, suffix: "%" },
-  { label: "15233 - North Side / Manchester", zip: "15233", value: 27.4, suffix: "%" },
-  { label: "15214 - North Side / Observatory Hill", zip: "15214", value: 26.8, suffix: "%" },
-  { label: "15221 - Wilkinsburg / East End", zip: "15221", value: 26.8, suffix: "%" },
-  { label: "15207 - Hazelwood / Greenfield", zip: "15207", value: 25.0, suffix: "%" }
+  { label: "15219 - Central Pittsburgh / Hill District", zip: "15219", value: 35.3, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
+  { label: "15208 - Homewood / Point Breeze", zip: "15208", value: 34.4, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
+  { label: "15235 - Penn Hills area", zip: "15235", value: 32.6, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
+  { label: "15120 - Homestead area", zip: "15120", value: 27.7, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
+  { label: "15233 - North Side / Manchester", zip: "15233", value: 27.4, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
+  { label: "15214 - North Side / Observatory Hill", zip: "15214", value: 26.8, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
+  { label: "15221 - Wilkinsburg / East End", zip: "15221", value: 26.8, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
+  { label: "15207 - Hazelwood / Greenfield", zip: "15207", value: 25.0, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" }
+];
+
+const zipMedianYearsData = [
+  { label: "15235 - Penn Hills area", zip: "15235", value: 14.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
+  { label: "15221 - Wilkinsburg / East End", zip: "15221", value: 5.5, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
+  { label: "15219 - Central Pittsburgh / Hill District", zip: "15219", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
+  { label: "15208 - Homewood / Point Breeze", zip: "15208", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
+  { label: "15214 - North Side / Observatory Hill", zip: "15214", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
+  { label: "15207 - Hazelwood / Greenfield", zip: "15207", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
+  { label: "15212 - North Side", zip: "15212", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
+  { label: "15210 - South Pittsburgh", zip: "15210", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" }
 ];
 
 function formatNumber(value) {
@@ -102,10 +113,13 @@ function setStatus(message, isHidden = false) {
 }
 
 function setZipFocus(item) {
+  const suffix = item.suffix ?? "";
+  const valueLabel = suffix ? `${item.value.toFixed(1)}${suffix}` : formatNumber(item.value);
+
   zipFocusCard.innerHTML = `
     <span class="zip-focus-kicker">ZIP focus</span>
     <strong>${escapeHtml(item.label)}</strong>
-    <span>${item.value.toFixed(1)}${escapeHtml(item.suffix ?? "")} residential vacancy penetration</span>
+    <span>${escapeHtml(valueLabel)} ${escapeHtml(item.metricLabel)}</span>
     <em>Click the active ZIP row again or use Citywide to clear.</em>
   `;
   zipFocusCard.classList.remove("is-hidden");
@@ -179,7 +193,7 @@ function renderBarChart(containerId, data) {
     const suffix = item.suffix ?? "";
     const valueLabel = suffix ? `${item.value.toFixed(1)}${suffix}` : formatNumber(item.value);
     const tagName = item.zip ? "button" : "div";
-    const zipAttrs = item.zip ? ` type="button" data-zip="${escapeHtml(item.zip)}"` : "";
+    const zipAttrs = item.zip ? ` type="button" data-zip="${escapeHtml(item.zip)}" data-metric="${escapeHtml(item.metricId)}"` : "";
     const buttonClass = item.zip ? " chart-row-button" : "";
 
     return `
@@ -196,6 +210,7 @@ function renderBarChart(containerId, data) {
 
 renderBarChart("neighborhoodChart", neighborhoodChartData);
 renderBarChart("zipChart", zipChartData);
+renderBarChart("zipMedianYearsChart", zipMedianYearsData);
 
 require([
   "esri/Map",
@@ -326,9 +341,11 @@ require([
   document.querySelectorAll("[data-zip]").forEach((button) => {
     button.addEventListener("click", async () => {
       const zip = button.dataset.zip;
-      const item = zipChartData.find((candidate) => candidate.zip === zip);
+      const item = [...zipChartData, ...zipMedianYearsData].find((candidate) => (
+        candidate.zip === zip && candidate.metricId === button.dataset.metric
+      ));
 
-      if (selectedZip === zip) {
+      if (selectedZip === zip && button.classList.contains("is-active")) {
         clearZipSelection();
         setStatus("ZIP boundary filter cleared.", false);
         setTimeout(() => setStatus("", true), 2500);
