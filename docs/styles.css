@@ -47,11 +47,11 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 72px;
-  height: 54px;
-  padding: 7px;
+  width: 98px;
+  height: 42px;
+  padding: 6px 8px;
   background: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.65);
 }
 
 .brand-lockup img {
@@ -536,8 +536,8 @@ tr:last-child td {
   }
 
   .brand-lockup {
-    width: 66px;
-    height: 50px;
+    width: 92px;
+    height: 40px;
   }
 
   .site-links {
@@ -581,8 +581,8 @@ tr:last-child td {
   }
 
   .brand-lockup {
-    width: 64px;
-    height: 48px;
+    width: 88px;
+    height: 38px;
   }
 
   .site-title strong {

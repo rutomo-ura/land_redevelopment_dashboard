@@ -242,7 +242,7 @@ require([
       dockOptions: {
         buttonEnabled: false,
         breakpoint: false,
-        position: "bottom-right"
+        position: "bottom-left"
       }
     }
   });
