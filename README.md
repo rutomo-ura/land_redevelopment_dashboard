@@ -7,7 +7,7 @@ This project helps planners, analysts, and neighborhood partners see where vacan
 ## Explore The Map
 
 - Live web app: <https://rutomo-ura.github.io/vacant-land-triage-map/>
-- ArcGIS Online item: <https://urap.maps.arcgis.com/home/item.html?id=19022018e35b4b72a2d30cba2d56c8e2>
+- ArcGIS Map Viewer: <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2>
 - Repository: <https://github.com/rutomo-ura/vacant-land-triage-map>
 
 ## What This Project Shows

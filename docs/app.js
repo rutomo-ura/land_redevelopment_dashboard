@@ -32,6 +32,28 @@ const bands = [
 const activeBands = new Set(bands.map((band) => band.value));
 const statusNode = document.getElementById("mapStatus");
 
+const neighborhoodChartData = [
+  { label: "Perry South", value: 553 },
+  { label: "Larimer", value: 525 },
+  { label: "Hazelwood", value: 466 },
+  { label: "Homewood North", value: 442 },
+  { label: "Middle Hill", value: 432 },
+  { label: "Homewood South", value: 416 },
+  { label: "Garfield", value: 337 },
+  { label: "Beltzhoover", value: 298 }
+];
+
+const zipChartData = [
+  { label: "15219", value: 35.3, suffix: "%" },
+  { label: "15208", value: 34.4, suffix: "%" },
+  { label: "15235", value: 32.6, suffix: "%" },
+  { label: "15120", value: 27.7, suffix: "%" },
+  { label: "15233", value: 27.4, suffix: "%" },
+  { label: "15214", value: 26.8, suffix: "%" },
+  { label: "15221", value: 26.8, suffix: "%" },
+  { label: "15207", value: 25.0, suffix: "%" }
+];
+
 function formatNumber(value) {
   if (value === null || value === undefined || value === "") return "Not recorded";
   return new Intl.NumberFormat("en-US").format(value);
@@ -136,6 +158,30 @@ function renderMapLegend() {
     </div>
   `;
 }
+
+function renderBarChart(containerId, data) {
+  const container = document.getElementById(containerId);
+  const maxValue = Math.max(...data.map((item) => item.value));
+
+  container.innerHTML = data.map((item) => {
+    const percent = Math.max((item.value / maxValue) * 100, 3);
+    const suffix = item.suffix ?? "";
+    const valueLabel = suffix ? `${item.value.toFixed(1)}${suffix}` : formatNumber(item.value);
+
+    return `
+      <div class="chart-row">
+        <div class="chart-label">${escapeHtml(item.label)}</div>
+        <div class="chart-track" aria-hidden="true">
+          <span class="chart-bar" style="width:${percent}%"></span>
+        </div>
+        <div class="chart-value">${escapeHtml(valueLabel)}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+renderBarChart("neighborhoodChart", neighborhoodChartData);
+renderBarChart("zipChart", zipChartData);
 
 require([
   "esri/Map",

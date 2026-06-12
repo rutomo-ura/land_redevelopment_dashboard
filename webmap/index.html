@@ -17,8 +17,8 @@
         <strong>Vacant Land Redevelopment Triage</strong>
       </div>
       <nav class="site-links" aria-label="Project links">
-        <a href="https://urap.maps.arcgis.com/home/item.html?id=19022018e35b4b72a2d30cba2d56c8e2">ArcGIS Map</a>
-        <a href="https://github.com/rutomo-ura/vacant-land-triage-map">GitHub</a>
+        <a href="https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2">Open Map Viewer</a>
+        <a href="https://github.com/rutomo-ura/vacant-land-triage-map">View Code</a>
       </nav>
     </header>
     <main class="app-shell">
@@ -90,11 +90,11 @@
         <section class="chart-section">
           <div class="chart-card">
             <h2>Neighborhood Concentration</h2>
-            <img src="assets/neighborhood_vacancy_concentration.png" alt="Bar chart of residential vacant parcel concentration by neighborhood" />
+            <div class="native-chart" id="neighborhoodChart" role="img" aria-label="Residential vacant parcel concentration by neighborhood"></div>
           </div>
           <div class="chart-card">
             <h2>ZIP Vacancy Penetration</h2>
-            <img src="assets/zip_vacancy_penetration.png" alt="Bar chart of residential vacant parcel penetration by ZIP code" />
+            <div class="native-chart" id="zipChart" role="img" aria-label="Residential vacant parcel penetration by ZIP code"></div>
           </div>
         </section>
 
