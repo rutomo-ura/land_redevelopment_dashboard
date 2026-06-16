@@ -43,6 +43,24 @@
       "threePlusPriorParcels": 5264
     }
   ],
+  "controlPaths": [
+    {
+      "label": "Existing public control",
+      "value": 9596
+    },
+    {
+      "label": "Public or institutional review",
+      "value": 966
+    },
+    {
+      "label": "Private acquisition review",
+      "value": 5217
+    },
+    {
+      "label": "Private or monitor",
+      "value": 14480
+    }
+  ],
   "kpis": {
     "publicControlledParcels": 9596,
     "publicOrInstitutionalParcels": 10562,

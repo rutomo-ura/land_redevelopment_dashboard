@@ -119,10 +119,38 @@ const ownershipGroups = [
   }
 ];
 
+const controlPathGroups = [
+  {
+    value: "Existing public control",
+    label: "Existing public control",
+    color: "#0098d3",
+    count: 9596
+  },
+  {
+    value: "Public or institutional review",
+    label: "Public / institutional review",
+    color: "#8a8f98",
+    count: 966
+  },
+  {
+    value: "Private acquisition review",
+    label: "Private acquisition review",
+    color: "#111820",
+    count: 5264
+  },
+  {
+    value: "Private or monitor",
+    label: "Private or monitor",
+    color: "#d8e4ea",
+    count: 14433
+  }
+];
+
 const activeBands = new Set(bands.map((band) => band.value));
 const defaultUseGroups = useGroups.filter((group) => group.defaultActive).map((group) => group.value);
 const activeUseGroups = new Set(defaultUseGroups);
 const activeOwnershipGroups = new Set(ownershipGroups.map((group) => group.value));
+const activeControlPaths = new Set(controlPathGroups.map((group) => group.value));
 const statusNode = document.getElementById("mapStatus");
 const areaFocusCard = document.getElementById("areaFocusCard");
 let handleModuleChange = () => {};
@@ -144,6 +172,13 @@ const priorBandChartData = bands.map((band) => ({
 }));
 
 let ownershipChartData = ownershipGroups.map((group) => ({
+  label: group.label,
+  value: group.count,
+  color: group.color,
+  metricLabel: "mapped parcels"
+}));
+
+let controlPathChartData = controlPathGroups.map((group) => ({
   label: group.label,
   value: group.count,
   color: group.color,
@@ -295,7 +330,8 @@ function buildWhereClause() {
   const clauses = [
     buildInClause("use_group", activeUseGroups, useGroups),
     buildInClause("prior_band", activeBands, bands),
-    buildInClause("ownership_group", activeOwnershipGroups, ownershipGroups)
+    buildInClause("ownership_group", activeOwnershipGroups, ownershipGroups),
+    buildInClause("control_path", activeControlPaths, controlPathGroups)
   ].filter(Boolean);
 
   return clauses.length ? clauses.join(" AND ") : "1=1";
@@ -362,6 +398,13 @@ function renderFilters(layer) {
     onChange: updateLayerFilter
   });
 
+  renderFilterList({
+    containerId: "controlPathFilters",
+    items: controlPathGroups,
+    activeValues: activeControlPaths,
+    onChange: updateLayerFilter
+  });
+
   document.getElementById("resetFilters").addEventListener("click", () => {
     activeBands.clear();
     bands.forEach((band) => activeBands.add(band.value));
@@ -369,9 +412,12 @@ function renderFilters(layer) {
     defaultUseGroups.forEach((group) => activeUseGroups.add(group));
     activeOwnershipGroups.clear();
     ownershipGroups.forEach((group) => activeOwnershipGroups.add(group.value));
+    activeControlPaths.clear();
+    controlPathGroups.forEach((group) => activeControlPaths.add(group.value));
     syncFilterCheckboxes("bandFilters", activeBands);
     syncFilterCheckboxes("useGroupFilters", activeUseGroups);
     syncFilterCheckboxes("ownershipGroupFilters", activeOwnershipGroups);
+    syncFilterCheckboxes("controlPathFilters", activeControlPaths);
     updateLayerFilter();
   });
 }
@@ -460,6 +506,13 @@ function updateOwnershipGroupCounts(groups) {
   });
 }
 
+function updateControlPathCounts(groups = []) {
+  const counts = new Map(groups.map((group) => [group.label, group.value]));
+  controlPathGroups.forEach((group) => {
+    group.count = counts.get(group.value) ?? group.count;
+  });
+}
+
 function renderOwnershipKpis(kpis = {}) {
   const container = document.getElementById("ownershipKpis");
   if (!container) return;
@@ -491,7 +544,12 @@ function renderOwnershipAnalysis(analysis = {}) {
     acres: null,
     threePlusPriorParcels: null
   }));
+  const controlPaths = analysis.controlPaths || controlPathGroups.map((group) => ({
+    label: group.value,
+    value: group.count
+  }));
   updateOwnershipGroupCounts(groups);
+  updateControlPathCounts(controlPaths);
   renderOwnershipKpis(analysis.kpis);
   ownershipChartData = groups.map((item) => {
     const config = ownershipGroups.find((group) => group.value === item.label);
@@ -502,7 +560,17 @@ function renderOwnershipAnalysis(analysis = {}) {
       metricLabel: "mapped parcels"
     };
   });
+  controlPathChartData = controlPaths.map((item) => {
+    const config = controlPathGroups.find((group) => group.value === item.label);
+    return {
+      label: config?.label || item.label,
+      value: item.value,
+      color: config?.color,
+      metricLabel: "mapped parcels"
+    };
+  });
   renderBarChart("ownershipMixChart", ownershipChartData);
+  renderBarChart("controlPathChart", controlPathChartData);
   renderOwnershipTable(groups);
 }
 

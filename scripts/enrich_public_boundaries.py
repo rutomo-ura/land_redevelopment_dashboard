@@ -206,10 +206,13 @@ def summarize(features: list[dict[str, object]], field: str, limit: int = 10) ->
 
 def ownership_summary(features: list[dict[str, object]]) -> dict[str, object]:
     groups: dict[str, list[dict[str, object]]] = defaultdict(list)
+    control_paths: dict[str, list[dict[str, object]]] = defaultdict(list)
     for feature in features:
         properties = feature.get("properties") or {}
         group = str(properties.get("ownership_group") or "Private / Other")
         groups[group].append(properties)
+        control_path = str(properties.get("control_path") or "Private or monitor")
+        control_paths[control_path].append(properties)
 
     order = [
         "City Owned",
@@ -251,6 +254,15 @@ def ownership_summary(features: list[dict[str, object]]) -> dict[str, object]:
 
     return {
         "groups": rows,
+        "controlPaths": [
+            {"label": label, "value": len(control_paths.get(label, []))}
+            for label in [
+                "Existing public control",
+                "Public or institutional review",
+                "Private acquisition review",
+                "Private or monitor",
+            ]
+        ],
         "kpis": {
             "publicControlledParcels": public_controlled,
             "publicOrInstitutionalParcels": public_or_institutional,
