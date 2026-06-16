@@ -21,6 +21,8 @@ The generated files are in the ignored `exports/` folder:
 | `webmap/` | publishable ArcGIS Maps SDK web map with report sidebar |
 | `webmap/data/vacant_land_triage.geojson` | sanitized multi-use parcel layer for public web map use |
 | `docs/data/vacant_land_triage.geojson` | GitHub Pages copy of the public multi-use parcel layer |
+| `docs/data/boundary_analysis.json` | chart-ready City neighborhood and Council district summary |
+| `webmap/data/boundary_analysis.json` | source web map copy of the boundary summary |
 
 ## Key Counts
 
@@ -36,6 +38,8 @@ The generated files are in the ignored `exports/` folder:
 | Public multi-use web GeoJSON features | 30,259 |
 | Default residential web view features | 20,663 |
 | Commercial web view features | 1,561 |
+| Parcels assigned to City neighborhoods | 30,051 |
+| Parcels assigned to Council districts | 30,061 |
 
 ## Prior-Year Bands For Broad Fallback Layer
 
@@ -85,8 +89,9 @@ Use the static web map first:
 1. Citywide ArcGIS web map with cleaned parcel bands and property-use filters.
 2. Residential default view for continuity with the current ZIP and neighborhood analysis.
 3. Optional commercial, industrial, public/institutional, infrastructure/utility, and review categories.
-4. Sidebar report with KPI cards, charts, priority area readout, and caveats.
-5. Bookmarks for Homewood, Hill District, Perry South, and Larimer.
+4. Sidebar report with City neighborhood, Council district, and ZIP charts.
+5. Clickable chart rows that draw the selected boundary and filter parcels spatially.
+6. Bookmarks for Homewood, Hill District, Perry South, and Larimer.
 
 Keep the ArcGIS Pro layout as a backup export path if a PDF or print deliverable is requested.
 
@@ -96,6 +101,7 @@ Rebuild the public multi-use GeoJSON after updating the reviewed residential ext
 
 ```powershell
 python scripts\build_public_web_geojson.py
+python scripts\enrich_public_boundaries.py
 ```
 
-The script omits owner names, derives `prior_band`, and assigns a public `use_group` from county assessment `usedesc`.
+The first script omits owner names, derives `prior_band`, and assigns a public `use_group` from county assessment `usedesc`. The second script downloads authoritative WPRDC City neighborhood and 2022 Council district boundaries, assigns parcels by geometry centroid, and writes `boundary_analysis.json` for the native charts.

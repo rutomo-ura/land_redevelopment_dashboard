@@ -29,6 +29,9 @@ PUBLIC_FIELDS = [
     "prior_years",
     "par_calcacreag",
     "fairmarkettotal",
+    "city_neighborhood",
+    "council_district",
+    "council_district_label",
 ]
 
 RESIDENTIAL_USES = {

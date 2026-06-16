@@ -5,25 +5,25 @@
 Title:
 
 ```text
-Vacant Land Residential Triage Parcels
+Vacant Land Redevelopment Explorer Parcels
 ```
 
 Summary:
 
 ```text
-Residential-focused vacant land parcel extract for exploratory redevelopment triage in Pittsburgh.
+Multi-use vacant land parcel extract for exploratory redevelopment review in Pittsburgh.
 ```
 
 Tags:
 
 ```text
-vacant land, URA, Pittsburgh, redevelopment, triage, residential, parcels
+vacant land, URA, Pittsburgh, redevelopment, residential, commercial, parcels
 ```
 
 Description:
 
 ```text
-This hosted feature layer contains a residential-focused vacant land parcel extract derived from the URA GIS PostgreSQL source. The layer excludes large anomaly parcels and obvious infrastructure-like, public-service, commercial, industrial, right-of-way, railroad, utility, park, cemetery, air-rights, warehouse, and office categories. Parcels are grouped by prior-year delinquency band for exploratory redevelopment triage.
+This hosted feature layer contains a sanitized multi-use vacant land parcel extract derived from the URA GIS PostgreSQL source. Parcels are grouped by prior-year history and property-use group for exploratory redevelopment review.
 
 Fields retained for public-facing review include parcel PIN, use description, tax status, prior-year band, prior-year count, parcel acreage, and fair market total value. Owner names are intentionally omitted from the publishable web map data bundle.
 
@@ -35,7 +35,7 @@ This layer is intended for exploratory analysis and parcel-review prioritization
 Title:
 
 ```text
-Vacant Land Redevelopment Triage
+Vacant Land Redevelopment Explorer
 ```
 
 Summary:
@@ -47,7 +47,7 @@ Interactive map and report sidebar showing residential vacant parcel clusters, p
 Tags:
 
 ```text
-vacant land, URA, Pittsburgh, redevelopment, triage, residential, web map, dashboard
+vacant land, URA, Pittsburgh, redevelopment, residential, commercial, web map, dashboard
 ```
 
 Credits:
@@ -59,5 +59,5 @@ Urban Redevelopment Authority of Pittsburgh GIS data; analysis prepared from rea
 Use Limitations:
 
 ```text
-Exploratory triage product. ZIP vacancy penetration uses residential assessment parcels as the denominator. Neighborhood concentration is based on EPP-linked neighborhood labels and should not be interpreted as a complete citywide neighborhood vacancy rate. Confirm parcel suitability with field review, ownership review, zoning, and program criteria before action.
+Exploratory planning product. ZIP vacancy penetration uses residential assessment parcels as the denominator. City neighborhood and Council district assignments use authoritative City boundaries and parcel geometry centroids. Confirm parcel suitability with field review, ownership review, zoning, and program criteria before action.
 ```

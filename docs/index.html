@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Vacant Land Triage Map</title>
+    <title>Vacant Land Redevelopment Explorer</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -14,7 +14,7 @@
       </a>
       <div class="site-title">
         <span class="site-kicker">advancing inclusive growth</span>
-        <strong>Vacant Land Redevelopment Triage</strong>
+        <strong>Vacant Land Redevelopment Explorer</strong>
       </div>
       <nav class="site-links" aria-label="Project links">
         <a href="https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2">Open Map Viewer</a>
@@ -22,20 +22,16 @@
       </nav>
     </header>
     <main class="app-shell">
-      <section class="map-panel" aria-label="Vacant land triage map">
+      <section class="map-panel" aria-label="Vacant land redevelopment map">
         <div id="viewDiv"></div>
-        <div class="map-title-card" aria-label="Map title">
-          <span class="map-title">Vacant Land Redevelopment Triage</span>
-          <span class="map-subtitle">Multi-use parcel extract, residential view by default</span>
-        </div>
-        <div class="map-legend" id="mapLegend" aria-label="Prior-year triage legend"></div>
-        <div class="zip-focus-card is-hidden" id="zipFocusCard" aria-live="polite"></div>
+        <div class="map-legend" id="mapLegend" aria-label="Prior-year history legend"></div>
+        <div class="area-focus-card is-hidden" id="areaFocusCard" aria-live="polite"></div>
         <div class="map-status" id="mapStatus">Loading residential vacant parcels...</div>
       </section>
 
       <aside class="insight-panel" aria-label="Vacant land analysis report">
         <header class="report-header">
-          <p class="eyebrow">URA vacant land triage</p>
+          <p class="eyebrow">URA vacant land explorer</p>
           <h1>Vacant land patterns are clustered, not evenly spread.</h1>
           <p>
             This publishable map starts with residential and residential-adjacent vacant parcels,
@@ -84,17 +80,20 @@
         <section class="insight-section">
           <h2>What Stands Out</h2>
           <p>
-            Residential remains the default view for continuity with the first analysis. ZIPs 15219
-            and 15208 are the strongest rate-based residential signals, while the use filter now
-            lets users bring commercial, industrial, public, infrastructure, and review categories
-            into the same parcel map.
+            Residential remains the default view for continuity with the first analysis. City
+            neighborhood and Council district charts now use authoritative City boundaries, while
+            the ZIP view remains available as a rate-based comparison.
           </p>
         </section>
 
         <section class="chart-section">
           <div class="chart-card">
-            <h2>Neighborhood Concentration</h2>
-            <div class="native-chart" id="neighborhoodChart" role="img" aria-label="Residential vacant parcel concentration by neighborhood"></div>
+            <h2>City Neighborhoods</h2>
+            <div class="native-chart" id="neighborhoodChart" role="img" aria-label="Vacant parcel concentration by City neighborhood"></div>
+          </div>
+          <div class="chart-card">
+            <h2>Council Districts</h2>
+            <div class="native-chart" id="councilChart" role="img" aria-label="Vacant parcel concentration by City Council district"></div>
           </div>
           <div class="chart-card">
             <h2>ZIP Vacancy Penetration</h2>
@@ -119,12 +118,12 @@
                 </tr>
               </thead>
               <tbody>
+                <tr><td>Hazelwood</td><td>Largest City-neighborhood parcel count</td><td>1,455</td></tr>
+                <tr><td>Perry South</td><td>Second largest City-neighborhood parcel count</td><td>1,318</td></tr>
+                <tr><td>D9</td><td>Largest Council district parcel count</td><td>5,930</td></tr>
+                <tr><td>D6</td><td>Second largest Council district parcel count</td><td>5,219</td></tr>
                 <tr><td>15219</td><td>Highest ZIP vacancy penetration</td><td>35.3%</td></tr>
                 <tr><td>15208</td><td>Second highest ZIP vacancy penetration</td><td>34.4%</td></tr>
-                <tr><td>Perry South</td><td>Largest neighborhood parcel count</td><td>553</td></tr>
-                <tr><td>Larimer</td><td>Second largest neighborhood parcel count</td><td>525</td></tr>
-                <tr><td>Homewood North</td><td>Strong cluster and field-review candidate</td><td>442</td></tr>
-                <tr><td>Middle Hill</td><td>Large count with long prior-year tail</td><td>432</td></tr>
               </tbody>
             </table>
           </div>
@@ -136,8 +135,8 @@
             This app now includes a broader public parcel extract with a derived property-use group
             from county assessment <code>usedesc</code>. Residential remains the default view so the existing
             ZIP and neighborhood charts remain comparable to the original analysis. ZIP rates use all residential assessment parcels as the denominator.
-            Neighborhood counts are EPP-linked concentrations, so treat them as cluster signals
-            rather than final neighborhood-wide vacancy rates.
+            Neighborhood and Council district assignments come from authoritative City boundary
+            layers and are based on parcel geometry centroids.
           </p>
         </section>
       </aside>

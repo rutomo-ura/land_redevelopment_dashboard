@@ -78,39 +78,51 @@ const activeBands = new Set(bands.map((band) => band.value));
 const defaultUseGroups = useGroups.filter((group) => group.defaultActive).map((group) => group.value);
 const activeUseGroups = new Set(defaultUseGroups);
 const statusNode = document.getElementById("mapStatus");
-const zipFocusCard = document.getElementById("zipFocusCard");
+const areaFocusCard = document.getElementById("areaFocusCard");
 
-const neighborhoodChartData = [
-  { label: "Perry South", value: 553 },
-  { label: "Larimer", value: 525 },
-  { label: "Hazelwood", value: 466 },
-  { label: "Homewood North", value: 442 },
-  { label: "Middle Hill", value: 432 },
-  { label: "Homewood South", value: 416 },
-  { label: "Garfield", value: 337 },
-  { label: "Beltzhoover", value: 298 }
+let neighborhoodChartData = [
+  { label: "Hazelwood", value: 1455, boundaryType: "neighborhood", boundaryValue: "Hazelwood", metricLabel: "mapped parcels" },
+  { label: "Perry South", value: 1318, boundaryType: "neighborhood", boundaryValue: "Perry South", metricLabel: "mapped parcels" },
+  { label: "Homewood North", value: 1245, boundaryType: "neighborhood", boundaryValue: "Homewood North", metricLabel: "mapped parcels" },
+  { label: "Lincoln-Lemington-Belmar", value: 1074, boundaryType: "neighborhood", boundaryValue: "Lincoln-Lemington-Belmar", metricLabel: "mapped parcels" },
+  { label: "Middle Hill", value: 913, boundaryType: "neighborhood", boundaryValue: "Middle Hill", metricLabel: "mapped parcels" },
+  { label: "Homewood South", value: 839, boundaryType: "neighborhood", boundaryValue: "Homewood South", metricLabel: "mapped parcels" },
+  { label: "Larimer", value: 815, boundaryType: "neighborhood", boundaryValue: "Larimer", metricLabel: "mapped parcels" },
+  { label: "South Side Slopes", value: 801, boundaryType: "neighborhood", boundaryValue: "South Side Slopes", metricLabel: "mapped parcels" }
+];
+
+let councilChartData = [
+  { label: "D9", value: 5930, boundaryType: "council", boundaryValue: "D9", metricLabel: "mapped parcels" },
+  { label: "D6", value: 5219, boundaryType: "council", boundaryValue: "D6", metricLabel: "mapped parcels" },
+  { label: "D2", value: 4535, boundaryType: "council", boundaryValue: "D2", metricLabel: "mapped parcels" },
+  { label: "D1", value: 3574, boundaryType: "council", boundaryValue: "D1", metricLabel: "mapped parcels" },
+  { label: "D3", value: 3391, boundaryType: "council", boundaryValue: "D3", metricLabel: "mapped parcels" },
+  { label: "D5", value: 3255, boundaryType: "council", boundaryValue: "D5", metricLabel: "mapped parcels" },
+  { label: "D4", value: 2365, boundaryType: "council", boundaryValue: "D4", metricLabel: "mapped parcels" },
+  { label: "D7", value: 1435, boundaryType: "council", boundaryValue: "D7", metricLabel: "mapped parcels" },
+  { label: "D8", value: 357, boundaryType: "council", boundaryValue: "D8", metricLabel: "mapped parcels" }
 ];
 
 const zipChartData = [
-  { label: "15219 - Central Pittsburgh / Hill District", zip: "15219", value: 35.3, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
-  { label: "15208 - Homewood / Point Breeze", zip: "15208", value: 34.4, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
-  { label: "15235 - Penn Hills area", zip: "15235", value: 32.6, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
-  { label: "15120 - Homestead area", zip: "15120", value: 27.7, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
-  { label: "15233 - North Side / Manchester", zip: "15233", value: 27.4, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
-  { label: "15214 - North Side / Observatory Hill", zip: "15214", value: 26.8, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
-  { label: "15221 - Wilkinsburg / East End", zip: "15221", value: 26.8, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" },
-  { label: "15207 - Hazelwood / Greenfield", zip: "15207", value: 25.0, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration" }
+  { label: "15219 - Central Pittsburgh / Hill District", value: 35.3, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15219" },
+  { label: "15208 - Homewood / Point Breeze", value: 34.4, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15208" },
+  { label: "15235 - Penn Hills area", value: 32.6, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15235" },
+  { label: "15120 - Homestead area", value: 27.7, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15120" },
+  { label: "15233 - North Side / Manchester", value: 27.4, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15233" },
+  { label: "15214 - North Side / Observatory Hill", value: 26.8, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15214" },
+  { label: "15221 - Wilkinsburg / East End", value: 26.8, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15221" },
+  { label: "15207 - Hazelwood / Greenfield", value: 25.0, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15207" }
 ];
 
 const zipMedianYearsData = [
-  { label: "15235 - Penn Hills area", zip: "15235", value: 14.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
-  { label: "15221 - Wilkinsburg / East End", zip: "15221", value: 5.5, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
-  { label: "15219 - Central Pittsburgh / Hill District", zip: "15219", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
-  { label: "15208 - Homewood / Point Breeze", zip: "15208", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
-  { label: "15214 - North Side / Observatory Hill", zip: "15214", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
-  { label: "15207 - Hazelwood / Greenfield", zip: "15207", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
-  { label: "15212 - North Side", zip: "15212", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" },
-  { label: "15210 - South Pittsburgh", zip: "15210", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years" }
+  { label: "15235 - Penn Hills area", value: 14.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15235" },
+  { label: "15221 - Wilkinsburg / East End", value: 5.5, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15221" },
+  { label: "15219 - Central Pittsburgh / Hill District", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15219" },
+  { label: "15208 - Homewood / Point Breeze", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15208" },
+  { label: "15214 - North Side / Observatory Hill", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15214" },
+  { label: "15207 - Hazelwood / Greenfield", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15207" },
+  { label: "15212 - North Side", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15212" },
+  { label: "15210 - South Pittsburgh", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15210" }
 ];
 
 function formatNumber(value) {
@@ -147,6 +159,8 @@ function buildPopupContent(feature) {
       <dt>Parcel PIN</dt><dd>${escapeHtml(attrs.par_pin)}</dd>
       <dt>Prior years</dt><dd>${escapeHtml(attrs.prior_years ?? "No known prior years")}</dd>
       <dt>Use group</dt><dd>${escapeHtml(attrs.use_group)}</dd>
+      <dt>City neighborhood</dt><dd>${escapeHtml(attrs.city_neighborhood)}</dd>
+      <dt>Council district</dt><dd>${escapeHtml(attrs.council_district_label)}</dd>
       <dt>Use</dt><dd>${escapeHtml(attrs.usedesc)}</dd>
       <dt>Tax status</dt><dd>${escapeHtml(attrs.taxdesc)}</dd>
       <dt>Acreage</dt><dd>${escapeHtml(attrs.par_calcacreag)}</dd>
@@ -160,17 +174,26 @@ function setStatus(message, isHidden = false) {
   statusNode.classList.toggle("is-hidden", isHidden);
 }
 
-function setZipFocus(item) {
+function boundaryTypeLabel(type) {
+  const labels = {
+    zip: "ZIP",
+    neighborhood: "Neighborhood",
+    council: "Council district"
+  };
+  return labels[type] || "Area";
+}
+
+function setAreaFocus(item) {
   const suffix = item.suffix ?? "";
   const valueLabel = suffix ? `${item.value.toFixed(1)}${suffix}` : formatNumber(item.value);
 
-  zipFocusCard.innerHTML = `
-    <span class="zip-focus-kicker">ZIP focus</span>
+  areaFocusCard.innerHTML = `
+    <span class="area-focus-kicker">${escapeHtml(boundaryTypeLabel(item.boundaryType))} focus</span>
     <strong>${escapeHtml(item.label)}</strong>
     <span>${escapeHtml(valueLabel)} ${escapeHtml(item.metricLabel)}</span>
-    <em>Click the active ZIP row again or use Citywide to clear.</em>
+    <em>Click the active row again or use Citywide to clear.</em>
   `;
-  zipFocusCard.classList.remove("is-hidden");
+  areaFocusCard.classList.remove("is-hidden");
 }
 
 function buildInClause(field, activeValues, allValues) {
@@ -256,7 +279,7 @@ function renderFilters(layer) {
 function renderMapLegend() {
   const legend = document.getElementById("mapLegend");
   legend.innerHTML = `
-    <div class="legend-heading">Prior-Year Legend</div>
+    <div class="legend-heading">Prior-Year History</div>
     <div class="legend-items">
       ${bands.map((band) => `
         <div class="legend-item">
@@ -277,12 +300,15 @@ function renderBarChart(containerId, data) {
     const percent = Math.max((item.value / maxValue) * 100, 3);
     const suffix = item.suffix ?? "";
     const valueLabel = suffix ? `${item.value.toFixed(1)}${suffix}` : formatNumber(item.value);
-    const tagName = item.zip ? "button" : "div";
-    const zipAttrs = item.zip ? ` type="button" data-zip="${escapeHtml(item.zip)}" data-metric="${escapeHtml(item.metricId)}"` : "";
-    const buttonClass = item.zip ? " chart-row-button" : "";
+    const isClickable = item.boundaryType && item.boundaryValue;
+    const tagName = isClickable ? "button" : "div";
+    const boundaryAttrs = isClickable
+      ? ` type="button" data-area-type="${escapeHtml(item.boundaryType)}" data-boundary-value="${escapeHtml(item.boundaryValue)}" data-metric="${escapeHtml(item.metricId || "count")}"`
+      : "";
+    const buttonClass = isClickable ? " chart-row-button" : "";
 
     return `
-      <${tagName} class="chart-row${buttonClass}"${zipAttrs}>
+      <${tagName} class="chart-row${buttonClass}"${boundaryAttrs}>
         <div class="chart-label">${escapeHtml(item.label)}</div>
         <div class="chart-track" aria-hidden="true">
           <span class="chart-bar" style="width:${percent}%"></span>
@@ -293,9 +319,41 @@ function renderBarChart(containerId, data) {
   }).join("");
 }
 
-renderBarChart("neighborhoodChart", neighborhoodChartData);
+function rowsFromBoundarySummary(rows, boundaryType) {
+  return rows.map((row) => ({
+    label: row.label,
+    value: row.value,
+    boundaryType,
+    boundaryValue: row.label,
+    metricId: "count",
+    metricLabel: "mapped parcels"
+  }));
+}
+
+function renderBoundaryCharts(analysis) {
+  neighborhoodChartData = rowsFromBoundarySummary(analysis.neighborhoods || neighborhoodChartData, "neighborhood");
+  councilChartData = rowsFromBoundarySummary(analysis.councilDistricts || councilChartData, "council");
+  renderBarChart("neighborhoodChart", neighborhoodChartData);
+  renderBarChart("councilChart", councilChartData);
+}
+
+async function loadBoundaryAnalysis() {
+  try {
+    const response = await fetch("data/boundary_analysis.json");
+    if (!response.ok) throw new Error(`Boundary summary failed with ${response.status}`);
+    const analysis = await response.json();
+    renderBoundaryCharts(analysis);
+  } catch (error) {
+    console.warn(error);
+    renderBarChart("neighborhoodChart", neighborhoodChartData);
+    renderBarChart("councilChart", councilChartData);
+  }
+}
+
+renderBoundaryCharts({ neighborhoods: neighborhoodChartData, councilDistricts: councilChartData });
 renderBarChart("zipChart", zipChartData);
 renderBarChart("zipMedianYearsChart", zipMedianYearsData);
+loadBoundaryAnalysis();
 
 require([
   "esri/Map",
@@ -361,9 +419,51 @@ require([
     popupEnabled: false
   });
 
+  const neighborhoodBoundaryLayer = new FeatureLayer({
+    url: "https://services1.arcgis.com/YZCmUqbcsUpOKfj7/arcgis/rest/services/PGHWebNeighborhoods/FeatureServer/0",
+    title: "Selected City Neighborhood",
+    outFields: ["hood"],
+    definitionExpression: "1=0",
+    visible: true,
+    opacity: 1,
+    renderer: {
+      type: "simple",
+      symbol: {
+        type: "simple-fill",
+        color: [70, 167, 88, 0.08],
+        outline: {
+          color: [70, 167, 88, 1],
+          width: 3
+        }
+      }
+    },
+    popupEnabled: false
+  });
+
+  const councilBoundaryLayer = new FeatureLayer({
+    url: "https://services1.arcgis.com/YZCmUqbcsUpOKfj7/arcgis/rest/services/CouncilDistricts2022/FeatureServer/0",
+    title: "Selected Council District",
+    outFields: ["DIST_ID", "DIST_NAME"],
+    definitionExpression: "1=0",
+    visible: true,
+    opacity: 1,
+    renderer: {
+      type: "simple",
+      symbol: {
+        type: "simple-fill",
+        color: [240, 194, 75, 0.1],
+        outline: {
+          color: [158, 116, 17, 1],
+          width: 3
+        }
+      }
+    },
+    popupEnabled: false
+  });
+
   const map = new Map({
     basemap: "topo-vector",
-    layers: [parcelLayer, zipBoundaryLayer]
+    layers: [parcelLayer, neighborhoodBoundaryLayer, councilBoundaryLayer, zipBoundaryLayer]
   });
 
   const view = new MapView({
@@ -384,7 +484,7 @@ require([
     }
   });
 
-  let selectedZip = null;
+  let selectedAreaKey = null;
   let parcelLayerView = null;
 
   view.ui.add(new Home({ view }), "top-left");
@@ -393,22 +493,45 @@ require([
 
   const legend = new Legend({
     view,
-    layerInfos: [{ layer: parcelLayer, title: "Prior-year triage band" }]
+    layerInfos: [{ layer: parcelLayer, title: "Prior-year history" }]
   });
   view.ui.add(new Expand({ view, content: legend, expanded: false, expandTooltip: "Legend" }), "top-left");
 
   renderMapLegend();
   renderFilters(parcelLayer);
 
+  const boundaryConfigs = {
+    zip: {
+      layer: zipBoundaryLayer,
+      field: "ZCTA5",
+      outFields: ["ZCTA5"],
+      label: "ZIP boundary"
+    },
+    neighborhood: {
+      layer: neighborhoodBoundaryLayer,
+      field: "hood",
+      outFields: ["hood"],
+      label: "neighborhood boundary"
+    },
+    council: {
+      layer: councilBoundaryLayer,
+      field: "DIST_NAME",
+      outFields: ["DIST_ID", "DIST_NAME"],
+      label: "Council district boundary"
+    }
+  };
+
   view.whenLayerView(parcelLayer).then((layerView) => {
     parcelLayerView = layerView;
   });
 
-  function clearZipSelection() {
-    selectedZip = null;
+  function clearAreaSelection() {
+    selectedAreaKey = null;
     zipBoundaryLayer.definitionExpression = "1=0";
-    zipFocusCard.classList.add("is-hidden");
-    document.querySelectorAll("[data-zip]").forEach((row) => row.classList.remove("is-active"));
+    neighborhoodBoundaryLayer.definitionExpression = "1=0";
+    councilBoundaryLayer.definitionExpression = "1=0";
+    areaFocusCard.classList.add("is-hidden");
+    document.querySelectorAll("[data-area-type]").forEach((row) => row.classList.remove("is-active"));
 
     if (parcelLayerView) {
       parcelLayerView.filter = null;
@@ -417,59 +540,86 @@ require([
 
   document.querySelectorAll(".bookmark").forEach((button) => {
     button.addEventListener("click", () => {
-      if (button.textContent.trim() === "Citywide") clearZipSelection();
+      if (button.textContent.trim() === "Citywide") clearAreaSelection();
       const center = button.dataset.center.split(",").map(Number);
       const zoom = Number(button.dataset.zoom);
       view.goTo({ center, zoom }, { duration: 750 });
     });
   });
 
-  document.querySelectorAll("[data-zip]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const zip = button.dataset.zip;
-      const item = [...zipChartData, ...zipMedianYearsData].find((candidate) => (
-        candidate.zip === zip && candidate.metricId === button.dataset.metric
-      ));
+  function sqlValue(value) {
+    return String(value).replaceAll("'", "''");
+  }
 
-      if (selectedZip === zip && button.classList.contains("is-active")) {
-        clearZipSelection();
-        setStatus("ZIP boundary filter cleared.", false);
-        setTimeout(() => setStatus("", true), 2500);
-        return;
-      }
+  function allChartItems() {
+    return [...neighborhoodChartData, ...councilChartData, ...zipChartData, ...zipMedianYearsData];
+  }
 
-      selectedZip = zip;
-      document.querySelectorAll("[data-zip]").forEach((row) => {
-        row.classList.toggle("is-active", row === button);
-      });
+  document.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-area-type]");
+    if (!button) return;
 
-      zipBoundaryLayer.definitionExpression = `ZCTA5 = '${zip.replaceAll("'", "''")}'`;
-      setZipFocus(item);
-      setStatus("", true);
+    const areaType = button.dataset.areaType;
+    const boundaryValue = button.dataset.boundaryValue;
+    const metric = button.dataset.metric || "count";
+    const config = boundaryConfigs[areaType];
+    const item = allChartItems().find((candidate) => (
+      candidate.boundaryType === areaType
+      && candidate.boundaryValue === boundaryValue
+      && (candidate.metricId || "count") === metric
+    )) || {
+      label: boundaryValue,
+      value: 0,
+      metricLabel: "mapped parcels",
+      boundaryType: areaType,
+      boundaryValue
+    };
+    const selectionKey = `${areaType}:${boundaryValue}:${metric}`;
 
-      try {
-        const query = zipBoundaryLayer.createQuery();
-        query.where = zipBoundaryLayer.definitionExpression;
-        query.returnGeometry = true;
-        query.outFields = ["ZCTA5"];
-        const result = await zipBoundaryLayer.queryFeatures(query);
-        const feature = result.features[0];
+    if (selectedAreaKey === selectionKey && button.classList.contains("is-active")) {
+      clearAreaSelection();
+      setStatus(`${boundaryTypeLabel(areaType)} boundary filter cleared.`, false);
+      setTimeout(() => setStatus("", true), 2500);
+      return;
+    }
 
-        if (feature?.geometry?.extent) {
-          if (parcelLayerView) {
-            parcelLayerView.filter = {
-              geometry: feature.geometry,
-              spatialRelationship: "intersects"
-            };
-          }
+    if (!config) return;
 
-          await view.goTo(feature.geometry.extent.expand(1.2), { duration: 650 });
-        }
-      } catch (error) {
-        console.error(error);
-        setStatus(`Could not load the ${zip} boundary from Census TIGERweb.`, false);
-      }
+    selectedAreaKey = selectionKey;
+    document.querySelectorAll("[data-area-type]").forEach((row) => {
+      row.classList.toggle("is-active", row === button);
     });
+
+    Object.values(boundaryConfigs).forEach((boundaryConfig) => {
+      boundaryConfig.layer.definitionExpression = "1=0";
+    });
+
+    config.layer.definitionExpression = `${config.field} = '${sqlValue(boundaryValue)}'`;
+    setAreaFocus(item);
+    setStatus("", true);
+
+    try {
+      const query = config.layer.createQuery();
+      query.where = config.layer.definitionExpression;
+      query.returnGeometry = true;
+      query.outFields = config.outFields;
+      const result = await config.layer.queryFeatures(query);
+      const feature = result.features[0];
+
+      if (feature?.geometry?.extent) {
+        if (parcelLayerView) {
+          parcelLayerView.filter = {
+            geometry: feature.geometry,
+            spatialRelationship: "intersects"
+          };
+        }
+
+        await view.goTo(feature.geometry.extent.expand(1.2), { duration: 650 });
+      }
+    } catch (error) {
+      console.error(error);
+      setStatus(`Could not load the selected ${config.label}.`, false);
+    }
   });
 
   parcelLayer.when(() => {

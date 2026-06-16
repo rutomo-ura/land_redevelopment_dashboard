@@ -1,4 +1,4 @@
-# Vacant Land Redevelopment Triage Map
+# Vacant Land Redevelopment Explorer
 
 An interactive public map for exploring vacant land patterns in Pittsburgh, with a residential default view and optional commercial, industrial, public, infrastructure, and review categories.
 
@@ -23,17 +23,17 @@ The current public map includes:
 - Filters for `No known prior years`, `1-4`, `5-10`, and `11+` prior-year groups.
 - Filters for residential, commercial, industrial, public/institutional, infrastructure/utility, and review property-use groups.
 - Bookmarks for citywide review, Homewood, Hill District, Perry South, and Larimer.
-- Context charts for ZIP vacancy penetration and named-neighborhood concentration.
+- Context charts for City neighborhoods, Council districts, and ZIP vacancy penetration.
 
 ## Current Area Signals
 
 The strongest ZIP-level vacancy penetration signals in this extract are `15219` and `15208`, where more than one-third of residential assessment parcels are vacant-like under the current filter.
 
-The strongest named-neighborhood concentration signals include Perry South, Larimer, Hazelwood, Homewood North, Middle Hill, and Homewood South. These are best treated as places to zoom in for parcel-level review rather than final neighborhood vacancy rates.
+The strongest City-neighborhood parcel concentrations in the current enriched layer include Hazelwood, Perry South, Homewood North, Lincoln-Lemington-Belmar, Middle Hill, Homewood South, and Larimer. Council districts D9 and D6 show the largest mapped parcel counts.
 
 ## How To Read The Map
 
-The map is a triage tool, not a final decision system. It is designed to help people ask better follow-up questions:
+The map is an exploratory planning tool, not a final decision system. It is designed to help people ask better follow-up questions:
 
 - Which clusters should be reviewed parcel by parcel?
 - Which vacant parcels have long delinquency histories?
@@ -46,7 +46,7 @@ The public web bundle omits owner names and internal database connection details
 
 The public layer is a sanitized multi-use extract from the internal vacant land inventory. It omits owner names and includes a derived `use_group` field based on county assessment `usedesc` values. Residential remains the default app view so the current ZIP and neighborhood charts remain comparable to the first analysis.
 
-ZIP penetration uses residential assessment parcels as the denominator. Named-neighborhood concentration is useful for identifying clusters, but it should not be described as a complete neighborhood-wide vacancy rate unless a complete neighborhood denominator is added.
+City neighborhood and Council district assignments are derived from authoritative City boundary layers using parcel geometry centroids. ZIP penetration uses residential assessment parcels as the denominator and remains a rate-based comparison view.
 
 ## Repository Guide
 

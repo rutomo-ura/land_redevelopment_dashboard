@@ -1,0 +1,174 @@
+{
+  "sources": {
+    "neighborhoods": {
+      "name": "City of Pittsburgh Neighborhoods",
+      "geojsonUrl": "https://data.wprdc.org/dataset/e672f13d-71c4-4a66-8f38-710e75ed80a4/resource/4af8e160-57e9-4ebf-a501-76ca1b42fc99/download/neighborhoods.geojson",
+      "serviceUrl": "https://services1.arcgis.com/YZCmUqbcsUpOKfj7/arcgis/rest/services/PGHWebNeighborhoods/FeatureServer/0",
+      "nameField": "hood"
+    },
+    "councilDistricts": {
+      "name": "City of Pittsburgh Council Districts 2022",
+      "geojsonUrl": "https://data.wprdc.org/dataset/8249c8b6-37c6-4849-abe7-c9abbcdf6197/resource/eb8d8237-16d5-4b19-ab71-ed89343aa448/download/council_districts_2022.geojson",
+      "serviceUrl": "https://services1.arcgis.com/YZCmUqbcsUpOKfj7/arcgis/rest/services/CouncilDistricts2022/FeatureServer/0",
+      "idField": "DIST_ID",
+      "nameField": "DIST_NAME"
+    }
+  },
+  "assignmentCounts": {
+    "council_assigned": 30061,
+    "council_unassigned": 198,
+    "neighborhood_assigned": 30051,
+    "neighborhood_unassigned": 208
+  },
+  "neighborhoods": [
+    {
+      "label": "Hazelwood",
+      "value": 1455,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 60,
+      "publicInstitutionalParcels": 365
+    },
+    {
+      "label": "Perry South",
+      "value": 1318,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 32,
+      "publicInstitutionalParcels": 349
+    },
+    {
+      "label": "Homewood North",
+      "value": 1245,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 22,
+      "publicInstitutionalParcels": 236
+    },
+    {
+      "label": "Lincoln-Lemington-Belmar",
+      "value": 1074,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 24,
+      "publicInstitutionalParcels": 215
+    },
+    {
+      "label": "Middle Hill",
+      "value": 913,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 52,
+      "publicInstitutionalParcels": 215
+    },
+    {
+      "label": "Homewood South",
+      "value": 839,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 62,
+      "publicInstitutionalParcels": 74
+    },
+    {
+      "label": "Larimer",
+      "value": 815,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 37,
+      "publicInstitutionalParcels": 134
+    },
+    {
+      "label": "South Side Slopes",
+      "value": 801,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 37,
+      "publicInstitutionalParcels": 143
+    },
+    {
+      "label": "Beechview",
+      "value": 795,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 52,
+      "publicInstitutionalParcels": 158
+    },
+    {
+      "label": "Beltzhoover",
+      "value": 785,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 17,
+      "publicInstitutionalParcels": 114
+    },
+    {
+      "label": "Garfield",
+      "value": 747,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 32,
+      "publicInstitutionalParcels": 156
+    },
+    {
+      "label": "Sheraden",
+      "value": 741,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 14,
+      "publicInstitutionalParcels": 317
+    }
+  ],
+  "councilDistricts": [
+    {
+      "label": "D9",
+      "value": 5930,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 238,
+      "publicInstitutionalParcels": 998
+    },
+    {
+      "label": "D6",
+      "value": 5219,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 289,
+      "publicInstitutionalParcels": 1201
+    },
+    {
+      "label": "D2",
+      "value": 4535,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 253,
+      "publicInstitutionalParcels": 1462
+    },
+    {
+      "label": "D1",
+      "value": 3574,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 170,
+      "publicInstitutionalParcels": 1063
+    },
+    {
+      "label": "D3",
+      "value": 3391,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 132,
+      "publicInstitutionalParcels": 630
+    },
+    {
+      "label": "D5",
+      "value": 3255,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 140,
+      "publicInstitutionalParcels": 877
+    },
+    {
+      "label": "D4",
+      "value": 2365,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 134,
+      "publicInstitutionalParcels": 540
+    },
+    {
+      "label": "D7",
+      "value": 1435,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 141,
+      "publicInstitutionalParcels": 263
+    },
+    {
+      "label": "D8",
+      "value": 357,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 45,
+      "publicInstitutionalParcels": 72
+    }
+  ]
+}
