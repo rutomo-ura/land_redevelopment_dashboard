@@ -22,6 +22,7 @@ OUTPUTS = [
 
 PUBLIC_FIELDS = [
     "par_pin",
+    "parcel_label",
     "taxdesc",
     "usedesc",
     "use_group",
@@ -189,6 +190,18 @@ def control_path(properties: dict[str, object], owner_group: str) -> str:
     return "Private or monitor"
 
 
+def parcel_label(value: object) -> str | None:
+    pin = str(value or "").strip().upper()
+    if len(pin) < 10:
+        return pin or None
+
+    ward = pin[:4].lstrip("0") or "0"
+    block = pin[4]
+    lot = pin[5:10].lstrip("0") or "0"
+    suffix = pin[10:].strip("0")
+    return f"{ward}-{block}-{lot}{suffix}"
+
+
 def load_features(path: Path) -> list[dict[str, object]]:
     data = json.loads(path.read_text(encoding="utf-8-sig"))
     return data.get("features", [])
@@ -200,6 +213,7 @@ def sanitize_feature(feature: dict[str, object]) -> dict[str, object]:
     properties["use_group"] = use_group(properties.get("usedesc"))
     properties["ownership_group"] = ownership_group(properties)
     properties["control_path"] = control_path(properties, properties["ownership_group"])
+    properties["parcel_label"] = properties.get("parcel_label") or parcel_label(properties.get("par_pin"))
 
     return {
         "type": "Feature",

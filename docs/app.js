@@ -119,6 +119,12 @@ const ownershipGroups = [
   }
 ];
 
+const ownershipMapGroups = ownershipGroups.filter((group) => (
+  group.value === "City Owned"
+  || group.value === "URA Owned"
+  || group.value === "PLB Owned"
+));
+
 const controlPathGroups = [
   {
     value: "Existing public control",
@@ -145,6 +151,8 @@ const controlPathGroups = [
     count: 14433
   }
 ];
+
+const ownershipControlPathGroups = controlPathGroups.filter((group) => group.value === "Existing public control");
 
 const activeBands = new Set(bands.map((band) => band.value));
 const defaultUseGroups = useGroups.filter((group) => group.defaultActive).map((group) => group.value);
@@ -327,12 +335,15 @@ function buildInClause(field, activeValues, allValues) {
 }
 
 function buildWhereClause() {
-  const clauses = [
-    buildInClause("use_group", activeUseGroups, useGroups),
-    buildInClause("prior_band", activeBands, bands),
-    buildInClause("ownership_group", activeOwnershipGroups, ownershipGroups),
-    buildInClause("control_path", activeControlPaths, controlPathGroups)
-  ].filter(Boolean);
+  const clauses = currentRenderMode === "ownership"
+    ? [
+      buildInClause("ownership_group", activeOwnershipGroups, ownershipMapGroups),
+      buildInClause("control_path", activeControlPaths, ownershipControlPathGroups)
+    ].filter(Boolean)
+    : [
+      buildInClause("use_group", activeUseGroups, useGroups),
+      buildInClause("prior_band", activeBands, bands)
+    ].filter(Boolean);
 
   return clauses.length ? clauses.join(" AND ") : "1=1";
 }
@@ -393,14 +404,14 @@ function renderFilters(layer) {
 
   renderFilterList({
     containerId: "ownershipGroupFilters",
-    items: ownershipGroups,
+    items: ownershipMapGroups,
     activeValues: activeOwnershipGroups,
     onChange: updateLayerFilter
   });
 
   renderFilterList({
     containerId: "controlPathFilters",
-    items: controlPathGroups,
+    items: ownershipControlPathGroups,
     activeValues: activeControlPaths,
     onChange: updateLayerFilter
   });
@@ -411,9 +422,13 @@ function renderFilters(layer) {
     activeUseGroups.clear();
     defaultUseGroups.forEach((group) => activeUseGroups.add(group));
     activeOwnershipGroups.clear();
-    ownershipGroups.forEach((group) => activeOwnershipGroups.add(group.value));
+    (currentRenderMode === "ownership" ? ownershipMapGroups : ownershipGroups).forEach((group) => {
+      activeOwnershipGroups.add(group.value);
+    });
     activeControlPaths.clear();
-    controlPathGroups.forEach((group) => activeControlPaths.add(group.value));
+    (currentRenderMode === "ownership" ? ownershipControlPathGroups : controlPathGroups).forEach((group) => {
+      activeControlPaths.add(group.value);
+    });
     syncFilterCheckboxes("bandFilters", activeBands);
     syncFilterCheckboxes("useGroupFilters", activeUseGroups);
     syncFilterCheckboxes("ownershipGroupFilters", activeOwnershipGroups);
@@ -424,7 +439,7 @@ function renderFilters(layer) {
 
 function renderMapLegend(mode = currentRenderMode) {
   const legend = document.getElementById("mapLegend");
-  const items = mode === "ownership" ? ownershipGroups : bands;
+  const items = mode === "ownership" ? ownershipMapGroups : bands;
   const heading = mode === "ownership" ? "Ownership / Control" : "Prior-Year History";
   legend.innerHTML = `
     <div class="legend-heading">${escapeHtml(heading)}</div>
@@ -517,22 +532,20 @@ function renderOwnershipKpis(kpis = {}) {
   const container = document.getElementById("ownershipKpis");
   if (!container) return;
 
-  const publicControlled = kpis.publicControlledParcels ?? 9596;
-  const publicOrInstitutional = kpis.publicOrInstitutionalParcels ?? 10562;
-  const privateReview = kpis.privateThreePlusPriorParcels ?? 5264;
+  const counts = new Map(ownershipGroups.map((group) => [group.value, group.count]));
 
   container.innerHTML = `
     <article class="kpi ownership-kpi">
-      <span class="kpi-value">${formatNumber(publicControlled)}</span>
-      <span class="kpi-label">City, URA, PLB, HACP parcels</span>
+      <span class="kpi-value">${formatNumber(counts.get("City Owned") ?? 0)}</span>
+      <span class="kpi-label">City owned parcels</span>
     </article>
     <article class="kpi ownership-kpi">
-      <span class="kpi-value">${formatNumber(publicOrInstitutional)}</span>
-      <span class="kpi-label">Public or institutional parcels</span>
+      <span class="kpi-value">${formatNumber(counts.get("URA Owned") ?? 0)}</span>
+      <span class="kpi-label">URA owned parcels</span>
     </article>
     <article class="kpi ownership-kpi">
-      <span class="kpi-value">${formatNumber(privateReview)}</span>
-      <span class="kpi-label">Private 3+ prior-year parcels</span>
+      <span class="kpi-value">${formatNumber(counts.get("PLB Owned") ?? 0)}</span>
+      <span class="kpi-label">PLB owned parcels</span>
     </article>
   `;
 }
@@ -551,27 +564,27 @@ function renderOwnershipAnalysis(analysis = {}) {
   updateOwnershipGroupCounts(groups);
   updateControlPathCounts(controlPaths);
   renderOwnershipKpis(analysis.kpis);
-  ownershipChartData = groups.map((item) => {
-    const config = ownershipGroups.find((group) => group.value === item.label);
+  ownershipChartData = ownershipMapGroups.map((group) => {
+    const item = groups.find((candidate) => candidate.label === group.value);
     return {
-      label: item.label,
-      value: item.value,
-      color: config?.color,
+      label: group.label,
+      value: item?.value ?? group.count,
+      color: group.color,
       metricLabel: "mapped parcels"
     };
   });
-  controlPathChartData = controlPaths.map((item) => {
-    const config = controlPathGroups.find((group) => group.value === item.label);
+  controlPathChartData = ownershipControlPathGroups.map((group) => {
+    const item = controlPaths.find((candidate) => candidate.label === group.value);
     return {
-      label: config?.label || item.label,
-      value: item.value,
-      color: config?.color,
+      label: group.label,
+      value: item?.value ?? group.count,
+      color: group.color,
       metricLabel: "mapped parcels"
     };
   });
   renderBarChart("ownershipMixChart", ownershipChartData);
   renderBarChart("controlPathChart", controlPathChartData);
-  renderOwnershipTable(groups);
+  renderOwnershipTable(groups.filter((item) => ownershipMapGroups.some((group) => group.value === item.label)));
 }
 
 function renderOwnershipTable(groups) {
@@ -621,14 +634,14 @@ require([
   "esri/widgets/Legend",
   "esri/widgets/Expand"
 ], (Map, MapView, GeoJSONLayer, FeatureLayer, Home, Search, BasemapToggle, Legend, Expand) => {
-  function uniqueValueRenderer(field, items, defaultColor = [180, 188, 190, 0.7]) {
+  function uniqueValueRenderer(field, items, defaultColor = [180, 188, 190, 0.7], defaultOutline = [80, 90, 94, 0.7]) {
     return {
       type: "unique-value",
       field,
       defaultSymbol: {
         type: "simple-fill",
         color: defaultColor,
-        outline: { color: [80, 90, 94, 0.7], width: 0.6 }
+        outline: { color: defaultOutline, width: 0.6 }
       },
       uniqueValueInfos: items.map((item) => ({
         value: item.value,
@@ -643,10 +656,32 @@ require([
   }
 
   const priorRenderer = uniqueValueRenderer("prior_band", bands);
-  const ownershipRenderer = uniqueValueRenderer("ownership_group", ownershipGroups, [216, 228, 234, 0.65]);
+  const ownershipRenderer = uniqueValueRenderer(
+    "ownership_group",
+    ownershipMapGroups,
+    [255, 255, 255, 0],
+    [255, 255, 255, 0]
+  );
+
+  const ownershipLabelingInfo = [{
+    labelExpressionInfo: { expression: "$feature.parcel_label" },
+    labelPlacement: "always-horizontal",
+    minScale: 18000,
+    symbol: {
+      type: "text",
+      color: "#ffffff",
+      haloColor: "#1f2b33",
+      haloSize: 1,
+      font: {
+        family: "Arial",
+        size: 9,
+        weight: "bold"
+      }
+    }
+  }];
 
   const parcelLayer = new GeoJSONLayer({
-    url: "data/vacant_land_triage.geojson",
+    url: "data/vacant_land_triage.geojson?v=ownership-labels-20260616",
     title: "Vacant Land Parcels",
     outFields: ["*"],
     renderer: priorRenderer,
@@ -770,15 +805,31 @@ require([
     activeUseGroups.clear();
     useGroups.forEach((group) => activeUseGroups.add(group.value));
     syncFilterCheckboxes("useGroupFilters", activeUseGroups);
-    applyLayerFilters();
     setStatus("Ownership view expanded to all property uses so public ownership patterns are visible.", false);
     setTimeout(() => setStatus("", true), 3600);
   }
 
+  function replaceActiveValues(activeValues, items) {
+    activeValues.clear();
+    items.forEach((item) => activeValues.add(item.value));
+  }
+
+  function setOwnershipFocus(active) {
+    replaceActiveValues(activeOwnershipGroups, active ? ownershipMapGroups : ownershipGroups);
+    replaceActiveValues(activeControlPaths, active ? ownershipControlPathGroups : controlPathGroups);
+    syncFilterCheckboxes("ownershipGroupFilters", activeOwnershipGroups);
+    syncFilterCheckboxes("controlPathFilters", activeControlPaths);
+  }
+
   function setRenderMode(mode) {
     if (currentRenderMode === mode) return;
+    const isOwnershipMode = mode === "ownership";
+    setOwnershipFocus(isOwnershipMode);
     currentRenderMode = mode;
-    parcelLayer.renderer = mode === "ownership" ? ownershipRenderer : priorRenderer;
+    parcelLayer.renderer = isOwnershipMode ? ownershipRenderer : priorRenderer;
+    parcelLayer.labelingInfo = isOwnershipMode ? ownershipLabelingInfo : null;
+    parcelLayer.labelsVisible = isOwnershipMode;
+    parcelLayer.definitionExpression = buildWhereClause();
     renderMapLegend(mode);
   }
 
