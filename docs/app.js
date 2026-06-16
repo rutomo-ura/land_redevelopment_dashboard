@@ -78,21 +78,21 @@ const ownershipGroups = [
   {
     value: "City Owned",
     label: "City Owned",
-    color: "#fff200",
+    color: "#f7f700",
     outline: "#a9a000",
     count: 8756
   },
   {
     value: "URA Owned",
     label: "URA Owned",
-    color: "#0098d3",
+    color: "#0094d3",
     outline: "#006c9f",
     count: 822
   },
   {
     value: "PLB Owned",
     label: "PLB Owned",
-    color: "#0b4f22",
+    color: "#0e532a",
     outline: "#063315",
     count: 14
   },
@@ -348,6 +348,11 @@ function buildWhereClause() {
   return clauses.length ? clauses.join(" AND ") : "1=1";
 }
 
+function buildOwnershipReferenceWhereClause() {
+  const clause = buildInClause("inventory_type", activeOwnershipGroups, ownershipMapGroups);
+  return clause || "1=1";
+}
+
 function renderFilterList({ containerId, items, activeValues, onChange }) {
   const filterList = document.getElementById(containerId);
   filterList.innerHTML = "";
@@ -382,9 +387,10 @@ function syncFilterCheckboxes(containerId, activeValues) {
   });
 }
 
-function renderFilters(layer) {
+function renderFilters(layer, afterUpdate = () => {}) {
   const updateLayerFilter = () => {
     layer.definitionExpression = buildWhereClause();
+    afterUpdate();
   };
   applyLayerFilters = updateLayerFilter;
 
@@ -662,6 +668,24 @@ require([
     [255, 255, 255, 0],
     [255, 255, 255, 0]
   );
+  const ownershipReferenceRenderer = {
+    type: "unique-value",
+    field: "inventory_type",
+    defaultSymbol: {
+      type: "simple-fill",
+      color: [255, 255, 255, 0],
+      outline: { color: [255, 255, 255, 0], width: 0 }
+    },
+    uniqueValueInfos: ownershipMapGroups.map((item) => ({
+      value: item.value,
+      label: item.label,
+      symbol: {
+        type: "simple-fill",
+        color: item.color,
+        outline: { color: [153, 153, 153, 0.25], width: 0 }
+      }
+    }))
+  };
 
   const ownershipLabelingInfo = [{
     labelExpressionInfo: { expression: "$feature.parcel_label" },
@@ -691,6 +715,70 @@ require([
       title: "{prior_band}",
       content: buildPopupContent
     }
+  });
+
+  const ownershipReferenceLayer = new FeatureLayer({
+    url: "https://services1.arcgis.com/0DMNBNaacQNEfN4H/arcgis/rest/services/gisdb_gis_epp_parcels_full/FeatureServer/0",
+    title: "City, URA, PLB Owned Parcels",
+    outFields: [
+      "inventory_type",
+      "parcel_number",
+      "par_pin",
+      "par_mapblocklo",
+      "current_status",
+      "neighborhood",
+      "council_district",
+      "project_name"
+    ],
+    renderer: ownershipReferenceRenderer,
+    definitionExpression: buildOwnershipReferenceWhereClause(),
+    visible: false,
+    opacity: 1,
+    popupTemplate: {
+      title: "{inventory_type}",
+      content: `
+        <dl class="popup-list">
+          <dt>Parcel</dt><dd>{parcel_number}</dd>
+          <dt>Map-block-lot</dt><dd>{par_mapblocklo}</dd>
+          <dt>Status</dt><dd>{current_status}</dd>
+          <dt>Neighborhood</dt><dd>{neighborhood}</dd>
+          <dt>Council district</dt><dd>{council_district}</dd>
+        </dl>
+      `
+    }
+  });
+
+  const countyParcelReferenceLayer = new FeatureLayer({
+    url: "https://gisdata.alleghenycounty.us/arcgis/rest/services/EGIS/Web_Parcels/MapServer/0",
+    title: "Allegheny County Parcel Reference",
+    outFields: ["MAPBLOCKLOT"],
+    visible: false,
+    minScale: 18056,
+    renderer: {
+      type: "simple",
+      symbol: {
+        type: "simple-fill",
+        color: [0, 0, 0, 0],
+        outline: { color: [133, 133, 133, 1], width: 1 }
+      }
+    },
+    labelingInfo: [{
+      labelExpressionInfo: { expression: "$feature.MAPBLOCKLOT" },
+      labelPlacement: "always-horizontal",
+      minScale: 1398,
+      symbol: {
+        type: "text",
+        color: "#000000",
+        haloColor: "#ffffff",
+        haloSize: 1.5,
+        font: {
+          family: "Tahoma",
+          size: 8.25,
+          weight: "bold"
+        }
+      }
+    }],
+    popupEnabled: false
   });
 
   const zipBoundaryLayer = new FeatureLayer({
@@ -758,7 +846,14 @@ require([
 
   const map = new Map({
     basemap: "topo-vector",
-    layers: [parcelLayer, neighborhoodBoundaryLayer, councilBoundaryLayer, zipBoundaryLayer]
+    layers: [
+      parcelLayer,
+      ownershipReferenceLayer,
+      countyParcelReferenceLayer,
+      neighborhoodBoundaryLayer,
+      councilBoundaryLayer,
+      zipBoundaryLayer
+    ]
   });
 
   const view = new MapView({
@@ -781,6 +876,7 @@ require([
 
   let selectedAreaKey = null;
   let parcelLayerView = null;
+  let ownershipReferenceLayerView = null;
 
   view.ui.add(new Home({ view }), "top-left");
   view.ui.add(new Search({ view, includeDefaultSources: true }), "top-right");
@@ -793,7 +889,9 @@ require([
   view.ui.add(new Expand({ view, content: legend, expanded: false, expandTooltip: "Legend" }), "top-left");
 
   renderMapLegend();
-  renderFilters(parcelLayer);
+  renderFilters(parcelLayer, () => {
+    ownershipReferenceLayer.definitionExpression = buildOwnershipReferenceWhereClause();
+  });
 
   function isDefaultResidentialUseView() {
     return activeUseGroups.size === defaultUseGroups.length
@@ -826,10 +924,18 @@ require([
     const isOwnershipMode = mode === "ownership";
     setOwnershipFocus(isOwnershipMode);
     currentRenderMode = mode;
+    parcelLayer.visible = !isOwnershipMode;
+    ownershipReferenceLayer.visible = isOwnershipMode;
+    countyParcelReferenceLayer.visible = isOwnershipMode;
     parcelLayer.renderer = isOwnershipMode ? ownershipRenderer : priorRenderer;
     parcelLayer.labelingInfo = isOwnershipMode ? ownershipLabelingInfo : null;
     parcelLayer.labelsVisible = isOwnershipMode;
     parcelLayer.definitionExpression = buildWhereClause();
+    ownershipReferenceLayer.definitionExpression = buildOwnershipReferenceWhereClause();
+    legend.layerInfos = [{
+      layer: isOwnershipMode ? ownershipReferenceLayer : parcelLayer,
+      title: isOwnershipMode ? "Ownership / Control" : "Prior-year history"
+    }];
     renderMapLegend(mode);
   }
 
@@ -866,6 +972,9 @@ require([
   view.whenLayerView(parcelLayer).then((layerView) => {
     parcelLayerView = layerView;
   });
+  view.whenLayerView(ownershipReferenceLayer).then((layerView) => {
+    ownershipReferenceLayerView = layerView;
+  });
 
   function clearAreaSelection() {
     selectedAreaKey = null;
@@ -877,6 +986,10 @@ require([
 
     if (parcelLayerView) {
       parcelLayerView.filter = null;
+    }
+
+    if (ownershipReferenceLayerView) {
+      ownershipReferenceLayerView.filter = null;
     }
   }
 
@@ -951,6 +1064,13 @@ require([
       if (feature?.geometry?.extent) {
         if (parcelLayerView) {
           parcelLayerView.filter = {
+            geometry: feature.geometry,
+            spatialRelationship: "intersects"
+          };
+        }
+
+        if (ownershipReferenceLayerView) {
+          ownershipReferenceLayerView.filter = {
             geometry: feature.geometry,
             spatialRelationship: "intersects"
           };
