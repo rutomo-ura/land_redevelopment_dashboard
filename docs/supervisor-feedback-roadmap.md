@@ -75,6 +75,34 @@ The existing City tax delinquency map is a useful reference because it lets user
 - Add filters and legend treatment that make ownership groups visible without overwhelming the delinquency view.
 - Treat private delinquent parcels and public controllable parcels as related but distinct opportunity types.
 - Identify a later data source or review process for public parcels that are development-available versus parks, greenways, committed sites, or other non-development public assets.
+- Consider using ownership and control as the root frame for future modules, with vacant land, acquisition readiness, public property control, assemblage potential, and redevelopment context treated as connected views rather than separate one-off maps.
+
+Related URA sidebar apps suggest a useful direction for the next version:
+
+- [Ownership Overview](https://urap.maps.arcgis.com/apps/instant/sidebar/index.html?appid=ec07466480c6491185acc2c514901446)
+- [URA, City, PLB, HACP Properties](https://urap.maps.arcgis.com/apps/instant/sidebar/index.html?appid=c6b65e8fdd67439fb52224252b07cca0)
+
+The Ownership Overview app centers City, URA, and PLB owned parcels while making context layers available for neighborhoods, Council districts, zoning, URA projects, incentive geographies, address search, parcel search, and 2025 county imagery. The URA, City, PLB, HACP Properties app expands this into a broader public-property frame with HACP properties, three-plus year City tax delinquency, USPS vacancy, condemned properties, proposed open space, parks, steep slopes, and a Potential Assemblages layer.
+
+For the custom dashboard, those references imply that ownership should not be only another filter. It can become the organizing layer for the app: users should be able to ask what is vacant, who can control it, what acquisition path may apply, whether it sits near existing public holdings, and whether surrounding conditions make it suitable for redevelopment.
+
+Candidate public-safe data features:
+
+- `ownership_group`: Private, City, URA, PLB, HACP, other public, institutional or nonprofit, unknown.
+- `control_path`: Existing public control, potential public transfer, tax-sale candidate, watchlist, no clear path.
+- `acquisition_priority`: Three-plus year delinquent, one to two year watchlist, public controllable, context only.
+- `development_availability`: Available or likely review needed, committed, park or open space, infrastructure or slope constraint, unknown.
+- `assemblage_id` and `assemblage_type`: derived grouping for adjacent or nearby parcels that may support coordinated review.
+- `public_context_flags`: zoning, Council district, neighborhood, open space, parks, steep slope, vacancy, condemnation, and imagery-review fields.
+
+Potential dashboard modules:
+
+- Ownership and control overview.
+- Vacant land opportunity explorer.
+- Public property inventory.
+- Potential assemblages.
+- Acquisition readiness.
+- Redevelopment constraints and context.
 
 ### Phase 5: Add Imagery And Layer Controls
 
@@ -91,6 +119,7 @@ The existing City tax delinquency map is a useful reference because it lets user
 - Add authoritative spatial joins for City neighborhoods and Council districts.
 - Add charts and cross-filtering for neighborhood and Council district boundaries.
 - Add ownership or control classification.
+- Explore whether ownership-control views should become the dashboard root, with vacant-land analysis as one connected module.
 - Add an aerial imagery toggle.
 - Document operational limitations around zoning, ownership, delinquency, and development availability.
 
@@ -110,3 +139,5 @@ The existing City tax delinquency map is a useful reference because it lets user
 - Live GitHub Pages app: <https://rutomo-ura.github.io/vacant-land-triage-map/>
 - ArcGIS Map Viewer: <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2>
 - City tax delinquency map reference: <https://urap.maps.arcgis.com/apps/instant/interactivelegend/index.html?appid=8e8964cd0d6649c796742003e1d84a1c>
+- Ownership overview reference: <https://urap.maps.arcgis.com/apps/instant/sidebar/index.html?appid=ec07466480c6491185acc2c514901446>
+- URA, City, PLB, HACP properties reference: <https://urap.maps.arcgis.com/apps/instant/sidebar/index.html?appid=c6b65e8fdd67439fb52224252b07cca0>
