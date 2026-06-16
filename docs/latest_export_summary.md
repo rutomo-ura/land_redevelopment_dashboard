@@ -19,7 +19,8 @@ The generated files are in the ignored `exports/` folder:
 | `reports/assets/neighborhood_vacancy_concentration.png` | chart for zoom-in neighborhood targets |
 | `reports/assets/zip_vacancy_penetration.png` | chart for area-average vacancy penetration |
 | `webmap/` | publishable ArcGIS Maps SDK web map with report sidebar |
-| `webmap/data/vacant_land_residential_triage.geojson` | sanitized residential-focused parcel layer for public web map use |
+| `webmap/data/vacant_land_triage.geojson` | sanitized multi-use parcel layer for public web map use |
+| `docs/data/vacant_land_triage.geojson` | GitHub Pages copy of the public multi-use parcel layer |
 
 ## Key Counts
 
@@ -32,6 +33,9 @@ The generated files are in the ignored `exports/` folder:
 | Taxable vacant land parcels | 18,977 |
 | Broad fallback GeoJSON features | 24,228 |
 | Focused high-priority GeoJSON features | 3,358 |
+| Public multi-use web GeoJSON features | 30,259 |
+| Default residential web view features | 20,663 |
+| Commercial web view features | 1,561 |
 
 ## Prior-Year Bands For Broad Fallback Layer
 
@@ -78,11 +82,20 @@ Important caveat:
 
 Use the static web map first:
 
-1. Citywide ArcGIS web map with cleaned residential parcel bands.
-2. Sidebar report with KPI cards, charts, priority area readout, and caveats.
-3. Bookmarks for Homewood, Hill District, Perry South, and Larimer.
+1. Citywide ArcGIS web map with cleaned parcel bands and property-use filters.
+2. Residential default view for continuity with the current ZIP and neighborhood analysis.
+3. Optional commercial, industrial, public/institutional, infrastructure/utility, and review categories.
+4. Sidebar report with KPI cards, charts, priority area readout, and caveats.
+5. Bookmarks for Homewood, Hill District, Perry South, and Larimer.
 
 Keep the ArcGIS Pro layout as a backup export path if a PDF or print deliverable is requested.
-3. Legend with only four prior-year band layers.
-4. ZIP penetration chart.
-5. Named-neighborhood concentration chart.
+
+## Public Web Data Refresh
+
+Rebuild the public multi-use GeoJSON after updating the reviewed residential extract or the broad export:
+
+```powershell
+python scripts\build_public_web_geojson.py
+```
+
+The script omits owner names, derives `prior_band`, and assigns a public `use_group` from county assessment `usedesc`.

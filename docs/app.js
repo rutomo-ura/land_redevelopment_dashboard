@@ -4,32 +4,79 @@ const bands = [
     label: "11+ prior years",
     color: "#111820",
     outline: "#000000",
-    count: 3590
+    count: 3667
   },
   {
     value: "5-10 prior years",
     label: "5-10 prior years",
     color: "#0098d3",
     outline: "#005f88",
-    count: 841
+    count: 903
   },
   {
     value: "1-4 prior years",
     label: "1-4 prior years",
     color: "#f0c24b",
     outline: "#9f7411",
-    count: 1920
+    count: 2209
   },
   {
     value: "No known prior years",
     label: "No known prior years",
     color: "#c7d0d5",
     outline: "#65727b",
-    count: 14137
+    count: 23480
+  }
+];
+
+const useGroups = [
+  {
+    value: "Residential",
+    label: "Residential",
+    color: "#0098d3",
+    count: 20663,
+    defaultActive: true
+  },
+  {
+    value: "Commercial",
+    label: "Commercial",
+    color: "#7d5fff",
+    count: 1561,
+    defaultActive: false
+  },
+  {
+    value: "Industrial",
+    label: "Industrial",
+    color: "#636a73",
+    count: 127,
+    defaultActive: false
+  },
+  {
+    value: "Public / institutional",
+    label: "Public / institutional",
+    color: "#46a758",
+    count: 7117,
+    defaultActive: false
+  },
+  {
+    value: "Infrastructure / utility",
+    label: "Infrastructure / utility",
+    color: "#b86b00",
+    count: 476,
+    defaultActive: false
+  },
+  {
+    value: "Other / review",
+    label: "Other / review",
+    color: "#8a8f98",
+    count: 315,
+    defaultActive: false
   }
 ];
 
 const activeBands = new Set(bands.map((band) => band.value));
+const defaultUseGroups = useGroups.filter((group) => group.defaultActive).map((group) => group.value);
+const activeUseGroups = new Set(defaultUseGroups);
 const statusNode = document.getElementById("mapStatus");
 const zipFocusCard = document.getElementById("zipFocusCard");
 
@@ -99,6 +146,7 @@ function buildPopupContent(feature) {
     <dl class="popup-grid">
       <dt>Parcel PIN</dt><dd>${escapeHtml(attrs.par_pin)}</dd>
       <dt>Prior years</dt><dd>${escapeHtml(attrs.prior_years ?? "No known prior years")}</dd>
+      <dt>Use group</dt><dd>${escapeHtml(attrs.use_group)}</dd>
       <dt>Use</dt><dd>${escapeHtml(attrs.usedesc)}</dd>
       <dt>Tax status</dt><dd>${escapeHtml(attrs.taxdesc)}</dd>
       <dt>Acreage</dt><dd>${escapeHtml(attrs.par_calcacreag)}</dd>
@@ -125,46 +173,83 @@ function setZipFocus(item) {
   zipFocusCard.classList.remove("is-hidden");
 }
 
-function buildWhereClause() {
-  if (activeBands.size === bands.length) return "1=1";
-  if (activeBands.size === 0) return "1=0";
-  const values = [...activeBands].map((value) => `'${value.replaceAll("'", "''")}'`);
-  return `prior_band IN (${values.join(",")})`;
+function buildInClause(field, activeValues, allValues) {
+  if (activeValues.size === 0) return "1=0";
+  if (activeValues.size === allValues.length) return null;
+  const values = [...activeValues].map((value) => `'${value.replaceAll("'", "''")}'`);
+  return `${field} IN (${values.join(",")})`;
 }
 
-function renderBandFilters(layer) {
-  const filterList = document.getElementById("bandFilters");
+function buildWhereClause() {
+  const clauses = [
+    buildInClause("use_group", activeUseGroups, useGroups),
+    buildInClause("prior_band", activeBands, bands)
+  ].filter(Boolean);
+
+  return clauses.length ? clauses.join(" AND ") : "1=1";
+}
+
+function renderFilterList({ containerId, items, activeValues, onChange }) {
+  const filterList = document.getElementById(containerId);
   filterList.innerHTML = "";
 
-  bands.forEach((band) => {
+  items.forEach((item) => {
     const label = document.createElement("label");
     label.className = "filter-item";
+    const isChecked = activeValues.has(item.value);
     label.innerHTML = `
       <span class="filter-left">
-        <input type="checkbox" value="${escapeHtml(band.value)}" checked />
-        <span class="swatch" style="background:${band.color}"></span>
-        <span class="filter-label">${escapeHtml(band.label)}</span>
+        <input type="checkbox" value="${escapeHtml(item.value)}" ${isChecked ? "checked" : ""} />
+        <span class="swatch" style="background:${item.color}"></span>
+        <span class="filter-label">${escapeHtml(item.label)}</span>
       </span>
-      <span class="filter-count">${formatNumber(band.count)}</span>
+      <span class="filter-count">${formatNumber(item.count)}</span>
     `;
 
     const input = label.querySelector("input");
     input.addEventListener("change", () => {
-      if (input.checked) activeBands.add(band.value);
-      else activeBands.delete(band.value);
-      layer.definitionExpression = buildWhereClause();
+      if (input.checked) activeValues.add(item.value);
+      else activeValues.delete(item.value);
+      onChange();
     });
 
     filterList.appendChild(label);
+  });
+}
+
+function syncFilterCheckboxes(containerId, activeValues) {
+  document.getElementById(containerId).querySelectorAll("input").forEach((input) => {
+    input.checked = activeValues.has(input.value);
+  });
+}
+
+function renderFilters(layer) {
+  const updateLayerFilter = () => {
+    layer.definitionExpression = buildWhereClause();
+  };
+
+  renderFilterList({
+    containerId: "useGroupFilters",
+    items: useGroups,
+    activeValues: activeUseGroups,
+    onChange: updateLayerFilter
+  });
+
+  renderFilterList({
+    containerId: "bandFilters",
+    items: bands,
+    activeValues: activeBands,
+    onChange: updateLayerFilter
   });
 
   document.getElementById("resetFilters").addEventListener("click", () => {
     activeBands.clear();
     bands.forEach((band) => activeBands.add(band.value));
-    filterList.querySelectorAll("input").forEach((input) => {
-      input.checked = true;
-    });
-    layer.definitionExpression = "1=1";
+    activeUseGroups.clear();
+    defaultUseGroups.forEach((group) => activeUseGroups.add(group));
+    syncFilterCheckboxes("bandFilters", activeBands);
+    syncFilterCheckboxes("useGroupFilters", activeUseGroups);
+    updateLayerFilter();
   });
 }
 
@@ -243,10 +328,11 @@ require([
   };
 
   const parcelLayer = new GeoJSONLayer({
-    url: "data/vacant_land_residential_triage.geojson",
-    title: "Residential Vacant Parcels",
+    url: "data/vacant_land_triage.geojson",
+    title: "Vacant Land Parcels",
     outFields: ["*"],
     renderer,
+    definitionExpression: buildWhereClause(),
     opacity: 0.86,
     popupTemplate: {
       title: "{prior_band}",
@@ -312,7 +398,7 @@ require([
   view.ui.add(new Expand({ view, content: legend, expanded: false, expandTooltip: "Legend" }), "top-left");
 
   renderMapLegend();
-  renderBandFilters(parcelLayer);
+  renderFilters(parcelLayer);
 
   view.whenLayerView(parcelLayer).then((layerView) => {
     parcelLayerView = layerView;
@@ -387,7 +473,7 @@ require([
   });
 
   parcelLayer.when(() => {
-    setStatus("20,488 residential-focused vacant parcels loaded. Click a parcel for triage details.", false);
+    setStatus("Residential view active by default. 30,259 multi-use vacant parcels are available through the use filter.", false);
     view.goTo(parcelLayer.fullExtent.expand(1.08), { duration: 600 }).catch(() => {});
     setTimeout(() => setStatus("", true), 4200);
   }).catch((error) => {

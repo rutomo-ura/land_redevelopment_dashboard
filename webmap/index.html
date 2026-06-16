@@ -26,7 +26,7 @@
         <div id="viewDiv"></div>
         <div class="map-title-card" aria-label="Map title">
           <span class="map-title">Vacant Land Redevelopment Triage</span>
-          <span class="map-subtitle">Residential-focused parcel extract</span>
+          <span class="map-subtitle">Multi-use parcel extract, residential view by default</span>
         </div>
         <div class="map-legend" id="mapLegend" aria-label="Prior-year triage legend"></div>
         <div class="zip-focus-card is-hidden" id="zipFocusCard" aria-live="polite"></div>
@@ -36,30 +36,30 @@
       <aside class="insight-panel" aria-label="Vacant land analysis report">
         <header class="report-header">
           <p class="eyebrow">URA vacant land triage</p>
-          <h1>Residential vacancy is clustered, not evenly spread.</h1>
+          <h1>Vacant land patterns are clustered, not evenly spread.</h1>
           <p>
-            This publishable map focuses on small residential or residential-adjacent vacant parcels,
-            excluding large anomaly parcels and infrastructure-like land. Use it citywide first, then
-            zoom into clusters for parcel triage.
+            This publishable map starts with residential and residential-adjacent vacant parcels,
+            then lets users add commercial, industrial, public, infrastructure, and review categories
+            for broader redevelopment exploration.
           </p>
         </header>
 
         <section class="kpi-grid" aria-label="Key map metrics">
           <article class="kpi">
-            <span class="kpi-value">20,488</span>
+            <span class="kpi-value">30,259</span>
             <span class="kpi-label">mapped parcels</span>
           </article>
           <article class="kpi">
-            <span class="kpi-value">3,590</span>
+            <span class="kpi-value">20,663</span>
+            <span class="kpi-label">default residential view</span>
+          </article>
+          <article class="kpi">
+            <span class="kpi-value">3,667</span>
             <span class="kpi-label">11+ prior years</span>
           </article>
           <article class="kpi">
-            <span class="kpi-value">35.3%</span>
-            <span class="kpi-label">top ZIP penetration</span>
-          </article>
-          <article class="kpi">
-            <span class="kpi-value">553</span>
-            <span class="kpi-label">top neighborhood count</span>
+            <span class="kpi-value">1,561</span>
+            <span class="kpi-label">commercial parcels</span>
           </article>
         </section>
 
@@ -68,6 +68,9 @@
             <h2>Filter Map</h2>
             <button id="resetFilters" type="button">Reset</button>
           </div>
+          <h3 class="filter-heading">Property Use</h3>
+          <div class="filter-list" id="useGroupFilters"></div>
+          <h3 class="filter-heading">Prior-Year History</h3>
           <div class="filter-list" id="bandFilters"></div>
           <div class="bookmark-row" aria-label="Area bookmarks">
             <button class="bookmark" data-center="-79.9959,40.4406" data-zoom="12" type="button">Citywide</button>
@@ -81,10 +84,10 @@
         <section class="insight-section">
           <h2>What Stands Out</h2>
           <p>
-            ZIPs 15219 and 15208 are the strongest rate-based signals: more than one-third of
-            residential assessment parcels are vacant-like in the current extract. Neighborhood
-            counts point to Perry South, Larimer, Hazelwood, Homewood North, Middle Hill, and
-            Homewood South as the clearest cluster review areas.
+            Residential remains the default view for continuity with the first analysis. ZIPs 15219
+            and 15208 are the strongest rate-based residential signals, while the use filter now
+            lets users bring commercial, industrial, public, infrastructure, and review categories
+            into the same parcel map.
           </p>
         </section>
 
@@ -130,9 +133,9 @@
         <section class="method-section">
           <h2>Analyst Notes</h2>
           <p>
-            This app uses a residential-focused extract: parcels under 2 acres, removing road,
-            rail, utility, public-service, industrial, commercial, and other non-residential
-            anomaly categories. ZIP rates use all residential assessment parcels as the denominator.
+            This app now includes a broader public parcel extract with a derived property-use group
+            from county assessment <code>usedesc</code>. Residential remains the default view so the existing
+            ZIP and neighborhood charts remain comparable to the original analysis. ZIP rates use all residential assessment parcels as the denominator.
             Neighborhood counts are EPP-linked concentrations, so treat them as cluster signals
             rather than final neighborhood-wide vacancy rates.
           </p>

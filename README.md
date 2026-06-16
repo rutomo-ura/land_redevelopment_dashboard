@@ -1,6 +1,6 @@
 # Vacant Land Redevelopment Triage Map
 
-An interactive public map for exploring residential-focused vacant land patterns in Pittsburgh.
+An interactive public map for exploring vacant land patterns in Pittsburgh, with a residential default view and optional commercial, industrial, public, infrastructure, and review categories.
 
 This project helps planners, analysts, and neighborhood partners see where vacant parcels are clustered, where long delinquency histories may warrant closer review, and which areas may need a more detailed redevelopment, acquisition, maintenance, or data-quality conversation.
 
@@ -12,13 +12,16 @@ This project helps planners, analysts, and neighborhood partners see where vacan
 
 ## What This Project Shows
 
-The web app presents a citywide parcel map with a right-side analysis panel. Parcels are grouped by prior-year delinquency band so users can move from a broad pattern view into individual parcel review.
+The web app presents a citywide parcel map with a right-side analysis panel. Parcels are grouped by prior-year delinquency band and property-use group so users can move from a broad pattern view into individual parcel review.
 
 The current public map includes:
 
-- 20,488 residential-focused vacant parcels.
-- 3,590 parcels in the `11+ prior years` band.
+- 30,259 mapped vacant parcels in the public multi-use bundle.
+- 20,663 parcels in the default residential view.
+- 3,667 parcels in the `11+ prior years` band.
+- 1,561 commercial parcels available through the property-use filter.
 - Filters for `No known prior years`, `1-4`, `5-10`, and `11+` prior-year groups.
+- Filters for residential, commercial, industrial, public/institutional, infrastructure/utility, and review property-use groups.
 - Bookmarks for citywide review, Homewood, Hill District, Perry South, and Larimer.
 - Context charts for ZIP vacancy penetration and named-neighborhood concentration.
 
@@ -41,13 +44,14 @@ The public web bundle omits owner names and internal database connection details
 
 ## Data And Method Notes
 
-The public layer is a residential-focused extract from the internal vacant land inventory. It filters out obvious non-residential and infrastructure-like land uses such as roads, rail, utilities, public-service land, industrial parcels, commercial parcels, and large anomaly polygons.
+The public layer is a sanitized multi-use extract from the internal vacant land inventory. It omits owner names and includes a derived `use_group` field based on county assessment `usedesc` values. Residential remains the default app view so the current ZIP and neighborhood charts remain comparable to the first analysis.
 
 ZIP penetration uses residential assessment parcels as the denominator. Named-neighborhood concentration is useful for identifying clusters, but it should not be described as a complete neighborhood-wide vacancy rate unless a complete neighborhood denominator is added.
 
 ## Repository Guide
 
 - `docs/` contains the GitHub Pages app and project documentation.
+- `docs/supervisor-feedback-roadmap.md` summarizes review feedback and future improvement priorities.
 - `docs/arcgis_quickstart_tutorial.md` preserves the analyst tutorial and original ArcGIS/SQL walkthrough.
 - `webmap/` contains the source copy of the static ArcGIS Maps SDK app.
 - `reports/` contains the rendered area-analysis report and chart assets.
