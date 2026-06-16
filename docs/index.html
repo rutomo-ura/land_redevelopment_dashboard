@@ -18,7 +18,6 @@
       </div>
       <nav class="site-links" aria-label="Project links">
         <a href="https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2">ArcGIS</a>
-        <a href="complete-dashboard-prd.md">PRD</a>
         <a href="https://github.com/rutomo-ura/vacant-land-triage-map">GitHub</a>
       </nav>
     </header>
@@ -35,7 +34,7 @@
           <p class="eyebrow">Dashboard v1 frame</p>
           <h1>Screen vacant land by place, use, control path, and redevelopment context.</h1>
           <p>
-            This first PRD-aligned frame keeps the public parcel explorer live while organizing the
+            This decision-support frame keeps the public parcel explorer live while organizing the
             next build around ownership, acquisition readiness, public property, assemblages, and
             verification layers.
           </p>
@@ -72,7 +71,7 @@
               </article>
             </section>
 
-            <section class="status-grid" aria-label="PRD module status">
+            <section class="status-grid" aria-label="Dashboard module status">
               <article class="status-card is-live">
                 <span>Live</span>
                 <strong>Vacant land explorer</strong>
@@ -93,7 +92,7 @@
             <section class="insight-section">
               <h2>Decision Frame</h2>
               <p>
-                The PRD moves this project from parcel display toward decision support. The durable
+                The dashboard moves this project from parcel display toward decision support. The durable
                 sequence is vacant land, ownership/control, acquisition path, public-property context,
                 assemblage potential, then verification through imagery and constraints.
               </p>
@@ -150,18 +149,47 @@
 
           <section class="module-panel" id="module-ownership" data-module-panel="ownership">
             <section class="module-brief">
-              <span class="module-status">Next data build</span>
+              <span class="module-status is-live-status">Live</span>
               <h2>Ownership And Control</h2>
               <p>
-                This module will become the dashboard spine: it separates private acquisition candidates
-                from land that may already be controllable through URA, City, PLB, HACP, or other public ownership.
+                Ownership is grouped into public-safe categories. Raw owner names remain out of the
+                public web bundle, while City, URA, PLB, HACP, other public/institutional, and private
+                categories can drive the map and dashboard.
               </p>
             </section>
-            <div class="schema-list">
-              <article><strong>ownership_group</strong><span>Private, City, URA, PLB, HACP, other public, institutional/nonprofit, unknown.</span></article>
-              <article><strong>control_path</strong><span>Existing public control, potential transfer, tax-sale candidate, watchlist, no clear path.</span></article>
-              <article><strong>owner_bucket</strong><span>Public-safe grouping that preserves analytical value without publishing owner names.</span></article>
-            </div>
+            <section class="kpi-grid ownership-kpi-grid" id="ownershipKpis" aria-label="Ownership summary metrics"></section>
+            <section class="controls-section" aria-label="Ownership filters">
+              <div class="section-heading">
+                <h2>Ownership Filter</h2>
+              </div>
+              <div class="filter-list" id="ownershipGroupFilters"></div>
+            </section>
+            <section class="chart-section">
+              <div class="chart-card">
+                <h2>Ownership Mix</h2>
+                <div class="native-chart" id="ownershipMixChart" role="img" aria-label="Mapped vacant parcel counts by ownership group"></div>
+              </div>
+            </section>
+            <section class="table-section ownership-table-section">
+              <h2>Ownership Readout</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Group</th>
+                      <th>Parcels</th>
+                      <th>Acres</th>
+                      <th>3+ prior years</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ownershipTableBody"></tbody>
+                </table>
+              </div>
+              <p class="chart-note">
+                Ownership groups are a screening layer derived from the internal owner field and assessment use descriptions.
+                Verify source records before acquisition, transfer, or redevelopment decisions.
+              </p>
+            </section>
           </section>
 
           <section class="module-panel" id="module-acquisition" data-module-panel="acquisition">

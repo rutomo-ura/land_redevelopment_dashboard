@@ -23,6 +23,10 @@ SUMMARY_OUTPUTS = [
     REPO_ROOT / "docs" / "data" / "boundary_analysis.json",
     REPO_ROOT / "webmap" / "data" / "boundary_analysis.json",
 ]
+OWNERSHIP_OUTPUTS = [
+    REPO_ROOT / "docs" / "data" / "ownership_analysis.json",
+    REPO_ROOT / "webmap" / "data" / "ownership_analysis.json",
+]
 
 NEIGHBORHOOD_GEOJSON_URL = (
     "https://data.wprdc.org/dataset/e672f13d-71c4-4a66-8f38-710e75ed80a4/"
@@ -200,6 +204,71 @@ def summarize(features: list[dict[str, object]], field: str, limit: int = 10) ->
     return rows[:limit]
 
 
+def ownership_summary(features: list[dict[str, object]]) -> dict[str, object]:
+    groups: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for feature in features:
+        properties = feature.get("properties") or {}
+        group = str(properties.get("ownership_group") or "Private / Other")
+        groups[group].append(properties)
+
+    order = [
+        "City Owned",
+        "URA Owned",
+        "PLB Owned",
+        "HACP Owned",
+        "Other Public / Institutional",
+        "Private / Other",
+    ]
+
+    rows = []
+    for group in order:
+        properties_list = groups.get(group, [])
+        acres = sum(float(item.get("par_calcacreag") or 0) for item in properties_list)
+        rows.append(
+            {
+                "label": group,
+                "value": len(properties_list),
+                "acres": round(acres, 2),
+                "longPriorParcels": sum(int(item.get("prior_years") or 0) >= 11 for item in properties_list),
+                "threePlusPriorParcels": sum(int(item.get("prior_years") or 0) >= 3 for item in properties_list),
+            }
+        )
+
+    public_controlled = sum(
+        item["value"]
+        for item in rows
+        if item["label"] in {"City Owned", "URA Owned", "PLB Owned", "HACP Owned"}
+    )
+    public_or_institutional = sum(
+        item["value"]
+        for item in rows
+        if item["label"] != "Private / Other"
+    )
+    private_review = next(
+        (item["threePlusPriorParcels"] for item in rows if item["label"] == "Private / Other"),
+        0,
+    )
+
+    return {
+        "groups": rows,
+        "kpis": {
+            "publicControlledParcels": public_controlled,
+            "publicOrInstitutionalParcels": public_or_institutional,
+            "privateThreePlusPriorParcels": private_review,
+        },
+        "topPublicNeighborhoods": summarize(
+            [
+                {"properties": item}
+                for feature in features
+                for item in [feature.get("properties") or {}]
+                if item.get("ownership_group") != "Private / Other"
+            ],
+            "city_neighborhood",
+            8,
+        ),
+    }
+
+
 def main() -> None:
     parcels = load_json(PUBLIC_GEOJSON_PATHS[0])
     features = parcels.get("features", [])
@@ -248,9 +317,11 @@ def main() -> None:
         "neighborhoods": summarize(features, "city_neighborhood", 12),
         "councilDistricts": summarize(features, "council_district_label", 9),
     }
+    ownership = ownership_summary(features)
 
     parcel_text = json.dumps(parcels, ensure_ascii=False, separators=(",", ":"))
     summary_text = json.dumps(summary, ensure_ascii=False, indent=2)
+    ownership_text = json.dumps(ownership, ensure_ascii=False, indent=2)
 
     for path in PUBLIC_GEOJSON_PATHS:
         path.write_text(parcel_text, encoding="utf-8")
@@ -258,6 +329,10 @@ def main() -> None:
 
     for path in SUMMARY_OUTPUTS:
         path.write_text(summary_text, encoding="utf-8")
+        print(f"Wrote {path}")
+
+    for path in OWNERSHIP_OUTPUTS:
+        path.write_text(ownership_text, encoding="utf-8")
         print(f"Wrote {path}")
 
     print(json.dumps(summary["assignmentCounts"], indent=2))

@@ -1,0 +1,109 @@
+{
+  "groups": [
+    {
+      "label": "City Owned",
+      "value": 8756,
+      "acres": 4420.82,
+      "longPriorParcels": 2,
+      "threePlusPriorParcels": 23
+    },
+    {
+      "label": "URA Owned",
+      "value": 822,
+      "acres": 405.25,
+      "longPriorParcels": 6,
+      "threePlusPriorParcels": 19
+    },
+    {
+      "label": "PLB Owned",
+      "value": 14,
+      "acres": 8.32,
+      "longPriorParcels": 0,
+      "threePlusPriorParcels": 4
+    },
+    {
+      "label": "HACP Owned",
+      "value": 4,
+      "acres": 35.26,
+      "longPriorParcels": 1,
+      "threePlusPriorParcels": 1
+    },
+    {
+      "label": "Other Public / Institutional",
+      "value": 966,
+      "acres": 948.84,
+      "longPriorParcels": 9,
+      "threePlusPriorParcels": 18
+    },
+    {
+      "label": "Private / Other",
+      "value": 19697,
+      "acres": 9377.54,
+      "longPriorParcels": 3649,
+      "threePlusPriorParcels": 5264
+    }
+  ],
+  "kpis": {
+    "publicControlledParcels": 9596,
+    "publicOrInstitutionalParcels": 10562,
+    "privateThreePlusPriorParcels": 5264
+  },
+  "topPublicNeighborhoods": [
+    {
+      "label": "Hazelwood",
+      "value": 592,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 15,
+      "publicInstitutionalParcels": 365
+    },
+    {
+      "label": "Perry South",
+      "value": 582,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 12,
+      "publicInstitutionalParcels": 349
+    },
+    {
+      "label": "Homewood North",
+      "value": 470,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 10,
+      "publicInstitutionalParcels": 236
+    },
+    {
+      "label": "Sheraden",
+      "value": 412,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 1,
+      "publicInstitutionalParcels": 317
+    },
+    {
+      "label": "Larimer",
+      "value": 411,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 11,
+      "publicInstitutionalParcels": 134
+    },
+    {
+      "label": "Perry North",
+      "value": 402,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 3,
+      "publicInstitutionalParcels": 339
+    },
+    {
+      "label": "Lincoln-Lemington-Belmar",
+      "value": 350,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 9,
+      "publicInstitutionalParcels": 215
+    },
+    {
+      "label": "Beltzhoover",
+      "value": 339,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 4,
+      "publicInstitutionalParcels": 114
+    }
+  ]
+}

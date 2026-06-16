@@ -38,6 +38,9 @@ The generated files are in the ignored `exports/` folder:
 | Public multi-use web GeoJSON features | 30,259 |
 | Default residential web view features | 20,663 |
 | Commercial web view features | 1,561 |
+| Public/control grouped parcels: City, URA, PLB, HACP | 9,596 |
+| Public or institutional grouped parcels | 10,562 |
+| Private/other parcels with 3+ prior years | 5,264 |
 | Parcels assigned to City neighborhoods | 30,051 |
 | Parcels assigned to Council districts | 30,061 |
 
@@ -105,3 +108,5 @@ python scripts\enrich_public_boundaries.py
 ```
 
 The first script omits owner names, derives `prior_band`, and assigns a public `use_group` from county assessment `usedesc`. The second script downloads authoritative WPRDC City neighborhood and 2022 Council district boundaries, assigns parcels by geometry centroid, and writes `boundary_analysis.json` for the native charts.
+
+The public bundle now also includes `ownership_group` and `control_path`. These are public-safe groupings derived from internal owner fields and assessment descriptions; raw owner names remain excluded from GitHub Pages data.

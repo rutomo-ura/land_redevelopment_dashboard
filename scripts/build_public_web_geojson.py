@@ -25,6 +25,8 @@ PUBLIC_FIELDS = [
     "taxdesc",
     "usedesc",
     "use_group",
+    "ownership_group",
+    "control_path",
     "prior_band",
     "prior_years",
     "par_calcacreag",
@@ -126,6 +128,67 @@ def use_group(usedesc: object) -> str:
     return "Other / review"
 
 
+def _compact(value: object) -> str:
+    return "".join(char for char in str(value or "").upper() if char.isalnum())
+
+
+def ownership_group(properties: dict[str, object]) -> str:
+    owner = _compact(properties.get("propertyowner"))
+    desc = str(properties.get("usedesc") or "").strip().upper()
+    group = use_group(properties.get("usedesc"))
+
+    if "PITTSBURGHLANDBANK" in owner:
+        return "PLB Owned"
+    if "URBANREDEVELOPMENTAUTHORITYOFPITTSBURGH" in owner:
+        return "URA Owned"
+    if "CITYOFPITTSBURGH" in owner:
+        return "City Owned"
+    if "HOUSINGAUTHORITYCITYOFPITTSBURGH" in owner or "HACP" in owner:
+        return "HACP Owned"
+
+    public_owner_tokens = [
+        "COMMONWEALTHOFPENNSYLVANIA",
+        "ALLEGHENYCOUNTY",
+        "FEDERAL",
+        "PORTAUTHORITY",
+        "PITTSBURGHPARKINGAUTHORITY",
+        "PARKINGAUTHORITYOFPITTSBURGH",
+        "SCHOOLDISTRICT",
+        "BOARDOFPUBLICEDUCATION",
+        "SANITARYAUTHORITY",
+        "SPORTSEXHIBITIONAUTHORITY",
+        "REDEVELOPMENTAUTHORITYOFALLEGHENYCOUNTY",
+    ]
+    if any(token in owner for token in public_owner_tokens):
+        return "Other Public / Institutional"
+
+    if desc in {"MUNICIPAL GOVERNMENT", "MUNICIPAL IMPROVEMENT"}:
+        return "City Owned"
+    if desc in {"MUNICIPAL URBAN RENEWAL", "COMMUNITY URBAN RENEWAL"}:
+        return "URA Owned"
+    if desc == "OWNED BY METRO HOUSING AU":
+        return "HACP Owned"
+    if group == "Public / institutional":
+        return "Other Public / Institutional"
+    return "Private / Other"
+
+
+def control_path(properties: dict[str, object], owner_group: str) -> str:
+    taxdesc = str(properties.get("taxdesc") or "")
+    try:
+        prior_years = int(properties.get("prior_years") or 0)
+    except (TypeError, ValueError):
+        prior_years = 0
+
+    if owner_group in {"City Owned", "URA Owned", "PLB Owned", "HACP Owned"}:
+        return "Existing public control"
+    if owner_group == "Other Public / Institutional":
+        return "Public or institutional review"
+    if taxdesc == "20 - Taxable" and prior_years >= 3:
+        return "Private acquisition review"
+    return "Private or monitor"
+
+
 def load_features(path: Path) -> list[dict[str, object]]:
     data = json.loads(path.read_text(encoding="utf-8-sig"))
     return data.get("features", [])
@@ -135,6 +198,8 @@ def sanitize_feature(feature: dict[str, object]) -> dict[str, object]:
     properties = dict(feature.get("properties") or {})
     properties["prior_band"] = properties.get("prior_band") or prior_band(properties.get("prior_years"))
     properties["use_group"] = use_group(properties.get("usedesc"))
+    properties["ownership_group"] = ownership_group(properties)
+    properties["control_path"] = control_path(properties, properties["ownership_group"])
 
     return {
         "type": "Feature",
@@ -146,7 +211,7 @@ def sanitize_feature(feature: dict[str, object]) -> dict[str, object]:
 def main() -> None:
     features_by_pin: dict[str, dict[str, object]] = {}
 
-    for source in [RESIDENTIAL_SOURCE, BROAD_SOURCE]:
+    for source in [BROAD_SOURCE, RESIDENTIAL_SOURCE]:
         for feature in load_features(source):
             sanitized = sanitize_feature(feature)
             pin = str(sanitized["properties"].get("par_pin") or "")

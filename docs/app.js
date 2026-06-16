@@ -74,21 +74,79 @@ const useGroups = [
   }
 ];
 
+const ownershipGroups = [
+  {
+    value: "City Owned",
+    label: "City Owned",
+    color: "#fff200",
+    outline: "#a9a000",
+    count: 8756
+  },
+  {
+    value: "URA Owned",
+    label: "URA Owned",
+    color: "#0098d3",
+    outline: "#006c9f",
+    count: 822
+  },
+  {
+    value: "PLB Owned",
+    label: "PLB Owned",
+    color: "#0b4f22",
+    outline: "#063315",
+    count: 14
+  },
+  {
+    value: "HACP Owned",
+    label: "HACP Owned",
+    color: "#554a8f",
+    outline: "#342b66",
+    count: 4
+  },
+  {
+    value: "Other Public / Institutional",
+    label: "Other Public / Institutional",
+    color: "#8a8f98",
+    outline: "#545b62",
+    count: 966
+  },
+  {
+    value: "Private / Other",
+    label: "Private / Other",
+    color: "#d8e4ea",
+    outline: "#7d8990",
+    count: 19697
+  }
+];
+
 const activeBands = new Set(bands.map((band) => band.value));
 const defaultUseGroups = useGroups.filter((group) => group.defaultActive).map((group) => group.value);
 const activeUseGroups = new Set(defaultUseGroups);
+const activeOwnershipGroups = new Set(ownershipGroups.map((group) => group.value));
 const statusNode = document.getElementById("mapStatus");
 const areaFocusCard = document.getElementById("areaFocusCard");
+let handleModuleChange = () => {};
+let applyLayerFilters = () => {};
+let currentRenderMode = "prior";
 
 const useGroupChartData = useGroups.map((group) => ({
   label: group.label,
   value: group.count,
+  color: group.color,
   metricLabel: "mapped parcels"
 }));
 
 const priorBandChartData = bands.map((band) => ({
   label: band.label,
   value: band.count,
+  color: band.color,
+  metricLabel: "mapped parcels"
+}));
+
+let ownershipChartData = ownershipGroups.map((group) => ({
+  label: group.label,
+  value: group.count,
+  color: group.color,
   metricLabel: "mapped parcels"
 }));
 
@@ -171,6 +229,8 @@ function buildPopupContent(feature) {
       <dt>Parcel PIN</dt><dd>${escapeHtml(attrs.par_pin)}</dd>
       <dt>Prior years</dt><dd>${escapeHtml(attrs.prior_years ?? "No known prior years")}</dd>
       <dt>Use group</dt><dd>${escapeHtml(attrs.use_group)}</dd>
+      <dt>Ownership group</dt><dd>${escapeHtml(attrs.ownership_group)}</dd>
+      <dt>Control path</dt><dd>${escapeHtml(attrs.control_path)}</dd>
       <dt>City neighborhood</dt><dd>${escapeHtml(attrs.city_neighborhood)}</dd>
       <dt>Council district</dt><dd>${escapeHtml(attrs.council_district_label)}</dd>
       <dt>Use</dt><dd>${escapeHtml(attrs.usedesc)}</dd>
@@ -197,6 +257,7 @@ function renderModuleTabs() {
       panels.forEach((panel) => {
         panel.classList.toggle("is-active", panel.dataset.modulePanel === moduleName);
       });
+      handleModuleChange(moduleName);
     });
   });
 }
@@ -233,7 +294,8 @@ function buildInClause(field, activeValues, allValues) {
 function buildWhereClause() {
   const clauses = [
     buildInClause("use_group", activeUseGroups, useGroups),
-    buildInClause("prior_band", activeBands, bands)
+    buildInClause("prior_band", activeBands, bands),
+    buildInClause("ownership_group", activeOwnershipGroups, ownershipGroups)
   ].filter(Boolean);
 
   return clauses.length ? clauses.join(" AND ") : "1=1";
@@ -277,6 +339,7 @@ function renderFilters(layer) {
   const updateLayerFilter = () => {
     layer.definitionExpression = buildWhereClause();
   };
+  applyLayerFilters = updateLayerFilter;
 
   renderFilterList({
     containerId: "useGroupFilters",
@@ -292,27 +355,39 @@ function renderFilters(layer) {
     onChange: updateLayerFilter
   });
 
+  renderFilterList({
+    containerId: "ownershipGroupFilters",
+    items: ownershipGroups,
+    activeValues: activeOwnershipGroups,
+    onChange: updateLayerFilter
+  });
+
   document.getElementById("resetFilters").addEventListener("click", () => {
     activeBands.clear();
     bands.forEach((band) => activeBands.add(band.value));
     activeUseGroups.clear();
     defaultUseGroups.forEach((group) => activeUseGroups.add(group));
+    activeOwnershipGroups.clear();
+    ownershipGroups.forEach((group) => activeOwnershipGroups.add(group.value));
     syncFilterCheckboxes("bandFilters", activeBands);
     syncFilterCheckboxes("useGroupFilters", activeUseGroups);
+    syncFilterCheckboxes("ownershipGroupFilters", activeOwnershipGroups);
     updateLayerFilter();
   });
 }
 
-function renderMapLegend() {
+function renderMapLegend(mode = currentRenderMode) {
   const legend = document.getElementById("mapLegend");
+  const items = mode === "ownership" ? ownershipGroups : bands;
+  const heading = mode === "ownership" ? "Ownership / Control" : "Prior-Year History";
   legend.innerHTML = `
-    <div class="legend-heading">Prior-Year History</div>
+    <div class="legend-heading">${escapeHtml(heading)}</div>
     <div class="legend-items">
-      ${bands.map((band) => `
+      ${items.map((item) => `
         <div class="legend-item">
-          <span class="swatch" style="background:${band.color}"></span>
-          <span class="legend-label">${escapeHtml(band.label)}</span>
-          <span class="legend-count">${formatNumber(band.count)}</span>
+          <span class="swatch" style="background:${item.color}"></span>
+          <span class="legend-label">${escapeHtml(item.label)}</span>
+          <span class="legend-count">${formatNumber(item.count)}</span>
         </div>
       `).join("")}
     </div>
@@ -329,6 +404,7 @@ function renderBarChart(containerId, data) {
     const valueLabel = suffix ? `${item.value.toFixed(1)}${suffix}` : formatNumber(item.value);
     const isClickable = item.boundaryType && item.boundaryValue;
     const tagName = isClickable ? "button" : "div";
+    const barStyle = item.color ? ` style="width:${percent}%;background:${item.color}"` : ` style="width:${percent}%"`;
     const boundaryAttrs = isClickable
       ? ` type="button" data-area-type="${escapeHtml(item.boundaryType)}" data-boundary-value="${escapeHtml(item.boundaryValue)}" data-metric="${escapeHtml(item.metricId || "count")}"`
       : "";
@@ -338,7 +414,7 @@ function renderBarChart(containerId, data) {
       <${tagName} class="chart-row${buttonClass}"${boundaryAttrs}>
         <div class="chart-label">${escapeHtml(item.label)}</div>
         <div class="chart-track" aria-hidden="true">
-          <span class="chart-bar" style="width:${percent}%"></span>
+          <span class="chart-bar"${barStyle}></span>
         </div>
         <div class="chart-value">${escapeHtml(valueLabel)}</div>
       </${tagName}>
@@ -377,13 +453,94 @@ async function loadBoundaryAnalysis() {
   }
 }
 
+function updateOwnershipGroupCounts(groups) {
+  const counts = new Map(groups.map((group) => [group.label, group.value]));
+  ownershipGroups.forEach((group) => {
+    group.count = counts.get(group.value) ?? group.count;
+  });
+}
+
+function renderOwnershipKpis(kpis = {}) {
+  const container = document.getElementById("ownershipKpis");
+  if (!container) return;
+
+  const publicControlled = kpis.publicControlledParcels ?? 9596;
+  const publicOrInstitutional = kpis.publicOrInstitutionalParcels ?? 10562;
+  const privateReview = kpis.privateThreePlusPriorParcels ?? 5264;
+
+  container.innerHTML = `
+    <article class="kpi ownership-kpi">
+      <span class="kpi-value">${formatNumber(publicControlled)}</span>
+      <span class="kpi-label">City, URA, PLB, HACP parcels</span>
+    </article>
+    <article class="kpi ownership-kpi">
+      <span class="kpi-value">${formatNumber(publicOrInstitutional)}</span>
+      <span class="kpi-label">Public or institutional parcels</span>
+    </article>
+    <article class="kpi ownership-kpi">
+      <span class="kpi-value">${formatNumber(privateReview)}</span>
+      <span class="kpi-label">Private 3+ prior-year parcels</span>
+    </article>
+  `;
+}
+
+function renderOwnershipAnalysis(analysis = {}) {
+  const groups = analysis.groups || ownershipGroups.map((group) => ({
+    label: group.label,
+    value: group.count,
+    acres: null,
+    threePlusPriorParcels: null
+  }));
+  updateOwnershipGroupCounts(groups);
+  renderOwnershipKpis(analysis.kpis);
+  ownershipChartData = groups.map((item) => {
+    const config = ownershipGroups.find((group) => group.value === item.label);
+    return {
+      label: item.label,
+      value: item.value,
+      color: config?.color,
+      metricLabel: "mapped parcels"
+    };
+  });
+  renderBarChart("ownershipMixChart", ownershipChartData);
+  renderOwnershipTable(groups);
+}
+
+function renderOwnershipTable(groups) {
+  const tableBody = document.getElementById("ownershipTableBody");
+  if (!tableBody) return;
+
+  tableBody.innerHTML = groups.map((item) => `
+    <tr>
+      <td>${escapeHtml(item.label)}</td>
+      <td>${formatNumber(item.value)}</td>
+      <td>${item.acres === null || item.acres === undefined ? "Not recorded" : formatNumber(item.acres)}</td>
+      <td>${formatNumber(item.threePlusPriorParcels ?? 0)}</td>
+    </tr>
+  `).join("");
+}
+
+async function loadOwnershipAnalysis() {
+  try {
+    const response = await fetch("data/ownership_analysis.json");
+    if (!response.ok) throw new Error(`Ownership summary failed with ${response.status}`);
+    const analysis = await response.json();
+    renderOwnershipAnalysis(analysis);
+  } catch (error) {
+    console.warn(error);
+    renderOwnershipAnalysis();
+  }
+}
+
 renderModuleTabs();
 renderBarChart("useGroupChart", useGroupChartData);
 renderBarChart("priorBandChart", priorBandChartData);
+renderOwnershipAnalysis();
 renderBoundaryCharts({ neighborhoods: neighborhoodChartData, councilDistricts: councilChartData });
 renderBarChart("zipChart", zipChartData);
 renderBarChart("zipMedianYearsChart", zipMedianYearsData);
 loadBoundaryAnalysis();
+loadOwnershipAnalysis();
 
 require([
   "esri/Map",
@@ -396,30 +553,35 @@ require([
   "esri/widgets/Legend",
   "esri/widgets/Expand"
 ], (Map, MapView, GeoJSONLayer, FeatureLayer, Home, Search, BasemapToggle, Legend, Expand) => {
-  const renderer = {
-    type: "unique-value",
-    field: "prior_band",
-    defaultSymbol: {
-      type: "simple-fill",
-      color: [180, 188, 190, 0.7],
-      outline: { color: [80, 90, 94, 0.7], width: 0.6 }
-    },
-    uniqueValueInfos: bands.map((band) => ({
-      value: band.value,
-      label: band.label,
-      symbol: {
+  function uniqueValueRenderer(field, items, defaultColor = [180, 188, 190, 0.7]) {
+    return {
+      type: "unique-value",
+      field,
+      defaultSymbol: {
         type: "simple-fill",
-        color: `${band.color}bf`,
-        outline: { color: band.outline, width: 0.75 }
-      }
-    }))
-  };
+        color: defaultColor,
+        outline: { color: [80, 90, 94, 0.7], width: 0.6 }
+      },
+      uniqueValueInfos: items.map((item) => ({
+        value: item.value,
+        label: item.label,
+        symbol: {
+          type: "simple-fill",
+          color: `${item.color}bf`,
+          outline: { color: item.outline, width: 0.75 }
+        }
+      }))
+    };
+  }
+
+  const priorRenderer = uniqueValueRenderer("prior_band", bands);
+  const ownershipRenderer = uniqueValueRenderer("ownership_group", ownershipGroups, [216, 228, 234, 0.65]);
 
   const parcelLayer = new GeoJSONLayer({
     url: "data/vacant_land_triage.geojson",
     title: "Vacant Land Parcels",
     outFields: ["*"],
-    renderer,
+    renderer: priorRenderer,
     definitionExpression: buildWhereClause(),
     opacity: 0.86,
     popupTemplate: {
@@ -529,6 +691,37 @@ require([
 
   renderMapLegend();
   renderFilters(parcelLayer);
+
+  function isDefaultResidentialUseView() {
+    return activeUseGroups.size === defaultUseGroups.length
+      && defaultUseGroups.every((group) => activeUseGroups.has(group));
+  }
+
+  function expandUseFilterForOwnership() {
+    if (!isDefaultResidentialUseView()) return;
+    activeUseGroups.clear();
+    useGroups.forEach((group) => activeUseGroups.add(group.value));
+    syncFilterCheckboxes("useGroupFilters", activeUseGroups);
+    applyLayerFilters();
+    setStatus("Ownership view expanded to all property uses so public ownership patterns are visible.", false);
+    setTimeout(() => setStatus("", true), 3600);
+  }
+
+  function setRenderMode(mode) {
+    if (currentRenderMode === mode) return;
+    currentRenderMode = mode;
+    parcelLayer.renderer = mode === "ownership" ? ownershipRenderer : priorRenderer;
+    renderMapLegend(mode);
+  }
+
+  handleModuleChange = (moduleName) => {
+    if (moduleName === "ownership" || moduleName === "public-property") {
+      expandUseFilterForOwnership();
+      setRenderMode("ownership");
+      return;
+    }
+    setRenderMode("prior");
+  };
 
   const boundaryConfigs = {
     zip: {
