@@ -1,0 +1,77 @@
+name: Weekly Data Refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 11 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    name: Refresh and validate public data
+    runs-on: ubuntu-latest
+    env:
+      PGHOST: ${{ secrets.PGHOST }}
+      PGPORT: ${{ secrets.PGPORT }}
+      PGDATABASE: ${{ secrets.PGDATABASE }}
+      PGUSER: ${{ secrets.PGUSER }}
+      PGPASSWORD: ${{ secrets.PGPASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check database secrets
+        shell: bash
+        run: |
+          test -n "$PGHOST"
+          test -n "$PGDATABASE"
+          test -n "$PGUSER"
+          test -n "$PGPASSWORD"
+
+      - name: Export refreshed PostGIS snapshot
+        shell: pwsh
+        run: ./scripts/export_postgres_snapshot.ps1 -PsqlPath psql -OutDir exports
+
+      - name: Rebuild public GeoJSON
+        run: python scripts/build_public_web_geojson.py
+
+      - name: Enrich boundary summaries
+        run: python scripts/enrich_public_boundaries.py
+
+      - name: Update ownership reference summary
+        run: python scripts/update_ownership_reference_summary.py
+
+      - name: Validate ownership refresh
+        run: python scripts/validate_ownership_refresh.py
+
+      - name: Upload QA outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ownership-refresh-qa
+          path: |
+            docs/latest_ownership_qa.md
+            outputs/qa/*.csv
+
+      - name: Commit refreshed public data
+        shell: bash
+        run: |
+          if git diff --quiet -- docs webmap; then
+            echo "No public data changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data webmap/data docs/latest_ownership_qa.md
+          git commit -m "Refresh public dashboard data"
+          git push

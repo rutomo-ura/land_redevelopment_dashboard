@@ -5,6 +5,7 @@
 *.sde
 scratch/
 exports/
+outputs/qa/
 
 # Python generated cache
 __pycache__/

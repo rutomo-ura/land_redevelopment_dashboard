@@ -89,7 +89,7 @@ For the custom dashboard, those references imply that ownership should not be on
 Candidate public-safe data features:
 
 - `ownership_group`: Private, City, URA, PLB, HACP, other public, institutional or nonprofit, unknown.
-- `control_path`: Existing public control, potential public transfer, tax-sale candidate, watchlist, no clear path.
+- `control_path`: already public, potential public transfer, tax-sale candidate, watchlist, no clear path.
 - `acquisition_priority`: Three-plus year delinquent, one to two year watchlist, public controllable, context only.
 - `development_availability`: Available or likely review needed, committed, park or open space, infrastructure or slope constraint, unknown.
 - `assemblage_id` and `assemblage_type`: derived grouping for adjacent or nearby parcels that may support coordinated review.
@@ -136,7 +136,7 @@ Potential dashboard modules:
 
 ## References
 
-- Live GitHub Pages app: <https://rutomo-ura.github.io/vacant-land-triage-map/>
+- Live GitHub Pages app: <https://rutomo-ura.github.io/land_redevelopment_dashboard/>
 - ArcGIS Map Viewer: <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2>
 - City tax delinquency map reference: <https://urap.maps.arcgis.com/apps/instant/interactivelegend/index.html?appid=8e8964cd0d6649c796742003e1d84a1c>
 - Ownership overview reference: <https://urap.maps.arcgis.com/apps/instant/sidebar/index.html?appid=ec07466480c6491185acc2c514901446>

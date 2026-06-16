@@ -65,7 +65,7 @@ The current GitHub Pages app includes:
 
 Live references:
 
-- GitHub Pages app: <https://rutomo-ura.github.io/vacant-land-triage-map/>
+- GitHub Pages app: <https://rutomo-ura.github.io/land_redevelopment_dashboard/>
 - ArcGIS Map Viewer: <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2>
 - City tax delinquency map: <https://urap.maps.arcgis.com/apps/instant/interactivelegend/index.html?appid=8e8964cd0d6649c796742003e1d84a1c>
 - Ownership Overview: <https://urap.maps.arcgis.com/apps/instant/sidebar/index.html?appid=ec07466480c6491185acc2c514901446>

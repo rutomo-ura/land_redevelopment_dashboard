@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Land Redevelopment Decision Support Dashboard</title>
+  </head>
+  <body>
+    <script>
+      const modules = new Set(["overview", "vacant-land", "ownership", "acquisition", "public-property", "assemblages", "context"]);
+      const segments = window.location.pathname.split("/").filter(Boolean);
+      const moduleName = segments[segments.length - 1];
+      if (modules.has(moduleName)) {
+        segments.pop();
+        const basePath = `/${segments.join("/")}${segments.length ? "/" : ""}`;
+        window.sessionStorage.setItem("dashboardModule", moduleName);
+        window.location.replace(basePath);
+      } else {
+        window.location.replace(`/${segments[0] || ""}${segments.length ? "/" : ""}`);
+      }
+    </script>
+  </body>
+</html>

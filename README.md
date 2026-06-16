@@ -6,9 +6,10 @@ This project helps planners, analysts, and neighborhood partners see where vacan
 
 ## Explore The Map
 
-- Live web app: <https://rutomo-ura.github.io/vacant-land-triage-map/>
+- Live web app: <https://rutomo-ura.github.io/land_redevelopment_dashboard/>
+- Ownership view: <https://rutomo-ura.github.io/land_redevelopment_dashboard/ownership>
 - ArcGIS Map Viewer: <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2>
-- Repository: <https://github.com/rutomo-ura/vacant-land-triage-map>
+- Repository: <https://github.com/rutomo-ura/land_redevelopment_dashboard>
 
 ## What This Project Shows
 
@@ -48,11 +49,14 @@ The public layer is a sanitized multi-use extract from the internal vacant land 
 
 City neighborhood and Council district assignments are derived from authoritative City boundary layers using parcel geometry centroids. ZIP penetration uses residential assessment parcels as the denominator and remains a rate-based comparison view.
 
+Public ownership is checked against the Ownership Overview reference layer before refreshes are published. The weekly refresh workflow exports from PostGIS, rebuilds the public GeoJSON, updates ownership acreage and parcel counts from the reference layer, and stops if ownership counts, parcel IDs, or geometries fail QA.
+
 ## Repository Guide
 
 - `docs/` contains the GitHub Pages app and project documentation.
 - `docs/complete-dashboard-prd.md` defines the longer-term product vision for the redevelopment decision-support dashboard.
 - `docs/supervisor-feedback-roadmap.md` summarizes review feedback and future improvement priorities.
+- `docs/latest_ownership_qa.md` records the latest ownership refresh validation result.
 - `docs/arcgis_quickstart_tutorial.md` preserves the analyst tutorial and original ArcGIS/SQL walkthrough.
 - `webmap/` contains the source copy of the static ArcGIS Maps SDK app.
 - `reports/` contains the rendered area-analysis report and chart assets.

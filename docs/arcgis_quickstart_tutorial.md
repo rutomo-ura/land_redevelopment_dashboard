@@ -6,7 +6,7 @@ overview now lives in the repository root `README.md`.
 
 ## Published Links
 
-- GitHub Pages web app: <https://rutomo-ura.github.io/vacant-land-triage-map/>
+- GitHub Pages web app: <https://rutomo-ura.github.io/land_redevelopment_dashboard/>
 - ArcGIS Map Viewer: <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2>
 
 ## What Is In The Web App

@@ -18,7 +18,7 @@
       </div>
       <nav class="site-links" aria-label="Project links">
         <a href="https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2">ArcGIS</a>
-        <a href="https://github.com/rutomo-ura/vacant-land-triage-map">GitHub</a>
+        <a href="https://github.com/rutomo-ura/land_redevelopment_dashboard">GitHub</a>
       </nav>
     </header>
     <main class="app-shell">
@@ -31,11 +31,9 @@
 
       <aside class="insight-panel" aria-label="Land redevelopment decision support dashboard">
         <header class="report-header">
-          <h1>Screen vacant land by place, use, control path, and redevelopment context.</h1>
+          <h1>Screen vacant land by place, use, ownership, and redevelopment context.</h1>
           <p>
-            This decision-support dashboard keeps the public parcel explorer live while organizing the
-            next build around ownership, acquisition readiness, public property, assemblages, and
-            verification layers.
+            A parcel map and sidebar for reviewing vacant land, public ownership, and redevelopment context.
           </p>
         </header>
 
@@ -149,35 +147,28 @@
           <section class="module-panel" id="module-ownership" data-module-panel="ownership">
             <section class="module-brief">
               <span class="module-status is-live-status">Live</span>
-              <h2>Ownership And Control</h2>
+              <h2>Public Ownership</h2>
               <p>
-                This view uses the Ownership Overview reference layer for City, URA, and PLB
-                owned parcels. Parcel labels appear only at close zoom, matching the ArcGIS
-                reference behavior.
+                City, URA, and PLB parcels from the Ownership Overview reference layer.
+                Use this view to see public land before reviewing availability or next steps.
               </p>
             </section>
             <section class="kpi-grid ownership-kpi-grid" id="ownershipKpis" aria-label="Ownership summary metrics"></section>
             <section class="controls-section" aria-label="Ownership filters">
               <div class="section-heading">
-                <h2>Ownership Controls</h2>
+                <h2>Ownership Filter</h2>
               </div>
               <h3 class="filter-heading">Ownership Group</h3>
               <div class="filter-list" id="ownershipGroupFilters"></div>
-              <h3 class="filter-heading">Control Path</h3>
-              <div class="filter-list" id="controlPathFilters"></div>
             </section>
             <section class="chart-section">
               <div class="chart-card">
                 <h2>Ownership Mix</h2>
                 <div class="native-chart" id="ownershipMixChart" role="img" aria-label="Mapped vacant parcel counts by ownership group"></div>
               </div>
-              <div class="chart-card">
-                <h2>Control Path Focus</h2>
-                <div class="native-chart" id="controlPathChart" role="img" aria-label="Mapped vacant parcel counts by control path"></div>
-              </div>
             </section>
             <section class="table-section ownership-table-section">
-              <h2>Ownership Readout</h2>
+              <h2>Parcel And Acreage</h2>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -185,15 +176,13 @@
                       <th>Group</th>
                       <th>Parcels</th>
                       <th>Acres</th>
-                      <th>3+ prior years</th>
                     </tr>
                   </thead>
                   <tbody id="ownershipTableBody"></tbody>
                 </table>
               </div>
               <p class="chart-note">
-                Ownership groups are a screening layer derived from the internal owner field and assessment use descriptions.
-                Verify source records before acquisition, transfer, or redevelopment decisions.
+                Counts and acres come from the Ownership Overview reference layer.
               </p>
             </section>
           </section>

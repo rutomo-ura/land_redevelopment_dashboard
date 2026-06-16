@@ -10,8 +10,18 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if (-not (Test-Path -LiteralPath $PsqlPath)) {
-    throw "psql.exe not found at $PsqlPath"
+$resolvedPsql = $null
+if (Test-Path -LiteralPath $PsqlPath) {
+    $resolvedPsql = $PsqlPath
+} else {
+    $command = Get-Command $PsqlPath -ErrorAction SilentlyContinue
+    if ($command) {
+        $resolvedPsql = $command.Source
+    }
+}
+
+if (-not $resolvedPsql) {
+    throw "psql not found. Pass -PsqlPath or add psql to PATH."
 }
 
 if (-not $HostName -or -not $Database -or -not $Username) {
@@ -142,11 +152,11 @@ $psqlArgs = @(
     "-v", "ON_ERROR_STOP=1"
 )
 
-& $PsqlPath @psqlArgs -c "BEGIN READ ONLY;" -c $summaryQuery -c "ROLLBACK;" | Set-Content -LiteralPath $summaryCsv -Encoding UTF8
-& $PsqlPath @psqlArgs -c "BEGIN READ ONLY;" -c $candidatesQuery -c "ROLLBACK;" | Set-Content -LiteralPath $candidatesCsv -Encoding UTF8
-& $PsqlPath @psqlArgs -c "BEGIN READ ONLY;" -c $candidatesJsonQuery -c "ROLLBACK;" | Set-Content -LiteralPath $candidatesJson -Encoding UTF8
-& $PsqlPath @psqlArgs -c "BEGIN READ ONLY;" -c $broadGeoJsonQuery -c "ROLLBACK;" | Set-Content -LiteralPath $broadGeoJson -Encoding UTF8
-& $PsqlPath @psqlArgs -c "BEGIN READ ONLY;" -c $focusedGeoJsonQuery -c "ROLLBACK;" | Set-Content -LiteralPath $focusedGeoJson -Encoding UTF8
+& $resolvedPsql @psqlArgs -c "BEGIN READ ONLY;" -c $summaryQuery -c "ROLLBACK;" | Set-Content -LiteralPath $summaryCsv -Encoding UTF8
+& $resolvedPsql @psqlArgs -c "BEGIN READ ONLY;" -c $candidatesQuery -c "ROLLBACK;" | Set-Content -LiteralPath $candidatesCsv -Encoding UTF8
+& $resolvedPsql @psqlArgs -c "BEGIN READ ONLY;" -c $candidatesJsonQuery -c "ROLLBACK;" | Set-Content -LiteralPath $candidatesJson -Encoding UTF8
+& $resolvedPsql @psqlArgs -c "BEGIN READ ONLY;" -c $broadGeoJsonQuery -c "ROLLBACK;" | Set-Content -LiteralPath $broadGeoJson -Encoding UTF8
+& $resolvedPsql @psqlArgs -c "BEGIN READ ONLY;" -c $focusedGeoJsonQuery -c "ROLLBACK;" | Set-Content -LiteralPath $focusedGeoJson -Encoding UTF8
 
 Write-Output "Wrote $summaryCsv"
 Write-Output "Wrote $candidatesCsv"
