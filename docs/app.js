@@ -80,6 +80,18 @@ const activeUseGroups = new Set(defaultUseGroups);
 const statusNode = document.getElementById("mapStatus");
 const areaFocusCard = document.getElementById("areaFocusCard");
 
+const useGroupChartData = useGroups.map((group) => ({
+  label: group.label,
+  value: group.count,
+  metricLabel: "mapped parcels"
+}));
+
+const priorBandChartData = bands.map((band) => ({
+  label: band.label,
+  value: band.count,
+  metricLabel: "mapped parcels"
+}));
+
 let neighborhoodChartData = [
   { label: "Hazelwood", value: 1455, boundaryType: "neighborhood", boundaryValue: "Hazelwood", metricLabel: "mapped parcels" },
   { label: "Perry South", value: 1318, boundaryType: "neighborhood", boundaryValue: "Perry South", metricLabel: "mapped parcels" },
@@ -172,6 +184,21 @@ function buildPopupContent(feature) {
 function setStatus(message, isHidden = false) {
   statusNode.textContent = message;
   statusNode.classList.toggle("is-hidden", isHidden);
+}
+
+function renderModuleTabs() {
+  const tabs = document.querySelectorAll("[data-module]");
+  const panels = document.querySelectorAll("[data-module-panel]");
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const moduleName = tab.dataset.module;
+      tabs.forEach((candidate) => candidate.classList.toggle("is-active", candidate === tab));
+      panels.forEach((panel) => {
+        panel.classList.toggle("is-active", panel.dataset.modulePanel === moduleName);
+      });
+    });
+  });
 }
 
 function boundaryTypeLabel(type) {
@@ -350,6 +377,9 @@ async function loadBoundaryAnalysis() {
   }
 }
 
+renderModuleTabs();
+renderBarChart("useGroupChart", useGroupChartData);
+renderBarChart("priorBandChart", priorBandChartData);
 renderBoundaryCharts({ neighborhoods: neighborhoodChartData, councilDistricts: councilChartData });
 renderBarChart("zipChart", zipChartData);
 renderBarChart("zipMedianYearsChart", zipMedianYearsData);

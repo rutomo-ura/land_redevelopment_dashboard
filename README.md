@@ -51,6 +51,7 @@ City neighborhood and Council district assignments are derived from authoritativ
 ## Repository Guide
 
 - `docs/` contains the GitHub Pages app and project documentation.
+- `docs/complete-dashboard-prd.md` defines the longer-term product vision for the redevelopment decision-support dashboard.
 - `docs/supervisor-feedback-roadmap.md` summarizes review feedback and future improvement priorities.
 - `docs/arcgis_quickstart_tutorial.md` preserves the analyst tutorial and original ArcGIS/SQL walkthrough.
 - `webmap/` contains the source copy of the static ArcGIS Maps SDK app.
