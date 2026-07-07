@@ -103,6 +103,7 @@ Potential dashboard modules:
 - Potential assemblages.
 - Acquisition readiness.
 - Redevelopment constraints and context.
+- Filtered parcel spreadsheet export for staff handoff, similar to Tolemi-style parcel list exports.
 
 ### Phase 5: Add Imagery And Layer Controls
 
@@ -133,6 +134,7 @@ Potential dashboard modules:
 - Neighborhood and Council district charts can cross-filter the map and display the selected boundary.
 - Public, URA, City, private, and unknown ownership groups are visible and filterable.
 - Users can toggle aerial imagery to visually review parcel vacancy context.
+- Users can export the current filtered/visible parcel set to a spreadsheet with parcel ID/PIN, use group, delinquency, ownership/control, condemned overlap, geography, acreage/value, source context, and no internal-only fields.
 
 ## References
 

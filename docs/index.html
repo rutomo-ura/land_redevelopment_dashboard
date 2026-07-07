@@ -3,291 +3,142 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Land Redevelopment Decision Support Dashboard</title>
+    <title>Vacant Land Triage Map</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="site-header" aria-label="URA project header">
-      <a class="brand-lockup" href="https://www.ura.org/" aria-label="Urban Redevelopment Authority of Pittsburgh">
+    <header class="app-header" aria-label="URA vacant land dashboard header">
+      <a class="brand" href="https://www.ura.org/" aria-label="Urban Redevelopment Authority of Pittsburgh">
         <img src="assets/ura-wordmark.png" alt="URA Urban Redevelopment Authority of Pittsburgh logo" />
+        <span>
+          <strong>Vacant Land Triage Map</strong>
+          <em>Tax delinquency, ownership, and condemned overlap</em>
+        </span>
       </a>
-      <div class="site-title">
-        <span class="site-kicker">vacant land redevelopment explorer</span>
-        <strong>Land Redevelopment Decision Support</strong>
+      <p class="freshness" id="sourceFreshness">
+        Public GeoJSON bundle | 30,259 parcels | Source review required before action
+      </p>
+      <div class="header-actions">
+        <a class="ghost-button" href="https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2">ArcGIS</a>
+        <button class="primary-button" id="exportPdfButton" type="button">Export PDF</button>
       </div>
-      <nav class="site-links" aria-label="Project links">
-        <a href="https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2">ArcGIS</a>
-        <a href="https://github.com/rutomo-ura/land_redevelopment_dashboard">GitHub</a>
-      </nav>
     </header>
-    <main class="app-shell">
-      <section class="map-panel" aria-label="Vacant land redevelopment map">
+
+    <main class="dashboard-shell">
+      <aside class="control-panel" aria-label="Map controls">
+        <section class="panel hero-panel">
+          <span class="eyebrow">Public screening dashboard</span>
+          <h1>Find parcels that need a closer look.</h1>
+          <p>Switch the map between tax, ownership, and condemned signals. Filters update the map, legend, metrics, and export.</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Map Signal</h2>
+          </div>
+          <div class="segmented-control" id="signalModeControls" aria-label="Map signal"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Filters</h2>
+            <button class="small-button" id="resetFilters" type="button">Reset</button>
+          </div>
+          <h3>Property Use</h3>
+          <div class="filter-list" id="useGroupFilters"></div>
+          <h3 id="signalFilterHeading">Tax Delinquency</h3>
+          <div class="filter-list" id="signalFilters"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Bookmarks</h2>
+          </div>
+          <div class="bookmark-grid" aria-label="Area bookmarks">
+            <button class="bookmark" data-center="-79.9959,40.4406" data-zoom="12" type="button">Citywide</button>
+            <button class="bookmark" data-center="-79.9105,40.4572" data-zoom="14" type="button">Homewood</button>
+            <button class="bookmark" data-center="-79.9706,40.4467" data-zoom="14" type="button">Hill District</button>
+            <button class="bookmark" data-center="-80.0140,40.4682" data-zoom="14" type="button">Perry South</button>
+            <button class="bookmark" data-center="-79.9137,40.4668" data-zoom="14" type="button">Larimer</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Legend</h2>
+          </div>
+          <div class="legend-list" id="sideLegend"></div>
+        </section>
+      </aside>
+
+      <section class="map-stage" aria-label="Vacant land triage map">
         <div id="viewDiv"></div>
-        <div class="map-legend" id="mapLegend" aria-label="Prior-year history legend"></div>
-        <div class="area-focus-card is-hidden" id="areaFocusCard" aria-live="polite"></div>
-        <div class="map-status" id="mapStatus">Loading residential vacant parcels...</div>
+        <div class="map-legend" id="mapLegend" aria-label="Current map legend"></div>
+        <div class="map-status" id="mapStatus" aria-live="polite">Loading vacant land parcels...</div>
+        <div class="export-status" id="exportStatus" aria-live="polite"></div>
       </section>
 
-      <aside class="insight-panel" aria-label="Land redevelopment decision support dashboard">
-        <header class="report-header">
-          <h1>Screen vacant land by place, use, ownership, and redevelopment context.</h1>
-          <p>
-            A parcel map and sidebar for reviewing vacant land, public ownership, and redevelopment context.
-          </p>
-        </header>
+      <aside class="summary-panel" aria-label="Dashboard summary">
+        <section class="metric-grid" aria-label="Current map metrics">
+          <article class="metric-card primary">
+            <span>Visible parcels</span>
+            <strong id="visibleParcelMetric">--</strong>
+            <em>after active filters</em>
+          </article>
+          <article class="metric-card">
+            <span>11+ prior years</span>
+            <strong id="longDelinquencyMetric">--</strong>
+            <em>tax review signal</em>
+          </article>
+          <article class="metric-card">
+            <span>Public/control</span>
+            <strong id="publicControlMetric">--</strong>
+            <em>City, URA, PLB, HACP, public</em>
+          </article>
+          <article class="metric-card">
+            <span>Condemned overlap</span>
+            <strong id="condemnedMetric">--</strong>
+            <em>matched to public parcel bundle</em>
+          </article>
+        </section>
 
-        <nav class="module-tabs" aria-label="Dashboard modules">
-          <button class="module-tab is-active" type="button" data-module="overview">Overview</button>
-          <button class="module-tab" type="button" data-module="vacant-land">Vacant Land</button>
-          <button class="module-tab" type="button" data-module="ownership">Ownership</button>
-          <button class="module-tab" type="button" data-module="acquisition">Acquisition</button>
-          <button class="module-tab" type="button" data-module="public-property">Public Property</button>
-          <button class="module-tab" type="button" data-module="assemblages">Assemblages</button>
-          <button class="module-tab" type="button" data-module="context">Context</button>
-        </nav>
+        <section class="panel">
+          <div class="panel-head">
+            <h2 id="signalChartTitle">Tax Breakdown</h2>
+          </div>
+          <div class="native-chart" id="signalChart" role="img" aria-label="Current signal breakdown"></div>
+        </section>
 
-        <div class="module-panels">
-          <section class="module-panel is-active" id="module-overview" data-module-panel="overview">
-            <section class="kpi-grid" aria-label="Key map metrics">
-              <article class="kpi">
-                <span class="kpi-value">30,259</span>
-                <span class="kpi-label">public mapped parcels</span>
-              </article>
-              <article class="kpi">
-                <span class="kpi-value">20,663</span>
-                <span class="kpi-label">default residential view</span>
-              </article>
-              <article class="kpi">
-                <span class="kpi-value">3,667</span>
-                <span class="kpi-label">11+ prior years</span>
-              </article>
-              <article class="kpi">
-                <span class="kpi-value">30,061</span>
-                <span class="kpi-label">Council-assigned parcels</span>
-              </article>
-            </section>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Top Areas</h2>
+          </div>
+          <div class="native-chart" id="areaChart" role="img" aria-label="Top neighborhoods under active filters"></div>
+        </section>
 
-            <section class="status-grid" aria-label="Dashboard module status">
-              <article class="status-card is-live">
-                <span>Live</span>
-                <strong>Vacant land explorer</strong>
-                <p>Use group filters, prior-year bands, native charts, and chart-to-map selection.</p>
-              </article>
-              <article class="status-card">
-                <span>Next data build</span>
-                <strong>Ownership and control</strong>
-                <p>Private, City, URA, PLB, HACP, other public, institutional, and unknown groups.</p>
-              </article>
-              <article class="status-card">
-                <span>Next data build</span>
-                <strong>Acquisition readiness</strong>
-                <p>Three-plus year private delinquency, watchlist, public controllable, and context-only categories.</p>
-              </article>
-            </section>
-
-            <section class="insight-section">
-              <h2>Decision Frame</h2>
-              <p>
-                The dashboard moves this project from parcel display toward decision support. The durable
-                sequence is vacant land, ownership/control, acquisition path, public-property context,
-                assemblage potential, then verification through imagery and constraints.
-              </p>
-            </section>
-          </section>
-
-          <section class="module-panel" id="module-vacant-land" data-module-panel="vacant-land">
-            <section class="controls-section" aria-label="Map filters and bookmarks">
-              <div class="section-heading">
-                <h2>Filter Map</h2>
-                <button id="resetFilters" type="button">Reset</button>
-              </div>
-              <h3 class="filter-heading">Property Use</h3>
-              <div class="filter-list" id="useGroupFilters"></div>
-              <h3 class="filter-heading">Prior-Year History</h3>
-              <div class="filter-list" id="bandFilters"></div>
-              <div class="bookmark-row" aria-label="Area bookmarks">
-                <button class="bookmark" data-center="-79.9959,40.4406" data-zoom="12" type="button">Citywide</button>
-                <button class="bookmark" data-center="-79.9105,40.4572" data-zoom="14" type="button">Homewood</button>
-                <button class="bookmark" data-center="-79.9706,40.4467" data-zoom="14" type="button">Hill District</button>
-                <button class="bookmark" data-center="-80.0140,40.4682" data-zoom="14" type="button">Perry South</button>
-                <button class="bookmark" data-center="-79.9137,40.4668" data-zoom="14" type="button">Larimer</button>
-              </div>
-            </section>
-
-            <section class="chart-section">
-              <div class="chart-card">
-                <h2>Property Use Mix</h2>
-                <div class="native-chart" id="useGroupChart" role="img" aria-label="Mapped vacant parcel counts by property-use group"></div>
-              </div>
-              <div class="chart-card">
-                <h2>Prior-Year Bands</h2>
-                <div class="native-chart" id="priorBandChart" role="img" aria-label="Mapped vacant parcel counts by prior-year band"></div>
-              </div>
-              <div class="chart-card">
-                <h2>City Neighborhoods</h2>
-                <div class="native-chart" id="neighborhoodChart" role="img" aria-label="Vacant parcel concentration by City neighborhood"></div>
-              </div>
-              <div class="chart-card">
-                <h2>Council Districts</h2>
-                <div class="native-chart" id="councilChart" role="img" aria-label="Vacant parcel concentration by City Council district"></div>
-              </div>
-              <div class="chart-card">
-                <h2>ZIP Vacancy Penetration</h2>
-                <div class="native-chart" id="zipChart" role="img" aria-label="Residential vacant parcel penetration by ZIP code"></div>
-              </div>
-              <div class="chart-card">
-                <h2>Median Prior Years By ZIP</h2>
-                <div class="native-chart" id="zipMedianYearsChart" role="img" aria-label="Median prior delinquency years by ZIP code, sorted highest first"></div>
-                <p class="chart-note">Median includes parcels with no known prior years, so many ZIP medians are 0.</p>
-              </div>
-            </section>
-          </section>
-
-          <section class="module-panel" id="module-ownership" data-module-panel="ownership">
-            <section class="module-brief">
-              <span class="module-status is-live-status">Live</span>
-              <h2>Public Ownership</h2>
-              <p>
-                City, URA, and PLB parcels from the Ownership Overview reference layer.
-                Use this view to see public land before reviewing availability or next steps.
-              </p>
-            </section>
-            <section class="kpi-grid ownership-kpi-grid" id="ownershipKpis" aria-label="Ownership summary metrics"></section>
-            <section class="controls-section" aria-label="Ownership filters">
-              <div class="section-heading">
-                <h2>Ownership Filter</h2>
-              </div>
-              <h3 class="filter-heading">Ownership Group</h3>
-              <div class="filter-list" id="ownershipGroupFilters"></div>
-            </section>
-            <section class="chart-section">
-              <div class="chart-card">
-                <h2>Ownership Mix</h2>
-                <div class="native-chart" id="ownershipMixChart" role="img" aria-label="Mapped vacant parcel counts by ownership group"></div>
-              </div>
-            </section>
-            <section class="table-section ownership-table-section">
-              <h2>Parcel And Acreage</h2>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Group</th>
-                      <th>Parcels</th>
-                      <th>Acres</th>
-                    </tr>
-                  </thead>
-                  <tbody id="ownershipTableBody"></tbody>
-                </table>
-              </div>
-              <p class="chart-note">
-                Counts and acres come from the Ownership Overview reference layer.
-              </p>
-            </section>
-          </section>
-
-          <section class="module-panel" id="module-acquisition" data-module-panel="acquisition">
-            <section class="module-brief">
-              <span class="module-status">Next data build</span>
-              <h2>Acquisition Readiness</h2>
-              <p>
-                Prior-year history remains visible, but acquisition logic should be a separate field
-                that emphasizes current private delinquency, public controllability, and review status.
-              </p>
-            </section>
-            <div class="readiness-stack">
-              <article><span>Priority</span><strong>Three-plus year private delinquency</strong></article>
-              <article><span>Watchlist</span><strong>One-to-two year delinquency</strong></article>
-              <article><span>Separate path</span><strong>Public controllable parcel</strong></article>
-              <article><span>Hidden by default</span><strong>No current delinquency signal for acquisition view</strong></article>
-            </div>
-          </section>
-
-          <section class="module-panel" id="module-public-property" data-module-panel="public-property">
-            <section class="module-brief">
-              <span class="module-status">Next data build</span>
-              <h2>Public Property</h2>
-              <p>
-                Public ownership should not automatically mean development availability. This view
-                should separate controllable parcels from parks, greenways, committed sites, and infrastructure constraints.
-              </p>
-            </section>
-            <div class="checklist">
-              <span>URA, City, PLB, HACP grouping</span>
-              <span>Committed or protected public land flag</span>
-              <span>Development availability review status</span>
-              <span>Nearby vacant private parcels</span>
-            </div>
-          </section>
-
-          <section class="module-panel" id="module-assemblages" data-module-panel="assemblages">
-            <section class="module-brief">
-              <span class="module-status">Next data build</span>
-              <h2>Potential Assemblages</h2>
-              <p>
-                Assemblages should group adjacent or nearby parcels only after ownership/control
-                and acquisition-readiness signals are reliable enough to support coordinated review.
-              </p>
-            </section>
-            <div class="schema-list">
-              <article><strong>assemblage_id</strong><span>Stable group ID for adjacent or nearby parcel sets.</span></article>
-              <article><strong>assemblage_type</strong><span>Public-control, private-delinquent, mixed opportunity, or needs review.</span></article>
-              <article><strong>summary metrics</strong><span>Parcel count, acreage, owner mix, public count, private delinquent count, vacancy share.</span></article>
-            </div>
-          </section>
-
-          <section class="module-panel" id="module-context" data-module-panel="context">
-            <section class="module-brief">
-              <span class="module-status is-live-status">Partly live</span>
-              <h2>Constraints And Context</h2>
-              <p>
-                The app already supports basemap imagery. The next layer manifest should group optional
-                overlays by verification, regulation, public assets, and redevelopment context.
-              </p>
-            </section>
-            <div class="checklist">
-              <span>County imagery toggle</span>
-              <span>Neighborhood and Council boundaries</span>
-              <span>Zoning and steep slopes</span>
-              <span>Parks and proposed open space</span>
-              <span>USPS vacancy and condemned properties</span>
-              <span>URA projects and incentive geographies</span>
-            </div>
-          </section>
-        </div>
-
-        <section class="table-section">
-          <h2>Priority Area Readout</h2>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Review Readout</h2>
+          </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Area</th>
-                  <th>Signal</th>
-                  <th>Measure</th>
+                  <th>Parcels</th>
+                  <th>11+</th>
+                  <th>Cond.</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr><td>Hazelwood</td><td>Largest City-neighborhood parcel count</td><td>1,455</td></tr>
-                <tr><td>Perry South</td><td>Second largest City-neighborhood parcel count</td><td>1,318</td></tr>
-                <tr><td>D9</td><td>Largest Council district parcel count</td><td>5,930</td></tr>
-                <tr><td>D6</td><td>Second largest Council district parcel count</td><td>5,219</td></tr>
-                <tr><td>15219</td><td>Highest ZIP vacancy penetration</td><td>35.3%</td></tr>
-                <tr><td>15208</td><td>Second highest ZIP vacancy penetration</td><td>34.4%</td></tr>
-              </tbody>
+              <tbody id="reviewTableBody"></tbody>
             </table>
           </div>
         </section>
 
-        <section class="method-section">
-          <h2>Method And Governance</h2>
-          <p>
-            The public bundle omits owner names and internal notes. <code>use_group</code> is derived from
-            county assessment <code>usedesc</code>; zoning must be checked for permissible use. ZIP rates use
-            residential assessment parcels as the denominator. Neighborhood and Council assignments use
-            authoritative City boundaries and parcel centroids.
-          </p>
+        <section class="source-note">
+          <strong>Public-safe view.</strong>
+          Owner names, addresses, internal notes, and detailed legal/account records are not published here.
         </section>
       </aside>
     </main>

@@ -1,210 +1,104 @@
-const bands = [
-  {
-    value: "11+ prior years",
-    label: "11+ prior years",
-    color: "#111820",
-    outline: "#000000",
-    count: 3667
+const DATA_URL = "data/vacant_land_triage.geojson?v=triage-dashboard-20260707";
+
+const signalModes = {
+  tax: {
+    label: "Tax delinquency",
+    shortLabel: "Tax",
+    helper: "Prior-year history",
+    field: "prior_band",
+    chartTitle: "Tax Breakdown",
+    categories: [
+      { value: "11+ prior years", label: "11+ prior years", color: "#102638", outline: "#07131d" },
+      { value: "5-10 prior years", label: "5-10 prior years", color: "#0098d3", outline: "#006c9f" },
+      { value: "1-4 prior years", label: "1-4 prior years", color: "#f0c24b", outline: "#9f7411" },
+      { value: "No known prior years", label: "No known prior years", color: "#c7d0d5", outline: "#65727b" }
+    ]
   },
-  {
-    value: "5-10 prior years",
-    label: "5-10 prior years",
-    color: "#0098d3",
-    outline: "#005f88",
-    count: 903
+  ownership: {
+    label: "Ownership",
+    shortLabel: "Ownership",
+    helper: "Public/control grouping",
+    field: "ownership_group",
+    chartTitle: "Ownership Breakdown",
+    categories: [
+      { value: "Private / Other", label: "Private / Other", color: "#d8e4ea", outline: "#7d8990" },
+      { value: "City Owned", label: "City Owned", color: "#0098d3", outline: "#006c9f" },
+      { value: "URA Owned", label: "URA Owned", color: "#00334f", outline: "#001c2c" },
+      { value: "PLB Owned", label: "PLB Owned", color: "#267a4b", outline: "#17482d" },
+      { value: "HACP Owned", label: "HACP Owned", color: "#554a8f", outline: "#342b66" },
+      { value: "Other Public / Institutional", label: "Other Public", color: "#8a8f98", outline: "#545b62" }
+    ]
   },
-  {
-    value: "1-4 prior years",
-    label: "1-4 prior years",
-    color: "#f0c24b",
-    outline: "#9f7411",
-    count: 2209
-  },
-  {
-    value: "No known prior years",
-    label: "No known prior years",
-    color: "#c7d0d5",
-    outline: "#65727b",
-    count: 23480
+  condemned: {
+    label: "Condemned",
+    shortLabel: "Condemned",
+    helper: "Matched parcel overlap",
+    field: "condemned_flag",
+    chartTitle: "Condemned Overlap",
+    categories: [
+      { value: "Condemned overlap", label: "Condemned overlap", color: "#c54036", outline: "#7d231e" },
+      { value: "Not flagged", label: "Not flagged", color: "#c7d0d5", outline: "#65727b" }
+    ]
   }
+};
+
+const preferredUseOrder = [
+  "Residential",
+  "Commercial",
+  "Industrial",
+  "Public / institutional",
+  "Infrastructure / utility",
+  "Other / review"
 ];
 
-const useGroups = [
-  {
-    value: "Residential",
-    label: "Residential",
-    color: "#0098d3",
-    count: 20663,
-    defaultActive: true
-  },
-  {
-    value: "Commercial",
-    label: "Commercial",
-    color: "#7d5fff",
-    count: 1561,
-    defaultActive: false
-  },
-  {
-    value: "Industrial",
-    label: "Industrial",
-    color: "#636a73",
-    count: 127,
-    defaultActive: false
-  },
-  {
-    value: "Public / institutional",
-    label: "Public / institutional",
-    color: "#46a758",
-    count: 7117,
-    defaultActive: false
-  },
-  {
-    value: "Infrastructure / utility",
-    label: "Infrastructure / utility",
-    color: "#b86b00",
-    count: 476,
-    defaultActive: false
-  },
-  {
-    value: "Other / review",
-    label: "Other / review",
-    color: "#8a8f98",
-    count: 315,
-    defaultActive: false
+const publicOwnershipGroups = new Set([
+  "City Owned",
+  "URA Owned",
+  "PLB Owned",
+  "HACP Owned",
+  "Other Public / Institutional"
+]);
+
+const state = {
+  signalMode: "tax",
+  activeUseGroups: new Set(),
+  activeSignalValues: {
+    tax: new Set(signalModes.tax.categories.map((item) => item.value)),
+    ownership: new Set(signalModes.ownership.categories.map((item) => item.value)),
+    condemned: new Set(signalModes.condemned.categories.map((item) => item.value))
   }
-];
+};
 
-const ownershipGroups = [
-  {
-    value: "City Owned",
-    label: "City Owned",
-    color: "#f7f700",
-    outline: "#a9a000",
-    count: 8756
-  },
-  {
-    value: "URA Owned",
-    label: "URA Owned",
-    color: "#0094d3",
-    outline: "#006c9f",
-    count: 822
-  },
-  {
-    value: "PLB Owned",
-    label: "PLB Owned",
-    color: "#0e532a",
-    outline: "#063315",
-    count: 14
-  },
-  {
-    value: "HACP Owned",
-    label: "HACP Owned",
-    color: "#554a8f",
-    outline: "#342b66",
-    count: 4
-  },
-  {
-    value: "Other Public / Institutional",
-    label: "Other Public / Institutional",
-    color: "#8a8f98",
-    outline: "#545b62",
-    count: 966
-  },
-  {
-    value: "Private / Other",
-    label: "Private / Other",
-    color: "#d8e4ea",
-    outline: "#7d8990",
-    count: 19697
-  }
-];
+const nodes = {
+  signalModeControls: document.getElementById("signalModeControls"),
+  useGroupFilters: document.getElementById("useGroupFilters"),
+  signalFilters: document.getElementById("signalFilters"),
+  signalFilterHeading: document.getElementById("signalFilterHeading"),
+  sideLegend: document.getElementById("sideLegend"),
+  mapLegend: document.getElementById("mapLegend"),
+  mapStatus: document.getElementById("mapStatus"),
+  exportStatus: document.getElementById("exportStatus"),
+  exportPdfButton: document.getElementById("exportPdfButton"),
+  resetFilters: document.getElementById("resetFilters"),
+  visibleParcelMetric: document.getElementById("visibleParcelMetric"),
+  longDelinquencyMetric: document.getElementById("longDelinquencyMetric"),
+  publicControlMetric: document.getElementById("publicControlMetric"),
+  condemnedMetric: document.getElementById("condemnedMetric"),
+  signalChartTitle: document.getElementById("signalChartTitle"),
+  signalChart: document.getElementById("signalChart"),
+  areaChart: document.getElementById("areaChart"),
+  reviewTableBody: document.getElementById("reviewTableBody")
+};
 
-const ownershipMapGroups = ownershipGroups.filter((group) => (
-  group.value === "City Owned"
-  || group.value === "URA Owned"
-  || group.value === "PLB Owned"
-));
-
-const activeBands = new Set(bands.map((band) => band.value));
-const defaultUseGroups = useGroups.filter((group) => group.defaultActive).map((group) => group.value);
-const activeUseGroups = new Set(defaultUseGroups);
-const activeOwnershipGroups = new Set(ownershipGroups.map((group) => group.value));
-const statusNode = document.getElementById("mapStatus");
-const areaFocusCard = document.getElementById("areaFocusCard");
-let handleModuleChange = () => {};
-let applyLayerFilters = () => {};
-let currentRenderMode = "prior";
-let currentModule = "overview";
-
-const useGroupChartData = useGroups.map((group) => ({
-  label: group.label,
-  value: group.count,
-  color: group.color,
-  metricLabel: "mapped parcels"
-}));
-
-const priorBandChartData = bands.map((band) => ({
-  label: band.label,
-  value: band.count,
-  color: band.color,
-  metricLabel: "mapped parcels"
-}));
-
-let ownershipChartData = ownershipGroups.map((group) => ({
-  label: group.label,
-  value: group.count,
-  color: group.color,
-  metricLabel: "mapped parcels"
-}));
-
-let neighborhoodChartData = [
-  { label: "Hazelwood", value: 1455, boundaryType: "neighborhood", boundaryValue: "Hazelwood", metricLabel: "mapped parcels" },
-  { label: "Perry South", value: 1318, boundaryType: "neighborhood", boundaryValue: "Perry South", metricLabel: "mapped parcels" },
-  { label: "Homewood North", value: 1245, boundaryType: "neighborhood", boundaryValue: "Homewood North", metricLabel: "mapped parcels" },
-  { label: "Lincoln-Lemington-Belmar", value: 1074, boundaryType: "neighborhood", boundaryValue: "Lincoln-Lemington-Belmar", metricLabel: "mapped parcels" },
-  { label: "Middle Hill", value: 913, boundaryType: "neighborhood", boundaryValue: "Middle Hill", metricLabel: "mapped parcels" },
-  { label: "Homewood South", value: 839, boundaryType: "neighborhood", boundaryValue: "Homewood South", metricLabel: "mapped parcels" },
-  { label: "Larimer", value: 815, boundaryType: "neighborhood", boundaryValue: "Larimer", metricLabel: "mapped parcels" },
-  { label: "South Side Slopes", value: 801, boundaryType: "neighborhood", boundaryValue: "South Side Slopes", metricLabel: "mapped parcels" }
-];
-
-let councilChartData = [
-  { label: "D9", value: 5930, boundaryType: "council", boundaryValue: "D9", metricLabel: "mapped parcels" },
-  { label: "D6", value: 5219, boundaryType: "council", boundaryValue: "D6", metricLabel: "mapped parcels" },
-  { label: "D2", value: 4535, boundaryType: "council", boundaryValue: "D2", metricLabel: "mapped parcels" },
-  { label: "D1", value: 3574, boundaryType: "council", boundaryValue: "D1", metricLabel: "mapped parcels" },
-  { label: "D3", value: 3391, boundaryType: "council", boundaryValue: "D3", metricLabel: "mapped parcels" },
-  { label: "D5", value: 3255, boundaryType: "council", boundaryValue: "D5", metricLabel: "mapped parcels" },
-  { label: "D4", value: 2365, boundaryType: "council", boundaryValue: "D4", metricLabel: "mapped parcels" },
-  { label: "D7", value: 1435, boundaryType: "council", boundaryValue: "D7", metricLabel: "mapped parcels" },
-  { label: "D8", value: 357, boundaryType: "council", boundaryValue: "D8", metricLabel: "mapped parcels" }
-];
-
-const zipChartData = [
-  { label: "15219 - Central Pittsburgh / Hill District", value: 35.3, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15219" },
-  { label: "15208 - Homewood / Point Breeze", value: 34.4, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15208" },
-  { label: "15235 - Penn Hills area", value: 32.6, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15235" },
-  { label: "15120 - Homestead area", value: 27.7, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15120" },
-  { label: "15233 - North Side / Manchester", value: 27.4, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15233" },
-  { label: "15214 - North Side / Observatory Hill", value: 26.8, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15214" },
-  { label: "15221 - Wilkinsburg / East End", value: 26.8, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15221" },
-  { label: "15207 - Hazelwood / Greenfield", value: 25.0, suffix: "%", metricId: "penetration", metricLabel: "residential vacancy penetration", boundaryType: "zip", boundaryValue: "15207" }
-];
-
-const zipMedianYearsData = [
-  { label: "15235 - Penn Hills area", value: 14.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15235" },
-  { label: "15221 - Wilkinsburg / East End", value: 5.5, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15221" },
-  { label: "15219 - Central Pittsburgh / Hill District", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15219" },
-  { label: "15208 - Homewood / Point Breeze", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15208" },
-  { label: "15214 - North Side / Observatory Hill", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15214" },
-  { label: "15207 - Hazelwood / Greenfield", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15207" },
-  { label: "15212 - North Side", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15212" },
-  { label: "15210 - South Pittsburgh", value: 0.0, suffix: " yrs", metricId: "medianPriorYears", metricLabel: "median prior years", boundaryType: "zip", boundaryValue: "15210" }
-];
+let allFeatures = [];
+let useGroupItems = [];
+let view = null;
+let parcelLayer = null;
+let parcelLayerView = null;
+let reactiveUtilsRef = null;
 
 function formatNumber(value) {
-  if (value === null || value === undefined || value === "") return "Not recorded";
-  return new Intl.NumberFormat("en-US").format(value);
+  return new Intl.NumberFormat("en-US").format(Number(value || 0));
 }
 
 function formatMoney(value) {
@@ -216,8 +110,15 @@ function formatMoney(value) {
   }).format(value);
 }
 
+function formatAcreage(value) {
+  if (value === null || value === undefined || value === "") return "Not recorded";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "Not recorded";
+  return `${number.toFixed(number >= 1 ? 2 : 3)} ac`;
+}
+
 function escapeHtml(value) {
-  return String(value ?? "Not recorded").replace(/[&<>"']/g, (char) => {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => {
     const entities = {
       "&": "&amp;",
       "<": "&lt;",
@@ -229,221 +130,168 @@ function escapeHtml(value) {
   });
 }
 
-function buildPopupContent(feature) {
-  const attrs = feature.graphic.attributes;
-  return `
-    <dl class="popup-grid">
-      <dt>Parcel PIN</dt><dd>${escapeHtml(attrs.par_pin)}</dd>
-      <dt>Prior years</dt><dd>${escapeHtml(attrs.prior_years ?? "No known prior years")}</dd>
-      <dt>Use group</dt><dd>${escapeHtml(attrs.use_group)}</dd>
-      <dt>Ownership group</dt><dd>${escapeHtml(attrs.ownership_group)}</dd>
-      <dt>City neighborhood</dt><dd>${escapeHtml(attrs.city_neighborhood)}</dd>
-      <dt>Council district</dt><dd>${escapeHtml(attrs.council_district_label)}</dd>
-      <dt>Use</dt><dd>${escapeHtml(attrs.usedesc)}</dd>
-      <dt>Tax status</dt><dd>${escapeHtml(attrs.taxdesc)}</dd>
-      <dt>Acreage</dt><dd>${escapeHtml(attrs.par_calcacreag)}</dd>
-      <dt>Fair market value</dt><dd>${formatMoney(attrs.fairmarkettotal)}</dd>
-    </dl>
-  `;
+function sqlEscape(value) {
+  return String(value).replaceAll("'", "''");
 }
 
-function setStatus(message, isHidden = false) {
-  statusNode.textContent = message;
-  statusNode.classList.toggle("is-hidden", isHidden);
+function getProp(feature, field) {
+  return feature?.properties?.[field] ?? feature?.[field];
 }
 
-function moduleFromLocation() {
-  const knownModules = new Set(["overview", "vacant-land", "ownership", "acquisition", "public-property", "assemblages", "context"]);
-  const storedModule = window.sessionStorage?.getItem("dashboardModule");
-  if (storedModule) window.sessionStorage.removeItem("dashboardModule");
-  if (storedModule && knownModules.has(storedModule)) return storedModule;
-
-  const params = new URLSearchParams(window.location.search);
-  const queryModule = params.get("module");
-  if (queryModule && knownModules.has(queryModule)) return queryModule;
-
-  const lastSegment = window.location.pathname.split("/").filter(Boolean).pop();
-  return knownModules.has(lastSegment) ? lastSegment : "overview";
-}
-
-function appBasePath() {
-  const knownModules = new Set(["overview", "vacant-land", "ownership", "acquisition", "public-property", "assemblages", "context"]);
-  const segments = window.location.pathname.split("/").filter(Boolean);
-  if (knownModules.has(segments[segments.length - 1])) segments.pop();
-  return `/${segments.join("/")}${segments.length ? "/" : ""}`;
-}
-
-function updateModuleUrl(moduleName) {
-  if (!window.history?.pushState) return;
-  const basePath = appBasePath();
-  const nextPath = moduleName === "overview" ? basePath : `${basePath}${moduleName}`;
-  if (window.location.pathname !== nextPath) {
-    window.history.pushState({ moduleName }, "", nextPath);
-  }
-}
-
-function activateModule(moduleName, updateUrl = true, runHandler = true) {
-  const tabs = document.querySelectorAll("[data-module]");
-  const panels = document.querySelectorAll("[data-module-panel]");
-  const nextModule = document.querySelector(`[data-module="${moduleName}"]`) ? moduleName : "overview";
-  currentModule = nextModule;
-
-  tabs.forEach((tab) => {
-    tab.classList.toggle("is-active", tab.dataset.module === nextModule);
+function countBy(features, field) {
+  const counts = new Map();
+  features.forEach((feature) => {
+    const value = getProp(feature, field) || "Not recorded";
+    counts.set(value, (counts.get(value) || 0) + 1);
   });
-  panels.forEach((panel) => {
-    panel.classList.toggle("is-active", panel.dataset.modulePanel === nextModule);
-  });
-
-  if (updateUrl) updateModuleUrl(nextModule);
-  if (runHandler) handleModuleChange(nextModule);
+  return counts;
 }
 
-function renderModuleTabs() {
-  document.querySelectorAll("[data-module]").forEach((tab) => {
-    tab.addEventListener("click", () => activateModule(tab.dataset.module));
+function sortByPreferred(values, preferred) {
+  return [...values].sort((a, b) => {
+    const ai = preferred.indexOf(a);
+    const bi = preferred.indexOf(b);
+    if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    return a.localeCompare(b);
   });
-  window.addEventListener("popstate", () => activateModule(moduleFromLocation(), false));
 }
 
-function boundaryTypeLabel(type) {
-  const labels = {
-    zip: "ZIP",
-    neighborhood: "Neighborhood",
-    council: "Council district"
+function categoryItemsForMode(modeName, features = allFeatures) {
+  const mode = signalModes[modeName];
+  const counts = countBy(features, mode.field);
+  return mode.categories.map((item) => ({
+    ...item,
+    count: counts.get(item.value) || 0
+  }));
+}
+
+function useItems(features = allFeatures) {
+  const counts = countBy(features, "use_group");
+  return sortByPreferred(counts.keys(), preferredUseOrder).map((value) => ({
+    value,
+    label: value,
+    color: useColor(value),
+    count: counts.get(value) || 0
+  }));
+}
+
+function useColor(value) {
+  const colors = {
+    Residential: "#0098d3",
+    Commercial: "#554a8f",
+    Industrial: "#636a73",
+    "Public / institutional": "#267a4b",
+    "Infrastructure / utility": "#c96f2d",
+    "Other / review": "#8a8f98"
   };
-  return labels[type] || "Area";
+  return colors[value] || "#8a8f98";
 }
 
-function setAreaFocus(item) {
-  const suffix = item.suffix ?? "";
-  const valueLabel = suffix ? `${item.value.toFixed(1)}${suffix}` : formatNumber(item.value);
+function featureMatchesActiveFilters(feature) {
+  const props = feature.properties || feature;
+  const mode = signalModes[state.signalMode];
+  return state.activeUseGroups.has(props.use_group)
+    && state.activeSignalValues[state.signalMode].has(props[mode.field] || "Not recorded");
+}
 
-  areaFocusCard.innerHTML = `
-    <span class="area-focus-kicker">${escapeHtml(boundaryTypeLabel(item.boundaryType))} focus</span>
-    <strong>${escapeHtml(item.label)}</strong>
-    <span>${escapeHtml(valueLabel)} ${escapeHtml(item.metricLabel)}</span>
-    <em>Click the active row again or use Citywide to clear.</em>
-  `;
-  areaFocusCard.classList.remove("is-hidden");
+function filteredFeatures() {
+  return allFeatures.filter(featureMatchesActiveFilters);
 }
 
 function buildInClause(field, activeValues, allValues) {
   if (activeValues.size === 0) return "1=0";
   if (activeValues.size === allValues.length) return null;
-  const values = [...activeValues].map((value) => `'${value.replaceAll("'", "''")}'`);
+  const values = [...activeValues].map((value) => `'${sqlEscape(value)}'`);
   return `${field} IN (${values.join(",")})`;
 }
 
 function buildWhereClause() {
-  const clauses = currentRenderMode === "ownership"
-    ? [
-      buildInClause("ownership_group", activeOwnershipGroups, ownershipMapGroups)
-    ].filter(Boolean)
-    : [
-      buildInClause("use_group", activeUseGroups, useGroups),
-      buildInClause("prior_band", activeBands, bands)
-    ].filter(Boolean);
-
+  const mode = signalModes[state.signalMode];
+  const signalValues = mode.categories.map((item) => item.value);
+  const clauses = [
+    buildInClause("use_group", state.activeUseGroups, useGroupItems.map((item) => item.value)),
+    buildInClause(mode.field, state.activeSignalValues[state.signalMode], signalValues)
+  ].filter(Boolean);
   return clauses.length ? clauses.join(" AND ") : "1=1";
 }
 
-function buildOwnershipReferenceWhereClause() {
-  const clause = buildInClause("inventory_type", activeOwnershipGroups, ownershipMapGroups);
-  return clause || "1=1";
+function uniqueValueRenderer(field, items) {
+  return {
+    type: "unique-value",
+    field,
+    defaultSymbol: {
+      type: "simple-fill",
+      color: [198, 208, 213, 0.62],
+      outline: { color: [101, 114, 123, 0.7], width: 0.45 }
+    },
+    uniqueValueInfos: items.map((item) => ({
+      value: item.value,
+      label: item.label,
+      symbol: {
+        type: "simple-fill",
+        color: `${item.color}bf`,
+        outline: { color: item.outline || item.color, width: 0.65 }
+      }
+    }))
+  };
 }
 
-function renderFilterList({ containerId, items, activeValues, onChange }) {
-  const filterList = document.getElementById(containerId);
-  if (!filterList) return;
-  filterList.innerHTML = "";
+function renderSignalModeControls() {
+  nodes.signalModeControls.innerHTML = Object.entries(signalModes).map(([key, mode]) => `
+    <button class="segment-button ${state.signalMode === key ? "is-active" : ""}" type="button" data-signal-mode="${key}">
+      ${escapeHtml(mode.label)}
+      <span>${escapeHtml(mode.helper)}</span>
+    </button>
+  `).join("");
+}
 
-  items.forEach((item) => {
-    const label = document.createElement("label");
-    label.className = "filter-item";
-    const isChecked = activeValues.has(item.value);
-    label.innerHTML = `
-      <span class="filter-left">
-        <input type="checkbox" value="${escapeHtml(item.value)}" ${isChecked ? "checked" : ""} />
-        <span class="swatch" style="background:${item.color}"></span>
-        <span class="filter-label">${escapeHtml(item.label)}</span>
-      </span>
-      <span class="filter-count">${formatNumber(item.count)}</span>
+function renderFilterList(container, items, activeValues, onChange) {
+  container.innerHTML = items.map((item) => {
+    const checked = activeValues.has(item.value) ? "checked" : "";
+    return `
+      <label class="filter-item">
+        <span class="filter-left">
+          <input type="checkbox" value="${escapeHtml(item.value)}" ${checked} />
+          <span class="swatch" style="background:${item.color}"></span>
+          <span class="filter-label">${escapeHtml(item.label)}</span>
+        </span>
+        <span class="filter-count">${formatNumber(item.count)}</span>
+      </label>
     `;
+  }).join("");
 
-    const input = label.querySelector("input");
+  container.querySelectorAll("input").forEach((input) => {
     input.addEventListener("change", () => {
-      if (input.checked) activeValues.add(item.value);
-      else activeValues.delete(item.value);
+      if (input.checked) activeValues.add(input.value);
+      else activeValues.delete(input.value);
       onChange();
     });
-
-    filterList.appendChild(label);
   });
 }
 
-function syncFilterCheckboxes(containerId, activeValues) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  container.querySelectorAll("input").forEach((input) => {
-    input.checked = activeValues.has(input.value);
-  });
+function renderFilters() {
+  const mode = signalModes[state.signalMode];
+  nodes.signalFilterHeading.textContent = mode.label;
+  renderFilterList(nodes.useGroupFilters, useGroupItems, state.activeUseGroups, applyDashboardState);
+  renderFilterList(nodes.signalFilters, categoryItemsForMode(state.signalMode), state.activeSignalValues[state.signalMode], applyDashboardState);
 }
 
-function renderFilters(layer, afterUpdate = () => {}) {
-  const updateLayerFilter = () => {
-    layer.definitionExpression = buildWhereClause();
-    afterUpdate();
-  };
-  applyLayerFilters = updateLayerFilter;
-
-  renderFilterList({
-    containerId: "useGroupFilters",
-    items: useGroups,
-    activeValues: activeUseGroups,
-    onChange: updateLayerFilter
-  });
-
-  renderFilterList({
-    containerId: "bandFilters",
-    items: bands,
-    activeValues: activeBands,
-    onChange: updateLayerFilter
-  });
-
-  renderFilterList({
-    containerId: "ownershipGroupFilters",
-    items: ownershipMapGroups,
-    activeValues: activeOwnershipGroups,
-    onChange: updateLayerFilter
-  });
-
-  document.getElementById("resetFilters").addEventListener("click", () => {
-    activeBands.clear();
-    bands.forEach((band) => activeBands.add(band.value));
-    activeUseGroups.clear();
-    defaultUseGroups.forEach((group) => activeUseGroups.add(group));
-    activeOwnershipGroups.clear();
-    (currentRenderMode === "ownership" ? ownershipMapGroups : ownershipGroups).forEach((group) => {
-      activeOwnershipGroups.add(group.value);
-    });
-    syncFilterCheckboxes("bandFilters", activeBands);
-    syncFilterCheckboxes("useGroupFilters", activeUseGroups);
-    syncFilterCheckboxes("ownershipGroupFilters", activeOwnershipGroups);
-    updateLayerFilter();
-  });
+function legendItems() {
+  const counts = countBy(filteredFeatures(), signalModes[state.signalMode].field);
+  return categoryItemsForMode(state.signalMode).map((item) => ({
+    ...item,
+    count: counts.get(item.value) || 0
+  }));
 }
 
-function renderMapLegend(mode = currentRenderMode) {
-  const legend = document.getElementById("mapLegend");
-  const items = mode === "ownership" ? ownershipMapGroups : bands;
-  const heading = mode === "ownership" ? "Ownership / Control" : "Prior-Year History";
-  legend.innerHTML = `
-    <div class="legend-heading">${escapeHtml(heading)}</div>
-    <div class="legend-items">
-      ${items.map((item) => `
+function legendHtml(includeTitle = false) {
+  const title = includeTitle ? `<strong class="legend-title">${escapeHtml(signalModes[state.signalMode].label)}</strong>` : "";
+  return `
+    ${title}
+    <div class="legend-list">
+      ${legendItems().map((item) => `
         <div class="legend-item">
-          <span class="swatch" style="background:${item.color}"></span>
+          <span class="legend-swatch" style="background:${item.color}"></span>
           <span class="legend-label">${escapeHtml(item.label)}</span>
           <span class="legend-count">${formatNumber(item.count)}</span>
         </div>
@@ -452,385 +300,374 @@ function renderMapLegend(mode = currentRenderMode) {
   `;
 }
 
-function renderBarChart(containerId, data) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  const maxValue = Math.max(...data.map((item) => item.value));
+function renderLegends() {
+  nodes.sideLegend.innerHTML = legendHtml(false);
+  nodes.mapLegend.innerHTML = legendHtml(true);
+}
 
-  container.innerHTML = data.map((item) => {
-    const percent = Math.max((item.value / maxValue) * 100, 3);
-    const suffix = item.suffix ?? "";
-    const valueLabel = suffix ? `${item.value.toFixed(1)}${suffix}` : formatNumber(item.value);
-    const isClickable = item.boundaryType && item.boundaryValue;
-    const tagName = isClickable ? "button" : "div";
-    const barStyle = item.color ? ` style="width:${percent}%;background:${item.color}"` : ` style="width:${percent}%"`;
-    const boundaryAttrs = isClickable
-      ? ` type="button" data-area-type="${escapeHtml(item.boundaryType)}" data-boundary-value="${escapeHtml(item.boundaryValue)}" data-metric="${escapeHtml(item.metricId || "count")}"`
-      : "";
-    const buttonClass = isClickable ? " chart-row-button" : "";
+function renderMetricCards(features) {
+  const longDelinquent = features.filter((feature) => getProp(feature, "prior_band") === "11+ prior years").length;
+  const publicControl = features.filter((feature) => publicOwnershipGroups.has(getProp(feature, "ownership_group"))).length;
+  const condemned = features.filter((feature) => getProp(feature, "condemned_flag") === "Condemned overlap").length;
+  nodes.visibleParcelMetric.textContent = formatNumber(features.length);
+  nodes.longDelinquencyMetric.textContent = formatNumber(longDelinquent);
+  nodes.publicControlMetric.textContent = formatNumber(publicControl);
+  nodes.condemnedMetric.textContent = formatNumber(condemned);
+}
 
+function renderBarChart(container, items, emptyLabel) {
+  if (!items.length) {
+    container.innerHTML = `<div class="empty-chart">${escapeHtml(emptyLabel)}</div>`;
+    return;
+  }
+  const max = Math.max(...items.map((item) => item.value), 1);
+  container.innerHTML = items.map((item) => {
+    const width = Math.max((item.value / max) * 100, item.value ? 3 : 0);
     return `
-      <${tagName} class="chart-row${buttonClass}"${boundaryAttrs}>
-        <div class="chart-label">${escapeHtml(item.label)}</div>
-        <div class="chart-track" aria-hidden="true">
-          <span class="chart-bar"${barStyle}></span>
-        </div>
-        <div class="chart-value">${escapeHtml(valueLabel)}</div>
-      </${tagName}>
+      <div class="chart-row">
+        <span class="chart-label">${escapeHtml(item.label)}</span>
+        <span class="chart-track"><span class="chart-bar" style="width:${width}%; background:${item.color || "#0098d3"}"></span></span>
+        <span class="chart-value">${formatNumber(item.value)}</span>
+      </div>
     `;
   }).join("");
 }
 
-function rowsFromBoundarySummary(rows, boundaryType) {
-  return rows.map((row) => ({
-    label: row.label,
-    value: row.value,
-    boundaryType,
-    boundaryValue: row.label,
-    metricId: "count",
-    metricLabel: "mapped parcels"
+function groupedAreaRows(features) {
+  const rows = new Map();
+  features.forEach((feature) => {
+    const props = feature.properties || feature;
+    const area = props.city_neighborhood || "Neighborhood not recorded";
+    if (!rows.has(area)) {
+      rows.set(area, { area, parcels: 0, long: 0, condemned: 0 });
+    }
+    const row = rows.get(area);
+    row.parcels += 1;
+    if (props.prior_band === "11+ prior years") row.long += 1;
+    if (props.condemned_flag === "Condemned overlap") row.condemned += 1;
+  });
+  return [...rows.values()].sort((a, b) => b.parcels - a.parcels || b.long - a.long).slice(0, 7);
+}
+
+function renderSummary(features) {
+  const mode = signalModes[state.signalMode];
+  const signalCounts = countBy(features, mode.field);
+  const signalItems = categoryItemsForMode(state.signalMode).map((item) => ({
+    ...item,
+    value: signalCounts.get(item.value) || 0
   }));
+  const areaRows = groupedAreaRows(features);
+
+  nodes.signalChartTitle.textContent = mode.chartTitle;
+  renderBarChart(nodes.signalChart, signalItems, "No parcels match the current filters.");
+  renderBarChart(
+    nodes.areaChart,
+    areaRows.map((row) => ({ label: row.area, value: row.parcels, color: "#0098d3" })),
+    "No neighborhoods match the current filters."
+  );
+
+  nodes.reviewTableBody.innerHTML = areaRows.length
+    ? areaRows.map((row) => `
+      <tr>
+        <td>${escapeHtml(row.area)}</td>
+        <td>${formatNumber(row.parcels)}</td>
+        <td>${formatNumber(row.long)}</td>
+        <td>${formatNumber(row.condemned)}</td>
+      </tr>
+    `).join("")
+    : `<tr><td colspan="4">No parcels match the current filters.</td></tr>`;
 }
 
-function renderBoundaryCharts(analysis) {
-  neighborhoodChartData = rowsFromBoundarySummary(analysis.neighborhoods || neighborhoodChartData, "neighborhood");
-  councilChartData = rowsFromBoundarySummary(analysis.councilDistricts || councilChartData, "council");
-  renderBarChart("neighborhoodChart", neighborhoodChartData);
-  renderBarChart("councilChart", councilChartData);
+function setStatus(message, isHidden = false) {
+  nodes.mapStatus.textContent = message;
+  nodes.mapStatus.classList.toggle("is-hidden", isHidden);
 }
 
-async function loadBoundaryAnalysis() {
-  try {
-    const response = await fetch("data/boundary_analysis.json");
-    if (!response.ok) throw new Error(`Boundary summary failed with ${response.status}`);
-    const analysis = await response.json();
-    renderBoundaryCharts(analysis);
-  } catch (error) {
-    console.warn(error);
-    renderBarChart("neighborhoodChart", neighborhoodChartData);
-    renderBarChart("councilChart", councilChartData);
+function applyLayerState() {
+  if (!parcelLayer) return;
+  const mode = signalModes[state.signalMode];
+  parcelLayer.renderer = uniqueValueRenderer(mode.field, categoryItemsForMode(state.signalMode));
+  parcelLayer.definitionExpression = buildWhereClause();
+}
+
+function applyDashboardState() {
+  const features = filteredFeatures();
+  renderSignalModeControls();
+  renderFilters();
+  renderLegends();
+  renderMetricCards(features);
+  renderSummary(features);
+  applyLayerState();
+
+  if (!allFeatures.length) {
+    setStatus("Loading vacant land parcels...");
+  } else if (!features.length) {
+    setStatus("No parcels match the current filters.");
+  } else {
+    setStatus("", true);
   }
 }
 
-function updateOwnershipGroupCounts(groups) {
-  const counts = new Map(groups.map((group) => [group.label, group.value]));
-  ownershipGroups.forEach((group) => {
-    group.count = counts.get(group.value) ?? group.count;
+function resetFilters() {
+  state.activeUseGroups = new Set(useGroupItems.map((item) => item.value));
+  Object.entries(signalModes).forEach(([key, mode]) => {
+    state.activeSignalValues[key] = new Set(mode.categories.map((item) => item.value));
   });
+  applyDashboardState();
 }
 
-function renderOwnershipKpis(kpis = {}) {
-  const container = document.getElementById("ownershipKpis");
-  if (!container) return;
-
-  const counts = new Map(ownershipGroups.map((group) => [group.value, group.count]));
-
-  container.innerHTML = `
-    <article class="kpi ownership-kpi">
-      <span class="kpi-value">${formatNumber(counts.get("City Owned") ?? 0)}</span>
-      <span class="kpi-label">City owned parcels</span>
-    </article>
-    <article class="kpi ownership-kpi">
-      <span class="kpi-value">${formatNumber(counts.get("URA Owned") ?? 0)}</span>
-      <span class="kpi-label">URA owned parcels</span>
-    </article>
-    <article class="kpi ownership-kpi">
-      <span class="kpi-value">${formatNumber(counts.get("PLB Owned") ?? 0)}</span>
-      <span class="kpi-label">PLB owned parcels</span>
-    </article>
-    <article class="kpi ownership-kpi">
-      <span class="kpi-value">${formatNumber(kpis.referencePublicAcres ?? 0)}</span>
-      <span class="kpi-label">public acres</span>
-    </article>
+function buildPopupContent(event) {
+  const attrs = event.graphic.attributes;
+  return `
+    <dl class="popup-grid">
+      <dt>Parcel</dt><dd>${escapeHtml(attrs.parcel_label || attrs.par_pin)}</dd>
+      <dt>Prior years</dt><dd>${escapeHtml(attrs.prior_years ?? "No known prior years")}</dd>
+      <dt>Tax band</dt><dd>${escapeHtml(attrs.prior_band)}</dd>
+      <dt>Ownership</dt><dd>${escapeHtml(attrs.ownership_group)}</dd>
+      <dt>Control path</dt><dd>${escapeHtml(attrs.control_path)}</dd>
+      <dt>Condemned</dt><dd>${escapeHtml(attrs.condemned_flag || "Not flagged")}</dd>
+      <dt>Inspection band</dt><dd>${escapeHtml(attrs.condemned_score_band || "Not flagged")}</dd>
+      <dt>Use group</dt><dd>${escapeHtml(attrs.use_group)}</dd>
+      <dt>Neighborhood</dt><dd>${escapeHtml(attrs.city_neighborhood)}</dd>
+      <dt>Council</dt><dd>${escapeHtml(attrs.council_district_label)}</dd>
+      <dt>Acreage</dt><dd>${formatAcreage(attrs.par_calcacreag)}</dd>
+      <dt>Fair market value</dt><dd>${formatMoney(attrs.fairmarkettotal)}</dd>
+    </dl>
   `;
 }
 
-function renderOwnershipAnalysis(analysis = {}) {
-  const groups = analysis.groups || ownershipGroups.map((group) => ({
-    label: group.label,
-    value: group.count,
-    acres: null,
-    source: null
-  }));
-  updateOwnershipGroupCounts(groups);
-  renderOwnershipKpis(analysis.kpis);
-  ownershipChartData = ownershipMapGroups.map((group) => {
-    const item = groups.find((candidate) => candidate.label === group.value);
-    return {
-      label: group.label,
-      value: item?.value ?? group.count,
-      color: group.color,
-      metricLabel: "mapped parcels"
-    };
-  });
-  renderBarChart("ownershipMixChart", ownershipChartData);
-  renderOwnershipTable(groups.filter((item) => ownershipMapGroups.some((group) => group.value === item.label)));
+function activeFilterSummary() {
+  const mode = signalModes[state.signalMode];
+  const useText = state.activeUseGroups.size === useGroupItems.length
+    ? "All property uses"
+    : [...state.activeUseGroups].join(", ");
+  const signalText = state.activeSignalValues[state.signalMode].size === mode.categories.length
+    ? `All ${mode.label.toLowerCase()} categories`
+    : [...state.activeSignalValues[state.signalMode]].join(", ");
+  return [mode.label, useText, signalText];
 }
 
-function renderOwnershipTable(groups) {
-  const tableBody = document.getElementById("ownershipTableBody");
-  if (!tableBody) return;
-
-  tableBody.innerHTML = groups.map((item) => `
-    <tr>
-      <td>${escapeHtml(item.label)}</td>
-      <td>${formatNumber(item.value)}</td>
-      <td>${item.acres === null || item.acres === undefined ? "Not recorded" : formatNumber(item.acres)}</td>
-    </tr>
-  `).join("");
+function exportStats(features) {
+  return {
+    visible: features.length,
+    longDelinquency: features.filter((feature) => getProp(feature, "prior_band") === "11+ prior years").length,
+    publicControl: features.filter((feature) => publicOwnershipGroups.has(getProp(feature, "ownership_group"))).length,
+    condemned: features.filter((feature) => getProp(feature, "condemned_flag") === "Condemned overlap").length,
+    topAreas: groupedAreaRows(features).slice(0, 5)
+  };
 }
 
-async function loadOwnershipAnalysis() {
+function buildPreparingPrintHtml() {
+  return `
+    <!doctype html>
+    <html>
+      <head><title>Preparing Vacant Land Triage PDF</title></head>
+      <body style="font-family:Arial,sans-serif;padding:24px;color:#142935">
+        <h1>Preparing map export</h1>
+        <p>Capturing the current map extent, filters, and legend.</p>
+      </body>
+    </html>
+  `;
+}
+
+function buildPrintHtml(mapImage, stats) {
+  const filters = activeFilterSummary();
+  const timestamp = new Date().toLocaleString();
+  return `
+    <!doctype html>
+    <html>
+      <head>
+        <title>Vacant Land Triage Map</title>
+        <style>
+          @page { size: A3 landscape; margin: 0.35in; }
+          * { box-sizing: border-box; }
+          body { margin: 0; color: #142935; background: #eef4f7; font-family: Arial, sans-serif; }
+          .print-header { display: flex; justify-content: space-between; gap: 18px; margin-bottom: 12px; }
+          h1 { margin: 0 0 4px; font-size: 25px; }
+          p { margin: 0; color: #667985; font-size: 11px; line-height: 1.35; }
+          .print-page { display: grid; grid-template-columns: minmax(0, 1.55fr) 0.75fr; gap: 12px; }
+          .print-map, .print-card { background: #fff; border: 1px solid #d8e4ea; border-radius: 8px; }
+          .print-map { min-height: 610px; overflow: hidden; }
+          .print-map img { display: block; width: 100%; height: 100%; object-fit: cover; }
+          .print-side { display: grid; gap: 10px; align-content: start; }
+          .print-card { padding: 11px; }
+          .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+          .metric strong { display: block; color: #006c9f; font-size: 24px; line-height: 1; }
+          .metric span, h2 { color: #142935; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+          h2 { margin: 0 0 8px; }
+          .legend-item, .filter-item, .area-row { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 7px; align-items: center; min-height: 22px; font-size: 11px; }
+          .legend-item span:first-child { width: 10px; height: 10px; border-radius: 50%; }
+          .filter-item { grid-template-columns: minmax(0, 1fr); color: #334a56; }
+          .area-row { grid-template-columns: minmax(0, 1fr) auto auto auto; }
+          .source { border-top: 1px solid #d8e4ea; padding-top: 8px; }
+        </style>
+      </head>
+      <body>
+        <header class="print-header">
+          <div>
+            <h1>Vacant Land Triage Map</h1>
+            <p>Generated ${escapeHtml(timestamp)} | Current map extent and active dashboard filters</p>
+          </div>
+          <p>Public-safe bundle. Screening only; confirm source records before action.</p>
+        </header>
+        <main class="print-page">
+          <section class="print-map"><img src="${mapImage}" alt="Current vacant land map" /></section>
+          <aside class="print-side">
+            <section class="print-card metrics">
+              <div class="metric"><span>Visible parcels</span><strong>${formatNumber(stats.visible)}</strong></div>
+              <div class="metric"><span>11+ prior years</span><strong>${formatNumber(stats.longDelinquency)}</strong></div>
+              <div class="metric"><span>Public/control</span><strong>${formatNumber(stats.publicControl)}</strong></div>
+              <div class="metric"><span>Condemned</span><strong>${formatNumber(stats.condemned)}</strong></div>
+            </section>
+            <section class="print-card">
+              <h2>Filters</h2>
+              ${filters.map((item) => `<div class="filter-item">${escapeHtml(item)}</div>`).join("")}
+            </section>
+            <section class="print-card">
+              <h2>Legend: ${escapeHtml(signalModes[state.signalMode].label)}</h2>
+              ${legendItems().map((item) => `
+                <div class="legend-item">
+                  <span style="background:${item.color}"></span>
+                  <strong>${escapeHtml(item.label)}</strong>
+                  <em>${formatNumber(item.count)}</em>
+                </div>
+              `).join("")}
+            </section>
+            <section class="print-card">
+              <h2>Top Areas</h2>
+              ${stats.topAreas.map((row) => `
+                <div class="area-row">
+                  <strong>${escapeHtml(row.area)}</strong>
+                  <span>${formatNumber(row.parcels)}</span>
+                  <span>${formatNumber(row.long)} 11+</span>
+                  <span>${formatNumber(row.condemned)} cond.</span>
+                </div>
+              `).join("") || "<p>No parcels match the current filters.</p>"}
+            </section>
+            <section class="print-card source">
+              <p>Sources: sanitized vacant-land public GeoJSON, tax delinquency fields, ownership/control classification, and condemned overlap flag. Owner names, addresses, internal notes, and detailed legal/account records are excluded.</p>
+            </section>
+          </aside>
+        </main>
+      </body>
+    </html>
+  `;
+}
+
+async function captureMapImage() {
+  if (!view) throw new Error("Map is not ready");
+  await view.when();
+  if (reactiveUtilsRef && parcelLayerView) {
+    await reactiveUtilsRef.whenOnce(() => !parcelLayerView.updating);
+  }
+  const screenshot = await view.takeScreenshot({ format: "png", quality: 95 });
+  return screenshot.dataUrl;
+}
+
+async function exportCurrentMapPdf() {
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    nodes.exportStatus.textContent = "Export blocked. Allow pop-ups and try again.";
+    return;
+  }
+
+  const previousLabel = nodes.exportPdfButton.textContent;
+  nodes.exportPdfButton.disabled = true;
+  nodes.exportPdfButton.textContent = "Preparing";
+  nodes.exportStatus.textContent = "Preparing map export";
+  printWindow.document.write(buildPreparingPrintHtml());
+  printWindow.document.close();
+
   try {
-    const response = await fetch("data/ownership_analysis.json");
-    if (!response.ok) throw new Error(`Ownership summary failed with ${response.status}`);
-    const analysis = await response.json();
-    renderOwnershipAnalysis(analysis);
+    const features = filteredFeatures();
+    const stats = exportStats(features);
+    const mapImage = await captureMapImage();
+    printWindow.document.open();
+    printWindow.document.write(buildPrintHtml(mapImage, stats));
+    printWindow.document.close();
+    printWindow.focus();
+    window.setTimeout(() => printWindow.print(), 500);
+    nodes.exportStatus.textContent = "PDF ready";
+    window.setTimeout(() => {
+      nodes.exportStatus.textContent = "";
+    }, 3500);
   } catch (error) {
-    console.warn(error);
-    renderOwnershipAnalysis();
+    console.error(error);
+    nodes.exportStatus.textContent = "Export failed. Try again after the map finishes loading.";
+  } finally {
+    nodes.exportPdfButton.disabled = false;
+    nodes.exportPdfButton.textContent = previousLabel;
   }
 }
 
-renderModuleTabs();
-activateModule(moduleFromLocation(), true, false);
-renderBarChart("useGroupChart", useGroupChartData);
-renderBarChart("priorBandChart", priorBandChartData);
-renderOwnershipAnalysis();
-renderBoundaryCharts({ neighborhoods: neighborhoodChartData, councilDistricts: councilChartData });
-renderBarChart("zipChart", zipChartData);
-renderBarChart("zipMedianYearsChart", zipMedianYearsData);
-loadBoundaryAnalysis();
-loadOwnershipAnalysis();
+async function loadPublicData() {
+  try {
+    const response = await fetch(DATA_URL);
+    if (!response.ok) throw new Error(`Public GeoJSON failed with ${response.status}`);
+    const data = await response.json();
+    allFeatures = data.features || [];
+    useGroupItems = useItems(allFeatures);
+    state.activeUseGroups = new Set(useGroupItems.map((item) => item.value));
+    applyDashboardState();
+  } catch (error) {
+    console.error(error);
+    setStatus("Static parcel data did not load. Serve docs through a web server and check docs/data.", false);
+  }
+}
+
+document.addEventListener("click", (event) => {
+  const signalButton = event.target.closest("[data-signal-mode]");
+  if (signalButton) {
+    state.signalMode = signalButton.dataset.signalMode;
+    applyDashboardState();
+    return;
+  }
+
+  const bookmark = event.target.closest(".bookmark");
+  if (bookmark && view) {
+    const center = bookmark.dataset.center.split(",").map(Number);
+    const zoom = Number(bookmark.dataset.zoom);
+    view.goTo({ center, zoom }, { duration: 650 }).catch(() => {});
+  }
+});
+
+nodes.resetFilters.addEventListener("click", resetFilters);
+nodes.exportPdfButton.addEventListener("click", exportCurrentMapPdf);
+
+renderSignalModeControls();
+setStatus("Loading vacant land parcels...");
+loadPublicData();
 
 require([
   "esri/Map",
   "esri/views/MapView",
   "esri/layers/GeoJSONLayer",
-  "esri/layers/FeatureLayer",
   "esri/widgets/Home",
   "esri/widgets/Search",
   "esri/widgets/BasemapToggle",
+  "esri/widgets/Expand",
   "esri/widgets/Legend",
-  "esri/widgets/Expand"
-], (Map, MapView, GeoJSONLayer, FeatureLayer, Home, Search, BasemapToggle, Legend, Expand) => {
-  function uniqueValueRenderer(field, items, defaultColor = [180, 188, 190, 0.7], defaultOutline = [80, 90, 94, 0.7]) {
-    return {
-      type: "unique-value",
-      field,
-      defaultSymbol: {
-        type: "simple-fill",
-        color: defaultColor,
-        outline: { color: defaultOutline, width: 0.6 }
-      },
-      uniqueValueInfos: items.map((item) => ({
-        value: item.value,
-        label: item.label,
-        symbol: {
-          type: "simple-fill",
-          color: `${item.color}bf`,
-          outline: { color: item.outline, width: 0.75 }
-        }
-      }))
-    };
-  }
+  "esri/core/reactiveUtils"
+], (Map, MapView, GeoJSONLayer, Home, Search, BasemapToggle, Expand, Legend, reactiveUtils) => {
+  reactiveUtilsRef = reactiveUtils;
 
-  const priorRenderer = uniqueValueRenderer("prior_band", bands);
-  const ownershipRenderer = uniqueValueRenderer(
-    "ownership_group",
-    ownershipMapGroups,
-    [255, 255, 255, 0],
-    [255, 255, 255, 0]
-  );
-  const ownershipReferenceRenderer = {
-    type: "unique-value",
-    field: "inventory_type",
-    defaultSymbol: {
-      type: "simple-fill",
-      color: [255, 255, 255, 0],
-      outline: { color: [255, 255, 255, 0], width: 0 }
-    },
-    uniqueValueInfos: ownershipMapGroups.map((item) => ({
-      value: item.value,
-      label: item.label,
-      symbol: {
-        type: "simple-fill",
-        color: item.color,
-        outline: { color: [153, 153, 153, 0.25], width: 0 }
-      }
-    }))
-  };
-
-  const ownershipLabelingInfo = [{
-    labelExpressionInfo: { expression: "$feature.parcel_label" },
-    labelPlacement: "always-horizontal",
-    minScale: 18000,
-    symbol: {
-      type: "text",
-      color: "#ffffff",
-      haloColor: "#1f2b33",
-      haloSize: 1,
-      font: {
-        family: "Arial",
-        size: 9,
-        weight: "bold"
-      }
-    }
-  }];
-
-  const parcelLayer = new GeoJSONLayer({
-    url: "data/vacant_land_triage.geojson?v=ownership-labels-20260616",
-    title: "Vacant Land Parcels",
+  parcelLayer = new GeoJSONLayer({
+    url: DATA_URL,
+    title: "Vacant land parcels",
     outFields: ["*"],
-    renderer: priorRenderer,
-    definitionExpression: buildWhereClause(),
-    opacity: 0.86,
+    renderer: uniqueValueRenderer(signalModes.tax.field, signalModes.tax.categories),
     popupTemplate: {
-      title: "{prior_band}",
+      title: "{parcel_label}",
       content: buildPopupContent
     }
   });
 
-  const ownershipReferenceLayer = new FeatureLayer({
-    url: "https://services1.arcgis.com/0DMNBNaacQNEfN4H/arcgis/rest/services/gisdb_gis_epp_parcels_full/FeatureServer/0",
-    title: "City, URA, PLB Owned Parcels",
-    outFields: [
-      "inventory_type",
-      "parcel_number",
-      "par_pin",
-      "par_mapblocklo",
-      "current_status",
-      "neighborhood",
-      "council_district",
-      "project_name"
-    ],
-    renderer: ownershipReferenceRenderer,
-    definitionExpression: buildOwnershipReferenceWhereClause(),
-    visible: false,
-    opacity: 1,
-    popupTemplate: {
-      title: "{inventory_type}",
-      content: `
-        <dl class="popup-list">
-          <dt>Parcel</dt><dd>{parcel_number}</dd>
-          <dt>Map-block-lot</dt><dd>{par_mapblocklo}</dd>
-          <dt>Status</dt><dd>{current_status}</dd>
-          <dt>Neighborhood</dt><dd>{neighborhood}</dd>
-          <dt>Council district</dt><dd>{council_district}</dd>
-        </dl>
-      `
-    }
-  });
-
-  const countyParcelReferenceLayer = new FeatureLayer({
-    url: "https://gisdata.alleghenycounty.us/arcgis/rest/services/EGIS/Web_Parcels/MapServer/0",
-    title: "Allegheny County Parcel Reference",
-    outFields: ["MAPBLOCKLOT"],
-    visible: false,
-    minScale: 18056,
-    renderer: {
-      type: "simple",
-      symbol: {
-        type: "simple-fill",
-        color: [0, 0, 0, 0],
-        outline: { color: [133, 133, 133, 1], width: 1 }
-      }
-    },
-    labelingInfo: [{
-      labelExpressionInfo: { expression: "$feature.MAPBLOCKLOT" },
-      labelPlacement: "always-horizontal",
-      minScale: 1398,
-      symbol: {
-        type: "text",
-        color: "#000000",
-        haloColor: "#ffffff",
-        haloSize: 1.5,
-        font: {
-          family: "Tahoma",
-          size: 8.25,
-          weight: "bold"
-        }
-      }
-    }],
-    popupEnabled: false
-  });
-
-  const zipBoundaryLayer = new FeatureLayer({
-    url: "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/2",
-    title: "Selected ZIP Code Boundary",
-    outFields: ["ZCTA5", "BASENAME"],
-    definitionExpression: "1=0",
-    visible: true,
-    opacity: 1,
-    renderer: {
-      type: "simple",
-      symbol: {
-        type: "simple-fill",
-        color: [0, 152, 211, 0.08],
-        outline: {
-          color: [0, 152, 211, 1],
-          width: 3
-        }
-      }
-    },
-    popupEnabled: false
-  });
-
-  const neighborhoodBoundaryLayer = new FeatureLayer({
-    url: "https://services1.arcgis.com/YZCmUqbcsUpOKfj7/arcgis/rest/services/PGHWebNeighborhoods/FeatureServer/0",
-    title: "Selected City Neighborhood",
-    outFields: ["hood"],
-    definitionExpression: "1=0",
-    visible: true,
-    opacity: 1,
-    renderer: {
-      type: "simple",
-      symbol: {
-        type: "simple-fill",
-        color: [70, 167, 88, 0.08],
-        outline: {
-          color: [70, 167, 88, 1],
-          width: 3
-        }
-      }
-    },
-    popupEnabled: false
-  });
-
-  const councilBoundaryLayer = new FeatureLayer({
-    url: "https://services1.arcgis.com/YZCmUqbcsUpOKfj7/arcgis/rest/services/CouncilDistricts2022/FeatureServer/0",
-    title: "Selected Council District",
-    outFields: ["DIST_ID", "DIST_NAME"],
-    definitionExpression: "1=0",
-    visible: true,
-    opacity: 1,
-    renderer: {
-      type: "simple",
-      symbol: {
-        type: "simple-fill",
-        color: [240, 194, 75, 0.1],
-        outline: {
-          color: [158, 116, 17, 1],
-          width: 3
-        }
-      }
-    },
-    popupEnabled: false
-  });
-
   const map = new Map({
     basemap: "topo-vector",
-    layers: [
-      parcelLayer,
-      ownershipReferenceLayer,
-      countyParcelReferenceLayer,
-      neighborhoodBoundaryLayer,
-      councilBoundaryLayer,
-      zipBoundaryLayer
-    ]
+    layers: [parcelLayer]
   });
 
-  const view = new MapView({
+  view = new MapView({
     container: "viewDiv",
     map,
     center: [-79.9959, 40.4406],
@@ -848,223 +685,25 @@ require([
     }
   });
 
-  let selectedAreaKey = null;
-  let parcelLayerView = null;
-  let ownershipReferenceLayerView = null;
-
   view.ui.add(new Home({ view }), "top-left");
   view.ui.add(new Search({ view, includeDefaultSources: true }), "top-right");
   view.ui.add(new BasemapToggle({ view, nextBasemap: "satellite" }), "bottom-right");
-
-  const legend = new Legend({
+  view.ui.add(new Expand({
     view,
-    layerInfos: [{ layer: parcelLayer, title: "Prior-year history" }]
-  });
-  view.ui.add(new Expand({ view, content: legend, expanded: false, expandTooltip: "Legend" }), "top-left");
-
-  renderMapLegend();
-  renderFilters(parcelLayer, () => {
-    ownershipReferenceLayer.definitionExpression = buildOwnershipReferenceWhereClause();
-  });
-
-  function isDefaultResidentialUseView() {
-    return activeUseGroups.size === defaultUseGroups.length
-      && defaultUseGroups.every((group) => activeUseGroups.has(group));
-  }
-
-  function expandUseFilterForOwnership() {
-    if (!isDefaultResidentialUseView()) return;
-    activeUseGroups.clear();
-    useGroups.forEach((group) => activeUseGroups.add(group.value));
-    syncFilterCheckboxes("useGroupFilters", activeUseGroups);
-    setStatus("Ownership view expanded to all property uses so public ownership patterns are visible.", false);
-    setTimeout(() => setStatus("", true), 3600);
-  }
-
-  function replaceActiveValues(activeValues, items) {
-    activeValues.clear();
-    items.forEach((item) => activeValues.add(item.value));
-  }
-
-  function setOwnershipFocus(active) {
-    replaceActiveValues(activeOwnershipGroups, active ? ownershipMapGroups : ownershipGroups);
-    syncFilterCheckboxes("ownershipGroupFilters", activeOwnershipGroups);
-  }
-
-  function setRenderMode(mode) {
-    if (currentRenderMode === mode) return;
-    const isOwnershipMode = mode === "ownership";
-    setOwnershipFocus(isOwnershipMode);
-    currentRenderMode = mode;
-    parcelLayer.visible = !isOwnershipMode;
-    ownershipReferenceLayer.visible = isOwnershipMode;
-    countyParcelReferenceLayer.visible = isOwnershipMode;
-    parcelLayer.renderer = isOwnershipMode ? ownershipRenderer : priorRenderer;
-    parcelLayer.labelingInfo = isOwnershipMode ? ownershipLabelingInfo : null;
-    parcelLayer.labelsVisible = isOwnershipMode;
-    parcelLayer.definitionExpression = buildWhereClause();
-    ownershipReferenceLayer.definitionExpression = buildOwnershipReferenceWhereClause();
-    legend.layerInfos = [{
-      layer: isOwnershipMode ? ownershipReferenceLayer : parcelLayer,
-      title: isOwnershipMode ? "Ownership / Control" : "Prior-year history"
-    }];
-    renderMapLegend(mode);
-  }
-
-  handleModuleChange = (moduleName) => {
-    if (moduleName === "ownership" || moduleName === "public-property") {
-      setRenderMode("ownership");
-      setStatus("Ownership reference layer active.", false);
-      setTimeout(() => setStatus("", true), 2400);
-      return;
-    }
-    setRenderMode("prior");
-  };
-
-  handleModuleChange(currentModule);
-
-  const boundaryConfigs = {
-    zip: {
-      layer: zipBoundaryLayer,
-      field: "ZCTA5",
-      outFields: ["ZCTA5"],
-      label: "ZIP boundary"
-    },
-    neighborhood: {
-      layer: neighborhoodBoundaryLayer,
-      field: "hood",
-      outFields: ["hood"],
-      label: "neighborhood boundary"
-    },
-    council: {
-      layer: councilBoundaryLayer,
-      field: "DIST_NAME",
-      outFields: ["DIST_ID", "DIST_NAME"],
-      label: "Council district boundary"
-    }
-  };
+    content: new Legend({ view, layerInfos: [{ layer: parcelLayer, title: "Vacant land parcels" }] }),
+    expanded: false,
+    expandTooltip: "ArcGIS legend"
+  }), "top-left");
 
   view.whenLayerView(parcelLayer).then((layerView) => {
     parcelLayerView = layerView;
   });
-  view.whenLayerView(ownershipReferenceLayer).then((layerView) => {
-    ownershipReferenceLayerView = layerView;
-  });
-
-  function clearAreaSelection() {
-    selectedAreaKey = null;
-    zipBoundaryLayer.definitionExpression = "1=0";
-    neighborhoodBoundaryLayer.definitionExpression = "1=0";
-    councilBoundaryLayer.definitionExpression = "1=0";
-    areaFocusCard.classList.add("is-hidden");
-    document.querySelectorAll("[data-area-type]").forEach((row) => row.classList.remove("is-active"));
-
-    if (parcelLayerView) {
-      parcelLayerView.filter = null;
-    }
-
-    if (ownershipReferenceLayerView) {
-      ownershipReferenceLayerView.filter = null;
-    }
-  }
-
-  document.querySelectorAll(".bookmark").forEach((button) => {
-    button.addEventListener("click", () => {
-      if (button.textContent.trim() === "Citywide") clearAreaSelection();
-      const center = button.dataset.center.split(",").map(Number);
-      const zoom = Number(button.dataset.zoom);
-      view.goTo({ center, zoom }, { duration: 750 });
-    });
-  });
-
-  function sqlValue(value) {
-    return String(value).replaceAll("'", "''");
-  }
-
-  function allChartItems() {
-    return [...neighborhoodChartData, ...councilChartData, ...zipChartData, ...zipMedianYearsData];
-  }
-
-  document.addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-area-type]");
-    if (!button) return;
-
-    const areaType = button.dataset.areaType;
-    const boundaryValue = button.dataset.boundaryValue;
-    const metric = button.dataset.metric || "count";
-    const config = boundaryConfigs[areaType];
-    const item = allChartItems().find((candidate) => (
-      candidate.boundaryType === areaType
-      && candidate.boundaryValue === boundaryValue
-      && (candidate.metricId || "count") === metric
-    )) || {
-      label: boundaryValue,
-      value: 0,
-      metricLabel: "mapped parcels",
-      boundaryType: areaType,
-      boundaryValue
-    };
-    const selectionKey = `${areaType}:${boundaryValue}:${metric}`;
-
-    if (selectedAreaKey === selectionKey && button.classList.contains("is-active")) {
-      clearAreaSelection();
-      setStatus(`${boundaryTypeLabel(areaType)} boundary filter cleared.`, false);
-      setTimeout(() => setStatus("", true), 2500);
-      return;
-    }
-
-    if (!config) return;
-
-    selectedAreaKey = selectionKey;
-    document.querySelectorAll("[data-area-type]").forEach((row) => {
-      row.classList.toggle("is-active", row === button);
-    });
-
-    Object.values(boundaryConfigs).forEach((boundaryConfig) => {
-      boundaryConfig.layer.definitionExpression = "1=0";
-    });
-
-    config.layer.definitionExpression = `${config.field} = '${sqlValue(boundaryValue)}'`;
-    setAreaFocus(item);
-    setStatus("", true);
-
-    try {
-      const query = config.layer.createQuery();
-      query.where = config.layer.definitionExpression;
-      query.returnGeometry = true;
-      query.outFields = config.outFields;
-      const result = await config.layer.queryFeatures(query);
-      const feature = result.features[0];
-
-      if (feature?.geometry?.extent) {
-        if (parcelLayerView) {
-          parcelLayerView.filter = {
-            geometry: feature.geometry,
-            spatialRelationship: "intersects"
-          };
-        }
-
-        if (ownershipReferenceLayerView) {
-          ownershipReferenceLayerView.filter = {
-            geometry: feature.geometry,
-            spatialRelationship: "intersects"
-          };
-        }
-
-        await view.goTo(feature.geometry.extent.expand(1.2), { duration: 650 });
-      }
-    } catch (error) {
-      console.error(error);
-      setStatus(`Could not load the selected ${config.label}.`, false);
-    }
-  });
 
   parcelLayer.when(() => {
-    setStatus("Residential view active by default. 30,259 multi-use vacant parcels are available through the use filter.", false);
+    applyLayerState();
     view.goTo(parcelLayer.fullExtent.expand(1.08), { duration: 600 }).catch(() => {});
-    setTimeout(() => setStatus("", true), 4200);
   }).catch((error) => {
     console.error(error);
-    setStatus("Map data did not load. Serve this folder through a web server and check the GeoJSON path.");
+    setStatus("Map layer did not load. Check the public GeoJSON path.", false);
   });
 });

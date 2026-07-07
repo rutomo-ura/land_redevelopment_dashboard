@@ -205,6 +205,14 @@ The first screen should still be the map and sidebar, not a landing page. Naviga
 - Show selected-area context after a chart click.
 - Keep the sidebar dense and scannable.
 
+### Exports
+
+- Provide a PDF export for supervisor-ready map review.
+- Provide a spreadsheet export, similar to Tolemi-style parcel list export capability, for the current dashboard state.
+- Spreadsheet export should respect the current map signal, active filters, selected geography/view, and visible parcel set.
+- Spreadsheet rows should be one parcel per row with clear public-safe columns: parcel ID/PIN, display parcel label, use group, prior-year band, prior-year count, tax status, ownership group, control path, condemned flag/status band, acreage, fair market value, neighborhood, Council district, active signal mode, active filter summary, and export timestamp.
+- Public mode spreadsheet exports must exclude owner names, addresses, internal notes, detailed delinquency account records, staff comments, and operational strategy fields unless explicitly approved for an internal mode.
+
 ### Filters
 
 Required filters:
@@ -377,6 +385,7 @@ Metric definitions:
 - Toggling imagery should preserve current map extent and filters.
 - Parcel popup should show only fields allowed in the current mode.
 - Active filter and selection state should be visible in the sidebar.
+- Exporting to spreadsheet should preserve the user's current analytical context: active signal mode, active filters, selected/visible geography or map subset, visible parcel set, and generated timestamp.
 
 ## 17. Visual And UX Requirements
 
@@ -399,6 +408,7 @@ Current architecture:
 - Sanitized GeoJSON parcel layer.
 - ArcGIS FeatureLayer services for selected boundaries.
 - Native JavaScript sidebar charts.
+- Client-side public-safe PDF and spreadsheet exports.
 - Reproducible Python enrichment scripts.
 
 Recommended next architecture:
@@ -424,6 +434,7 @@ Pipeline steps:
 - Build assemblage groups.
 - Generate dashboard-ready JSON summaries.
 - Copy public-safe assets into `docs/`.
+- Maintain a canonical export-column manifest so UI spreadsheet export, generated QA files, and any Tolemi-style downstream parcel review export use the same public-safe field names and ordering.
 
 Pipeline quality checks:
 
@@ -475,6 +486,7 @@ Technical success:
 - Native charts render without image dependencies.
 - Data refresh can be reproduced from documented scripts.
 - Map interaction remains performant with the public parcel bundle.
+- PDF and spreadsheet exports reflect the same filtered parcel set and do not leak internal-only fields.
 
 ## 22. Milestones
 
