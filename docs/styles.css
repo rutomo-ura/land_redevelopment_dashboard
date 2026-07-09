@@ -263,6 +263,10 @@ p {
   margin-top: 11px;
 }
 
+.compact-segments {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .segment-button {
   min-height: 42px;
   padding: 8px 10px;
@@ -334,6 +338,23 @@ p {
   flex: 0 0 13px;
   border: 1px solid rgba(20, 41, 53, 0.28);
   border-radius: 50%;
+}
+
+.ownership-legend-list {
+  gap: 10px;
+}
+
+.ownership-legend-item {
+  gap: 9px;
+}
+
+.ownership-swatch {
+  width: 22px;
+  height: 16px;
+  flex-basis: 22px;
+  border: 0;
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 72%, 0 100%);
 }
 
 .filter-label,

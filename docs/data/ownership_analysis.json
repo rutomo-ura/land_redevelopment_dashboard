@@ -1,32 +1,127 @@
 {
-  "source": {
-    "name": "Ownership Overview",
-    "serviceUrl": "https://services1.arcgis.com/0DMNBNaacQNEfN4H/arcgis/rest/services/gisdb_gis_epp_parcels_full/FeatureServer/0",
-    "groupField": "inventory_type",
-    "areaField": "parcel_sqft"
-  },
   "groups": [
     {
       "label": "City Owned",
-      "value": 12390,
-      "acres": 6197.08,
-      "source": "Ownership Overview reference layer"
+      "value": 8748,
+      "acres": 4375.46,
+      "longPriorParcels": 2,
+      "threePlusPriorParcels": 23
     },
     {
       "label": "URA Owned",
-      "value": 1471,
-      "acres": 707.44,
-      "source": "Ownership Overview reference layer"
+      "value": 817,
+      "acres": 403.95,
+      "longPriorParcels": 6,
+      "threePlusPriorParcels": 19
     },
     {
       "label": "PLB Owned",
-      "value": 78,
-      "acres": 11.98,
-      "source": "Ownership Overview reference layer"
+      "value": 14,
+      "acres": 8.32,
+      "longPriorParcels": 0,
+      "threePlusPriorParcels": 4
+    },
+    {
+      "label": "HACP Owned",
+      "value": 4,
+      "acres": 35.26,
+      "longPriorParcels": 1,
+      "threePlusPriorParcels": 1
+    },
+    {
+      "label": "Other Public / Institutional",
+      "value": 935,
+      "acres": 838.0,
+      "longPriorParcels": 9,
+      "threePlusPriorParcels": 17
+    },
+    {
+      "label": "Private / Other",
+      "value": 19265,
+      "acres": 8140.6,
+      "longPriorParcels": 3649,
+      "threePlusPriorParcels": 5259
+    }
+  ],
+  "controlPaths": [
+    {
+      "label": "Existing public control",
+      "value": 9583
+    },
+    {
+      "label": "Public or institutional review",
+      "value": 935
+    },
+    {
+      "label": "Private acquisition review",
+      "value": 5216
+    },
+    {
+      "label": "Private or monitor",
+      "value": 14049
     }
   ],
   "kpis": {
-    "referencePublicParcels": 13939,
-    "referencePublicAcres": 6916.5
-  }
+    "publicControlledParcels": 9583,
+    "publicOrInstitutionalParcels": 10518,
+    "privateThreePlusPriorParcels": 5259
+  },
+  "topPublicNeighborhoods": [
+    {
+      "label": "Hazelwood",
+      "value": 592,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 15,
+      "publicInstitutionalParcels": 365
+    },
+    {
+      "label": "Perry South",
+      "value": 582,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 12,
+      "publicInstitutionalParcels": 349
+    },
+    {
+      "label": "Homewood North",
+      "value": 470,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 10,
+      "publicInstitutionalParcels": 236
+    },
+    {
+      "label": "Larimer",
+      "value": 411,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 11,
+      "publicInstitutionalParcels": 134
+    },
+    {
+      "label": "Sheraden",
+      "value": 411,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 1,
+      "publicInstitutionalParcels": 317
+    },
+    {
+      "label": "Perry North",
+      "value": 402,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 3,
+      "publicInstitutionalParcels": 339
+    },
+    {
+      "label": "Beltzhoover",
+      "value": 338,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 4,
+      "publicInstitutionalParcels": 114
+    },
+    {
+      "label": "Lincoln-Lemington-Belmar",
+      "value": 336,
+      "priorYearsMedian": 0.0,
+      "commercialParcels": 9,
+      "publicInstitutionalParcels": 215
+    }
+  ]
 }

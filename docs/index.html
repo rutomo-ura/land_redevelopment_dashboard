@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Vacant Land Triage Map</title>
+    <title>Vacant Land Redevelopment Explorer</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -12,15 +12,15 @@
       <a class="brand" href="https://www.ura.org/" aria-label="Urban Redevelopment Authority of Pittsburgh">
         <img src="assets/ura-wordmark.png" alt="URA Urban Redevelopment Authority of Pittsburgh logo" />
         <span>
-          <strong>Vacant Land Triage Map</strong>
+          <strong>Vacant Land Redevelopment Explorer</strong>
           <em>Tax delinquency, ownership, and condemned overlap</em>
         </span>
       </a>
       <p class="freshness" id="sourceFreshness">
-        Public GeoJSON bundle | 30,259 parcels | Source review required before action
+        Loading parcel source...
       </p>
       <div class="header-actions">
-        <a class="ghost-button" href="https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2">ArcGIS</a>
+        <a class="ghost-button" id="arcgisContentLink" href="https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2">URA Maps</a>
         <button class="primary-button" id="exportPdfButton" type="button">Export PDF</button>
       </div>
     </header>
@@ -30,7 +30,7 @@
         <section class="panel hero-panel">
           <span class="eyebrow">Public screening dashboard</span>
           <h1>Find parcels that need a closer look.</h1>
-          <p>Switch the map between tax, ownership, and condemned signals. Filters update the map, legend, metrics, and export.</p>
+          <p>Switch map signals for analysis, choose how parcels are colored, and filter by property use. Updates apply to the map, legend, metrics, and export.</p>
         </section>
 
         <section class="panel">
@@ -38,6 +38,13 @@
             <h2>Map Signal</h2>
           </div>
           <div class="segmented-control" id="signalModeControls" aria-label="Map signal"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Parcel Color</h2>
+          </div>
+          <div class="segmented-control compact-segments" id="colorModeControls" aria-label="Parcel color mode"></div>
         </section>
 
         <section class="panel">
@@ -72,7 +79,7 @@
         </section>
       </aside>
 
-      <section class="map-stage" aria-label="Vacant land triage map">
+      <section class="map-stage" aria-label="Vacant land redevelopment map">
         <div id="viewDiv"></div>
         <div class="map-legend" id="mapLegend" aria-label="Current map legend"></div>
         <div class="map-status" id="mapStatus" aria-live="polite">Loading vacant land parcels...</div>

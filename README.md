@@ -1,6 +1,6 @@
 # Vacant Land Redevelopment Explorer
 
-An interactive public map for exploring vacant land patterns in Pittsburgh, with a residential default view and optional commercial, industrial, public, infrastructure, and review categories.
+An interactive public map for exploring vacant land patterns in Pittsburgh, with a residential default view and optional commercial, industrial, public/institutional, and review categories.
 
 This project helps planners, analysts, and neighborhood partners see where vacant parcels are clustered, where long delinquency histories may warrant closer review, and which areas may need a more detailed redevelopment, acquisition, maintenance, or data-quality conversation.
 
@@ -8,6 +8,7 @@ This project helps planners, analysts, and neighborhood partners see where vacan
 
 - Live web app: <https://rutomo-ura.github.io/land_redevelopment_dashboard/>
 - Ownership view: <https://rutomo-ura.github.io/land_redevelopment_dashboard/ownership>
+- URA Maps ArcGIS entry: <https://urap.maps.arcgis.com/home/item.html?id=3cd3519a816342b181443725f0d226d3>
 - ArcGIS Map Viewer: <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2>
 - Repository: <https://github.com/rutomo-ura/land_redevelopment_dashboard>
 
@@ -17,12 +18,12 @@ The web app presents a citywide parcel map with a right-side analysis panel. Par
 
 The current public map includes:
 
-- 30,259 mapped vacant parcels in the public multi-use bundle.
+- 29,783 mapped vacant parcels in the public multi-use bundle after infrastructure, rail, and right-of-way polygons are excluded from the dashboard parcel layer.
 - 20,663 parcels in the default residential view.
-- 3,667 parcels in the `11+ prior years` band.
+- 3,603 residential-default parcels in the `11+ prior years` band.
 - 1,561 commercial parcels available through the property-use filter.
 - Filters for `No known prior years`, `1-4`, `5-10`, and `11+` prior-year groups.
-- Filters for residential, commercial, industrial, public/institutional, infrastructure/utility, and review property-use groups.
+- Filters for residential, commercial, industrial, public/institutional, and review property-use groups.
 - Bookmarks for citywide review, Homewood, Hill District, Perry South, and Larimer.
 - Context charts for City neighborhoods, Council districts, and ZIP vacancy penetration.
 
@@ -55,6 +56,7 @@ Public ownership is checked against the Ownership Overview reference layer befor
 
 - `docs/` contains the GitHub Pages app and project documentation.
 - `docs/complete-dashboard-prd.md` defines the longer-term product vision for the redevelopment decision-support dashboard.
+- `docs/arcgis-online-publishing.md` documents the URA Maps ArcGIS app/dashboard shell setup.
 - `docs/supervisor-feedback-roadmap.md` summarizes review feedback and future improvement priorities.
 - `docs/latest_ownership_qa.md` records the latest ownership refresh validation result.
 - `docs/arcgis_quickstart_tutorial.md` preserves the analyst tutorial and original ArcGIS/SQL walkthrough.

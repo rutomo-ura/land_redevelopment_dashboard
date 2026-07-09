@@ -1,4 +1,18 @@
-const DATA_URL = "data/vacant_land_triage.geojson?v=triage-dashboard-20260707";
+const APP_TITLE = "Vacant Land Redevelopment Explorer";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709";
+
+const colorModes = {
+  signal: {
+    label: "Map signal",
+    shortLabel: "Signal",
+    helper: "Tax, ownership, or condemned"
+  },
+  use: {
+    label: "Property use",
+    shortLabel: "Use",
+    helper: "Residential, commercial, industrial"
+  }
+};
 
 const signalModes = {
   tax: {
@@ -8,8 +22,8 @@ const signalModes = {
     field: "prior_band",
     chartTitle: "Tax Breakdown",
     categories: [
-      { value: "11+ prior years", label: "11+ prior years", color: "#102638", outline: "#07131d" },
-      { value: "5-10 prior years", label: "5-10 prior years", color: "#0098d3", outline: "#006c9f" },
+      { value: "11+ prior years", label: "11+ prior years", color: "#d8332a", outline: "#8f1d18" },
+      { value: "5-10 prior years", label: "5-10 prior years", color: "#e97827", outline: "#9b4818" },
       { value: "1-4 prior years", label: "1-4 prior years", color: "#f0c24b", outline: "#9f7411" },
       { value: "No known prior years", label: "No known prior years", color: "#c7d0d5", outline: "#65727b" }
     ]
@@ -22,9 +36,9 @@ const signalModes = {
     chartTitle: "Ownership Breakdown",
     categories: [
       { value: "Private / Other", label: "Private / Other", color: "#d8e4ea", outline: "#7d8990" },
-      { value: "City Owned", label: "City Owned", color: "#0098d3", outline: "#006c9f" },
-      { value: "URA Owned", label: "URA Owned", color: "#00334f", outline: "#001c2c" },
-      { value: "PLB Owned", label: "PLB Owned", color: "#267a4b", outline: "#17482d" },
+      { value: "City Owned", label: "City Owned", color: "#e7df00", outline: "#aaa400", showInOwnershipLegend: true },
+      { value: "URA Owned", label: "URA Owned", color: "#0098d3", outline: "#006c9f", showInOwnershipLegend: true },
+      { value: "PLB Owned", label: "PLB Owned", color: "#14582e", outline: "#0a341a", showInOwnershipLegend: true },
       { value: "HACP Owned", label: "HACP Owned", color: "#554a8f", outline: "#342b66" },
       { value: "Other Public / Institutional", label: "Other Public", color: "#8a8f98", outline: "#545b62" }
     ]
@@ -59,8 +73,24 @@ const publicOwnershipGroups = new Set([
   "Other Public / Institutional"
 ]);
 
+const excludedDashboardUseGroups = new Set([
+  "Infrastructure / utility"
+]);
+
+const excludedDashboardUses = new Set([
+  "R.R. - USED IN OPERATION",
+  "R.R. - NOT USED IN OPERATION",
+  "COMMERCIAL/UTILITY",
+  "RIGHT OF WAY - RESIDENTIAL",
+  "RIGHT OF WAY - COMMERCIAL",
+  "RETENTION POND - RESIDENTIAL",
+  "AIR RIGHTS",
+  "CEMETERY/MONUMENTS"
+]);
+
 const state = {
   signalMode: "tax",
+  colorMode: "signal",
   activeUseGroups: new Set(),
   activeSignalValues: {
     tax: new Set(signalModes.tax.categories.map((item) => item.value)),
@@ -70,7 +100,9 @@ const state = {
 };
 
 const nodes = {
+  sourceFreshness: document.getElementById("sourceFreshness"),
   signalModeControls: document.getElementById("signalModeControls"),
+  colorModeControls: document.getElementById("colorModeControls"),
   useGroupFilters: document.getElementById("useGroupFilters"),
   signalFilters: document.getElementById("signalFilters"),
   signalFilterHeading: document.getElementById("signalFilterHeading"),
@@ -79,6 +111,7 @@ const nodes = {
   mapStatus: document.getElementById("mapStatus"),
   exportStatus: document.getElementById("exportStatus"),
   exportPdfButton: document.getElementById("exportPdfButton"),
+  arcgisContentLink: document.getElementById("arcgisContentLink"),
   resetFilters: document.getElementById("resetFilters"),
   visibleParcelMetric: document.getElementById("visibleParcelMetric"),
   longDelinquencyMetric: document.getElementById("longDelinquencyMetric"),
@@ -92,6 +125,8 @@ const nodes = {
 
 let allFeatures = [];
 let useGroupItems = [];
+let layerSources = null;
+let parcelDataSource = "geojson";
 let view = null;
 let parcelLayer = null;
 let parcelLayerView = null;
@@ -136,6 +171,12 @@ function sqlEscape(value) {
 
 function getProp(feature, field) {
   return feature?.properties?.[field] ?? feature?.[field];
+}
+
+function isDashboardParcel(feature) {
+  const useGroup = getProp(feature, "use_group");
+  const useDesc = String(getProp(feature, "usedesc") || "").trim().toUpperCase();
+  return !excludedDashboardUseGroups.has(useGroup) && !excludedDashboardUses.has(useDesc);
 }
 
 function countBy(features, field) {
@@ -187,6 +228,134 @@ function useColor(value) {
   return colors[value] || "#8a8f98";
 }
 
+function activeColorField() {
+  if (state.colorMode === "use") return "use_group";
+  return signalModes[state.signalMode].field;
+}
+
+function activeColorLegendTitle() {
+  if (state.colorMode === "use") return "Property use";
+  return signalModes[state.signalMode].label;
+}
+
+function colorLegendItems(features = filteredFeatures()) {
+  const field = activeColorField();
+  const counts = countBy(features, field);
+  if (state.colorMode === "use") {
+    return useItems(allFeatures).map((item) => ({
+      ...item,
+      count: counts.get(item.value) || 0
+    }));
+  }
+  return categoryItemsForMode(state.signalMode).map((item) => ({
+    ...item,
+    count: counts.get(item.value) || 0
+  }));
+}
+
+function colorRendererItems() {
+  if (state.colorMode === "use") return useItems(allFeatures);
+  return categoryItemsForMode(state.signalMode);
+}
+
+function defaultUseGroupValues() {
+  const values = useGroupItems.map((item) => item.value);
+  return values.includes("Residential") ? ["Residential"] : values;
+}
+
+async function loadLayerSources() {
+  const response = await fetch(LAYER_SOURCES_URL);
+  if (!response.ok) throw new Error(`Layer config failed with ${response.status}`);
+  return response.json();
+}
+
+function updateSourceFreshness(message) {
+  if (nodes.sourceFreshness) nodes.sourceFreshness.textContent = message;
+}
+
+function sourceFreshnessLabel(source) {
+  if (source === "feature-service") return "URA ArcGIS feature layer";
+  if (source === "arcgis-geojson-url") return "URA ArcGIS GeoJSON URL";
+  if (source === "arcgis-geojson-item") return "URA ArcGIS GeoJSON item";
+  return "Public GeoJSON bundle";
+}
+
+function preferredArcGisContentUrl() {
+  return layerSources?.arcgisAppUrl
+    || layerSources?.arcgisDashboardUrl
+    || layerSources?.webmapUrl
+    || (layerSources?.webmapItemId
+      ? `${layerSources.portalUrl}/apps/mapviewer/index.html?webmap=${layerSources.webmapItemId}`
+      : null);
+}
+
+function updateArcGisContentLink() {
+  const url = preferredArcGisContentUrl();
+  if (!nodes.arcgisContentLink || !url) return;
+
+  nodes.arcgisContentLink.href = url;
+  nodes.arcgisContentLink.textContent = layerSources?.arcgisAppItemId || layerSources?.arcgisAppUrl || layerSources?.arcgisDashboardUrl
+    ? "URA Maps"
+    : "ArcGIS Map";
+  nodes.arcgisContentLink.setAttribute(
+    "aria-label",
+    nodes.arcgisContentLink.textContent === "URA Maps"
+      ? `Open ${layerSources?.arcgisAppTitle || "this dashboard"} from URA Maps ArcGIS`
+      : "Open the source web map in ArcGIS Map Viewer"
+  );
+}
+
+function parcelLayerConfig() {
+  return {
+    title: layerSources?.parcelLayerTitle || "Vacant land parcels",
+    outFields: ["*"],
+    popupTemplate: {
+      title: "{parcel_label}",
+      content: buildPopupContent
+    }
+  };
+}
+
+async function loadFeaturesFromGeoJsonUrl(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Public GeoJSON failed with ${response.status}`);
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("text/html")) {
+    throw new Error("GeoJSON request returned an HTML page");
+  }
+  const data = await response.json();
+  return data.features || [];
+}
+
+async function loadFeaturesFromLayer(layer) {
+  if (typeof layer?.queryFeatures !== "function") {
+    throw new Error("Layer does not support feature queries");
+  }
+  return queryAllParcelAttributes(layer);
+}
+
+async function queryAllParcelAttributes(layer) {
+  const features = [];
+  let start = 0;
+  const pageSize = 2000;
+  while (true) {
+    const result = await layer.queryFeatures({
+      where: "1=1",
+      outFields: ["*"],
+      returnGeometry: false,
+      num: pageSize,
+      start
+    });
+    features.push(...result.features);
+    if (!result.exceededTransferLimit) break;
+    start += pageSize;
+  }
+  return features.map((feature) => ({
+    properties: { ...feature.attributes },
+    attributes: feature.attributes
+  }));
+}
+
 function featureMatchesActiveFilters(feature) {
   const props = feature.properties || feature;
   const mode = signalModes[state.signalMode];
@@ -236,6 +405,15 @@ function uniqueValueRenderer(field, items) {
   };
 }
 
+function renderColorModeControls() {
+  nodes.colorModeControls.innerHTML = Object.entries(colorModes).map(([key, mode]) => `
+    <button class="segment-button ${state.colorMode === key ? "is-active" : ""}" type="button" data-color-mode="${key}">
+      ${escapeHtml(mode.label)}
+      <span>${escapeHtml(mode.helper)}</span>
+    </button>
+  `).join("");
+}
+
 function renderSignalModeControls() {
   nodes.signalModeControls.innerHTML = Object.entries(signalModes).map(([key, mode]) => `
     <button class="segment-button ${state.signalMode === key ? "is-active" : ""}" type="button" data-signal-mode="${key}">
@@ -245,14 +423,18 @@ function renderSignalModeControls() {
   `).join("");
 }
 
-function renderFilterList(container, items, activeValues, onChange) {
+function renderFilterList(container, items, activeValues, onChange, options = {}) {
+  const showSwatches = options.showSwatches !== false;
   container.innerHTML = items.map((item) => {
     const checked = activeValues.has(item.value) ? "checked" : "";
+    const swatch = showSwatches
+      ? `<span class="swatch" style="background:${item.color}"></span>`
+      : "";
     return `
       <label class="filter-item">
         <span class="filter-left">
           <input type="checkbox" value="${escapeHtml(item.value)}" ${checked} />
-          <span class="swatch" style="background:${item.color}"></span>
+          ${swatch}
           <span class="filter-label">${escapeHtml(item.label)}</span>
         </span>
         <span class="filter-count">${formatNumber(item.count)}</span>
@@ -272,28 +454,29 @@ function renderFilterList(container, items, activeValues, onChange) {
 function renderFilters() {
   const mode = signalModes[state.signalMode];
   nodes.signalFilterHeading.textContent = mode.label;
-  renderFilterList(nodes.useGroupFilters, useGroupItems, state.activeUseGroups, applyDashboardState);
+  renderFilterList(nodes.useGroupFilters, useGroupItems, state.activeUseGroups, applyDashboardState, { showSwatches: false });
   renderFilterList(nodes.signalFilters, categoryItemsForMode(state.signalMode), state.activeSignalValues[state.signalMode], applyDashboardState);
 }
 
 function legendItems() {
-  const counts = countBy(filteredFeatures(), signalModes[state.signalMode].field);
-  return categoryItemsForMode(state.signalMode).map((item) => ({
-    ...item,
-    count: counts.get(item.value) || 0
-  }));
+  const items = colorLegendItems(filteredFeatures());
+  if (state.colorMode === "signal" && state.signalMode === "ownership") {
+    return items.filter((item) => item.showInOwnershipLegend);
+  }
+  return items;
 }
 
 function legendHtml(includeTitle = false) {
-  const title = includeTitle ? `<strong class="legend-title">${escapeHtml(signalModes[state.signalMode].label)}</strong>` : "";
+  const title = includeTitle ? `<strong class="legend-title">${escapeHtml(activeColorLegendTitle())}</strong>` : "";
+  const ownershipLegend = state.colorMode === "signal" && state.signalMode === "ownership";
   return `
     ${title}
-    <div class="legend-list">
+    <div class="legend-list ${ownershipLegend ? "ownership-legend-list" : ""}">
       ${legendItems().map((item) => `
-        <div class="legend-item">
-          <span class="legend-swatch" style="background:${item.color}"></span>
+        <div class="legend-item ${ownershipLegend ? "ownership-legend-item" : ""}">
+          <span class="legend-swatch ${ownershipLegend ? "ownership-swatch" : ""}" style="background:${item.color}"></span>
           <span class="legend-label">${escapeHtml(item.label)}</span>
-          <span class="legend-count">${formatNumber(item.count)}</span>
+          ${ownershipLegend ? "" : `<span class="legend-count">${formatNumber(item.count)}</span>`}
         </div>
       `).join("")}
     </div>
@@ -385,14 +568,15 @@ function setStatus(message, isHidden = false) {
 
 function applyLayerState() {
   if (!parcelLayer) return;
-  const mode = signalModes[state.signalMode];
-  parcelLayer.renderer = uniqueValueRenderer(mode.field, categoryItemsForMode(state.signalMode));
+  const field = activeColorField();
+  parcelLayer.renderer = uniqueValueRenderer(field, colorRendererItems());
   parcelLayer.definitionExpression = buildWhereClause();
 }
 
 function applyDashboardState() {
   const features = filteredFeatures();
   renderSignalModeControls();
+  renderColorModeControls();
   renderFilters();
   renderLegends();
   renderMetricCards(features);
@@ -409,7 +593,7 @@ function applyDashboardState() {
 }
 
 function resetFilters() {
-  state.activeUseGroups = new Set(useGroupItems.map((item) => item.value));
+  state.activeUseGroups = new Set(defaultUseGroupValues());
   Object.entries(signalModes).forEach(([key, mode]) => {
     state.activeSignalValues[key] = new Set(mode.categories.map((item) => item.value));
   });
@@ -461,7 +645,7 @@ function buildPreparingPrintHtml() {
   return `
     <!doctype html>
     <html>
-      <head><title>Preparing Vacant Land Triage PDF</title></head>
+      <head><title>Preparing ${escapeHtml(APP_TITLE)} PDF</title></head>
       <body style="font-family:Arial,sans-serif;padding:24px;color:#142935">
         <h1>Preparing map export</h1>
         <p>Capturing the current map extent, filters, and legend.</p>
@@ -477,7 +661,7 @@ function buildPrintHtml(mapImage, stats) {
     <!doctype html>
     <html>
       <head>
-        <title>Vacant Land Triage Map</title>
+        <title>${escapeHtml(APP_TITLE)}</title>
         <style>
           @page { size: A3 landscape; margin: 0.35in; }
           * { box-sizing: border-box; }
@@ -505,7 +689,7 @@ function buildPrintHtml(mapImage, stats) {
       <body>
         <header class="print-header">
           <div>
-            <h1>Vacant Land Triage Map</h1>
+            <h1>${escapeHtml(APP_TITLE)}</h1>
             <p>Generated ${escapeHtml(timestamp)} | Current map extent and active dashboard filters</p>
           </div>
           <p>Public-safe bundle. Screening only; confirm source records before action.</p>
@@ -524,7 +708,7 @@ function buildPrintHtml(mapImage, stats) {
               ${filters.map((item) => `<div class="filter-item">${escapeHtml(item)}</div>`).join("")}
             </section>
             <section class="print-card">
-              <h2>Legend: ${escapeHtml(signalModes[state.signalMode].label)}</h2>
+              <h2>Legend: ${escapeHtml(activeColorLegendTitle())}</h2>
               ${legendItems().map((item) => `
                 <div class="legend-item">
                   <span style="background:${item.color}"></span>
@@ -602,23 +786,102 @@ async function exportCurrentMapPdf() {
 
 async function loadPublicData() {
   try {
-    const response = await fetch(DATA_URL);
-    if (!response.ok) throw new Error(`Public GeoJSON failed with ${response.status}`);
-    const data = await response.json();
-    allFeatures = data.features || [];
+    if (parcelDataSource !== "geojson") {
+      try {
+        allFeatures = await loadFeaturesFromLayer(parcelLayer);
+      } catch (error) {
+        console.warn("ArcGIS layer query failed; using public GeoJSON bundle for analytics.", error);
+        allFeatures = await loadFeaturesFromGeoJsonUrl(layerSources.parcelLocalGeoJsonUrl || layerSources.parcelGeoJsonUrl);
+      }
+    } else {
+      allFeatures = await loadFeaturesFromGeoJsonUrl(layerSources.parcelLocalGeoJsonUrl || layerSources.parcelGeoJsonUrl);
+    }
+
+    allFeatures = allFeatures.filter(isDashboardParcel);
     useGroupItems = useItems(allFeatures);
-    state.activeUseGroups = new Set(useGroupItems.map((item) => item.value));
+    state.activeUseGroups = new Set(defaultUseGroupValues());
+    updateSourceFreshness(
+      `${sourceFreshnessLabel(parcelDataSource)} | ${formatNumber(allFeatures.length)} parcels | Source review required before action`
+    );
     applyDashboardState();
   } catch (error) {
     console.error(error);
-    setStatus("Static parcel data did not load. Serve docs through a web server and check docs/data.", false);
+    setStatus("Parcel data did not load. Check the URA ArcGIS layer or public bundle path.", false);
   }
+}
+
+async function createParcelLayerFromArcGIS(GeoJSONLayer, FeatureLayer) {
+  if (layerSources.parcelFeatureServiceUrl) {
+    try {
+      const layer = new FeatureLayer({
+        url: layerSources.parcelFeatureServiceUrl,
+        ...parcelLayerConfig()
+      });
+      await layer.load();
+      return { layer, source: "feature-service" };
+    } catch (error) {
+      console.warn("URA ArcGIS feature service unavailable; trying GeoJSON source.", error);
+    }
+  }
+
+  if (layerSources.parcelGeoJsonUrl) {
+    try {
+      const layer = new GeoJSONLayer({
+        url: layerSources.parcelGeoJsonUrl,
+        ...parcelLayerConfig()
+      });
+      await layer.load();
+      return { layer, source: "arcgis-geojson-url" };
+    } catch (error) {
+      console.warn("URA ArcGIS GeoJSON URL unavailable; trying portal item.", error);
+    }
+  }
+
+  if (layerSources.parcelLayerItemId) {
+    try {
+      const layer = new GeoJSONLayer({
+        portalItem: {
+          id: layerSources.parcelLayerItemId,
+          portal: { url: layerSources.portalUrl }
+        },
+        ...parcelLayerConfig()
+      });
+      await layer.load();
+      return { layer, source: "arcgis-geojson-item" };
+    } catch (error) {
+      console.warn("URA ArcGIS portal item unavailable; using local fallback.", error);
+    }
+  }
+
+  throw new Error("No URA ArcGIS parcel source configured");
+}
+
+async function createParcelLayerFallback(GeoJSONLayer) {
+  const layer = new GeoJSONLayer({
+    url: layerSources.parcelLocalGeoJsonUrl || layerSources.parcelGeoJsonUrl,
+    title: layerSources.parcelLayerTitle || "Vacant land parcels",
+    outFields: ["*"],
+    renderer: uniqueValueRenderer(activeColorField(), colorRendererItems()),
+    popupTemplate: {
+      title: "{parcel_label}",
+      content: buildPopupContent
+    }
+  });
+  await layer.load();
+  return { layer, source: "geojson" };
 }
 
 document.addEventListener("click", (event) => {
   const signalButton = event.target.closest("[data-signal-mode]");
   if (signalButton) {
     state.signalMode = signalButton.dataset.signalMode;
+    applyDashboardState();
+    return;
+  }
+
+  const colorButton = event.target.closest("[data-color-mode]");
+  if (colorButton) {
+    state.colorMode = colorButton.dataset.colorMode;
     applyDashboardState();
     return;
   }
@@ -635,75 +898,86 @@ nodes.resetFilters.addEventListener("click", resetFilters);
 nodes.exportPdfButton.addEventListener("click", exportCurrentMapPdf);
 
 renderSignalModeControls();
+renderColorModeControls();
 setStatus("Loading vacant land parcels...");
-loadPublicData();
 
 require([
   "esri/Map",
   "esri/views/MapView",
   "esri/layers/GeoJSONLayer",
+  "esri/layers/FeatureLayer",
   "esri/widgets/Home",
   "esri/widgets/Search",
   "esri/widgets/BasemapToggle",
   "esri/widgets/Expand",
   "esri/widgets/Legend",
   "esri/core/reactiveUtils"
-], (Map, MapView, GeoJSONLayer, Home, Search, BasemapToggle, Expand, Legend, reactiveUtils) => {
+], (Map, MapView, GeoJSONLayer, FeatureLayer, Home, Search, BasemapToggle, Expand, Legend, reactiveUtils) => {
   reactiveUtilsRef = reactiveUtils;
 
-  parcelLayer = new GeoJSONLayer({
-    url: DATA_URL,
-    title: "Vacant land parcels",
-    outFields: ["*"],
-    renderer: uniqueValueRenderer(signalModes.tax.field, signalModes.tax.categories),
-    popupTemplate: {
-      title: "{parcel_label}",
-      content: buildPopupContent
-    }
-  });
+  async function initDashboard() {
+    try {
+      layerSources = await loadLayerSources();
+      updateArcGisContentLink();
+      let map = null;
 
-  const map = new Map({
-    basemap: "topo-vector",
-    layers: [parcelLayer]
-  });
-
-  view = new MapView({
-    container: "viewDiv",
-    map,
-    center: [-79.9959, 40.4406],
-    zoom: 12,
-    constraints: {
-      minZoom: 10
-    },
-    popup: {
-      dockEnabled: true,
-      dockOptions: {
-        buttonEnabled: false,
-        breakpoint: false,
-        position: "bottom-left"
+      try {
+        const arcgisResult = await createParcelLayerFromArcGIS(GeoJSONLayer, FeatureLayer);
+        parcelLayer = arcgisResult.layer;
+        parcelDataSource = arcgisResult.source;
+      } catch (error) {
+        console.warn("URA ArcGIS parcel layer unavailable; using public GeoJSON fallback.", error);
+        const fallbackResult = await createParcelLayerFallback(GeoJSONLayer);
+        parcelLayer = fallbackResult.layer;
+        parcelDataSource = fallbackResult.source;
       }
+
+      map = new Map({
+        basemap: "topo-vector",
+        layers: [parcelLayer]
+      });
+
+      view = new MapView({
+        container: "viewDiv",
+        map,
+        center: [-79.9959, 40.4406],
+        zoom: 12,
+        constraints: {
+          minZoom: 10
+        },
+        popup: {
+          dockEnabled: true,
+          dockOptions: {
+            buttonEnabled: false,
+            breakpoint: false,
+            position: "bottom-left"
+          }
+        }
+      });
+
+      view.ui.add(new Home({ view }), "top-left");
+      view.ui.add(new Search({ view, includeDefaultSources: true }), "top-right");
+      view.ui.add(new BasemapToggle({ view, nextBasemap: "satellite" }), "bottom-right");
+      view.ui.add(new Expand({
+        view,
+        content: new Legend({ view, layerInfos: [{ layer: parcelLayer, title: parcelLayer.title || "Vacant land parcels" }] }),
+        expanded: false,
+        expandTooltip: "ArcGIS legend"
+      }), "top-left");
+
+      view.whenLayerView(parcelLayer).then((layerView) => {
+        parcelLayerView = layerView;
+      });
+
+      await parcelLayer.when();
+      await loadPublicData();
+      applyLayerState();
+      view.goTo(parcelLayer.fullExtent.expand(1.08), { duration: 600 }).catch(() => {});
+    } catch (error) {
+      console.error(error);
+      setStatus("Map layer did not load. Check the URA ArcGIS parcel item or public bundle path.", false);
     }
-  });
+  }
 
-  view.ui.add(new Home({ view }), "top-left");
-  view.ui.add(new Search({ view, includeDefaultSources: true }), "top-right");
-  view.ui.add(new BasemapToggle({ view, nextBasemap: "satellite" }), "bottom-right");
-  view.ui.add(new Expand({
-    view,
-    content: new Legend({ view, layerInfos: [{ layer: parcelLayer, title: "Vacant land parcels" }] }),
-    expanded: false,
-    expandTooltip: "ArcGIS legend"
-  }), "top-left");
-
-  view.whenLayerView(parcelLayer).then((layerView) => {
-    parcelLayerView = layerView;
-  });
-
-  parcelLayer.when(() => {
-    applyLayerState();
-    view.goTo(parcelLayer.fullExtent.expand(1.08), { duration: 600 }).catch(() => {});
-  }).catch((error) => {
-    console.error(error);
-    setStatus("Map layer did not load. Check the public GeoJSON path.", false);
-  });
+  initDashboard();
 });

@@ -1,6 +1,6 @@
 r"""Build the public web-app GeoJSON with property-use groups.
 
-The public bundle keeps parcel identifiers and triage fields, but omits owner
+The public bundle keeps parcel identifiers and screening fields, but omits owner
 names. It combines the already reviewed residential public layer with the
 broader vacant-land export so commercial, industrial, public/institutional, and
 other parcels can be filtered in the app.
@@ -35,6 +35,10 @@ PUBLIC_FIELDS = [
     "city_neighborhood",
     "council_district",
     "council_district_label",
+    "is_condemned",
+    "condemned_flag",
+    "condemned_status",
+    "condemned_score_band",
 ]
 
 RESIDENTIAL_USES = {
@@ -97,6 +101,13 @@ INFRASTRUCTURE_USES = {
     "CEMETERY/MONUMENTS",
 }
 
+EXCLUDED_DASHBOARD_USES = INFRASTRUCTURE_USES | {
+    "AIR RIGHTS",
+    "RIGHT OF WAY - RESIDENTIAL",
+    "RIGHT OF WAY - COMMERCIAL",
+    "RETENTION POND - RESIDENTIAL",
+}
+
 
 def prior_band(value: object) -> str:
     try:
@@ -127,6 +138,15 @@ def use_group(usedesc: object) -> str:
     if desc in INFRASTRUCTURE_USES:
         return "Infrastructure / utility"
     return "Other / review"
+
+
+def include_dashboard_feature(properties: dict[str, object]) -> bool:
+    desc = str(properties.get("usedesc") or "").strip().upper()
+    if desc in EXCLUDED_DASHBOARD_USES:
+        return False
+    if str(properties.get("use_group") or "").strip() == "Infrastructure / utility":
+        return False
+    return True
 
 
 def _compact(value: object) -> str:
@@ -214,6 +234,10 @@ def sanitize_feature(feature: dict[str, object]) -> dict[str, object]:
     properties["ownership_group"] = ownership_group(properties)
     properties["control_path"] = control_path(properties, properties["ownership_group"])
     properties["parcel_label"] = properties.get("parcel_label") or parcel_label(properties.get("par_pin"))
+    properties["is_condemned"] = bool(properties.get("is_condemned") or False)
+    properties["condemned_flag"] = properties.get("condemned_flag") or "Not flagged"
+    properties["condemned_status"] = properties.get("condemned_status") or "Not flagged"
+    properties["condemned_score_band"] = properties.get("condemned_score_band") or "Not flagged"
 
     return {
         "type": "Feature",
@@ -224,10 +248,14 @@ def sanitize_feature(feature: dict[str, object]) -> dict[str, object]:
 
 def main() -> None:
     features_by_pin: dict[str, dict[str, object]] = {}
+    excluded_count = 0
 
     for source in [BROAD_SOURCE, RESIDENTIAL_SOURCE]:
         for feature in load_features(source):
             sanitized = sanitize_feature(feature)
+            if not include_dashboard_feature(sanitized["properties"]):
+                excluded_count += 1
+                continue
             pin = str(sanitized["properties"].get("par_pin") or "")
             if not pin:
                 continue
@@ -246,6 +274,7 @@ def main() -> None:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(text, encoding="utf-8")
         print(f"Wrote {output} with {len(features):,} features")
+    print(f"Excluded {excluded_count:,} infrastructure/ROW features from dashboard parcel bundle")
 
 
 if __name__ == "__main__":

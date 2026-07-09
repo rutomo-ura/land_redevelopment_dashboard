@@ -1,0 +1,21 @@
+{
+  "appTitle": "Vacant Land Redevelopment Explorer",
+  "portalUrl": "https://urap.maps.arcgis.com",
+  "webmapItemId": "19022018e35b4b72a2d30cba2d56c8e2",
+  "webmapTitle": "Vacant Land Redevelopment Explorer",
+  "webmapUrl": "https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2",
+  "arcgisAppItemId": "3cd3519a816342b181443725f0d226d3",
+  "arcgisAppTitle": "Vacant Land Map - Web App",
+  "arcgisAppUrl": "https://urap.maps.arcgis.com/home/item.html?id=3cd3519a816342b181443725f0d226d3",
+  "arcgisAppTargetUrl": "https://rutomo-ura.github.io/land_redevelopment_dashboard/",
+  "arcgisDashboardUrl": null,
+  "parcelLayerItemId": "c013cc3b5df54a79ae51cccd2baa224f",
+  "parcelLayerTitle": "Vacant Land Redevelopment Parcels",
+  "parcelLayerType": "GeoJson",
+  "parcelLayerDataUrl": "https://urap.maps.arcgis.com/sharing/rest/content/items/c013cc3b5df54a79ae51cccd2baa224f/data",
+  "parcelLayerItemUrl": "https://urap.maps.arcgis.com/home/item.html?id=c013cc3b5df54a79ae51cccd2baa224f",
+  "parcelFeatureServiceUrl": null,
+  "parcelGeoJsonUrl": "https://urap.maps.arcgis.com/sharing/rest/content/items/c013cc3b5df54a79ae51cccd2baa224f/data",
+  "parcelLocalGeoJsonUrl": "data/vacant_land_triage.geojson?v=redevelopment-explorer-20260709",
+  "notes": "Primary parcel source is the URA ArcGIS item data URL, separate from LandCare monitoring. The local GeoJSON is a cleaned fallback for public availability if the ArcGIS item is not shared publicly. Publish the parcel item to create a FeatureServer URL if needed later."
+}
