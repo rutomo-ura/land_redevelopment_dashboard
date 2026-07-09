@@ -899,6 +899,67 @@ body.is-table-view .table-view {
   cursor: pointer;
 }
 
+.spreadsheet-table .check-col {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  padding: 6px 8px;
+  text-align: center;
+  background: #f4f8fa;
+  cursor: default;
+}
+
+.spreadsheet-table td.check-col {
+  z-index: 1;
+  background: #ffffff;
+}
+
+.spreadsheet-table tr:hover td.check-col {
+  background: #eef6fa;
+}
+
+.row-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  cursor: pointer;
+}
+
+.row-check input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--ura-blue);
+  cursor: pointer;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.table-checked-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: rgba(0, 152, 211, 0.1);
+  color: #0f3a4d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .spreadsheet-table th:hover {
   background: #e8f1f6;
 }

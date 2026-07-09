@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709h";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709i";
 
 const signalModes = {
   tax: {
@@ -86,8 +86,9 @@ const TABLE_COLUMNS = [
   { key: "propertyowner", label: "Owner", defaultVisible: true, exportDefault: true },
   { key: "use_group", label: "Use group", defaultVisible: true, exportDefault: true },
   { key: "usedesc", label: "Use desc", defaultVisible: true, exportDefault: true },
-  { key: "prior_band", label: "Tax band", defaultVisible: true, exportDefault: true },
+  { key: "prior_band", label: "Tax delinquency", defaultVisible: true, exportDefault: true },
   { key: "prior_years", label: "Prior years", defaultVisible: true, exportDefault: true },
+  { key: "taxdesc", label: "Tax status", defaultVisible: true, exportDefault: true },
   { key: "ownership_group", label: "Ownership", defaultVisible: true, exportDefault: true },
   { key: "control_path", label: "Control path", defaultVisible: true, exportDefault: true },
   { key: "vacant_lot_score_band", label: "Lot score band", defaultVisible: true, exportDefault: true },
@@ -96,7 +97,6 @@ const TABLE_COLUMNS = [
   { key: "council_district_label", label: "Council", defaultVisible: true, exportDefault: true },
   { key: "par_calcacreag", label: "Acreage", defaultVisible: true, exportDefault: true },
   { key: "fairmarkettotal", label: "FMV", defaultVisible: true, exportDefault: true },
-  { key: "taxdesc", label: "Tax desc", defaultVisible: false, exportDefault: true },
   { key: "pli_hazard_band", label: "PLI band", defaultVisible: false, exportDefault: true },
   { key: "pli_hazard_score", label: "PLI score", defaultVisible: false, exportDefault: true },
   { key: "condemned_flag", label: "Condemned flag", defaultVisible: false, exportDefault: true },
@@ -108,7 +108,7 @@ const TABLE_COLUMNS = [
 const TABLE_FILTER_FIELDS = [
   { key: "use_group", label: "Property Use" },
   { key: "ownership_group", label: "Ownership" },
-  { key: "prior_band", label: "Tax band" },
+  { key: "prior_band", label: "Tax delinquency" },
   { key: "vacant_lot_score_band", label: "Lot score" },
   { key: "pli_hazard_band", label: "PLI hazard" },
   { key: "city_neighborhood", label: "Neighborhood" },
@@ -146,6 +146,7 @@ const tableState = {
   filters: Object.fromEntries(TABLE_FILTER_FIELDS.map((item) => [item.key, new Set()])),
   visibleColumns: new Set(TABLE_COLUMNS.filter((item) => item.defaultVisible).map((item) => item.key)),
   exportColumns: new Set(TABLE_COLUMNS.filter((item) => item.exportDefault).map((item) => item.key)),
+  checkedPins: new Set(),
   sortKey: "par_pin",
   sortDir: "asc",
   page: 1,
@@ -191,6 +192,10 @@ const nodes = {
   tableClearFilters: document.getElementById("tableClearFilters"),
   tableColumnsButton: document.getElementById("tableColumnsButton"),
   tableExportButton: document.getElementById("tableExportButton"),
+  tableExportCheckedPdfButton: document.getElementById("tableExportCheckedPdfButton"),
+  tableSelectPageButton: document.getElementById("tableSelectPageButton"),
+  tableClearCheckedButton: document.getElementById("tableClearCheckedButton"),
+  tableCheckedCount: document.getElementById("tableCheckedCount"),
   tableFilterBar: document.getElementById("tableFilterBar"),
   spreadsheetHead: document.getElementById("spreadsheetHead"),
   spreadsheetBody: document.getElementById("spreadsheetBody"),
@@ -516,9 +521,8 @@ function applyCustomListDraft() {
   }
 }
 
-async function zoomToCustomList() {
-  if (!view || !parcelLayer || !state.customList?.matchedPins?.length) return;
-  const pins = state.customList.matchedPins;
+async function zoomToPins(pins) {
+  if (!view || !parcelLayer || !pins?.length) return;
   const chunkSize = 900;
   let extent = null;
   for (let i = 0; i < pins.length; i += chunkSize) {
@@ -530,6 +534,85 @@ async function zoomToCustomList() {
   }
   if (extent) {
     await view.goTo(extent.expand(1.2), { duration: 700 });
+  }
+}
+
+async function zoomToCustomList() {
+  if (!state.customList?.matchedPins?.length) return;
+  await zoomToPins(state.customList.matchedPins);
+}
+
+async function exportCurrentMapPdf(options = {}) {
+  const checkedOnly = Boolean(options.checkedOnly);
+  const checkedPins = checkedOnly ? [...tableState.checkedPins] : [];
+  if (checkedOnly && !checkedPins.length) {
+    if (nodes.exportStatus) nodes.exportStatus.textContent = "Check at least one parcel in the table first.";
+    return;
+  }
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    nodes.exportStatus.textContent = "Export blocked. Allow pop-ups and try again.";
+    return;
+  }
+
+  const triggerButton = checkedOnly ? nodes.tableExportCheckedPdfButton : nodes.exportPdfButton;
+  const previousLabel = triggerButton?.textContent || "Export PDF";
+  if (triggerButton) {
+    triggerButton.disabled = true;
+    triggerButton.textContent = "Preparing";
+  }
+  nodes.exportStatus.textContent = checkedOnly
+    ? `Preparing checked-parcel paper GIS (${formatNumber(checkedPins.length)})`
+    : state.customList
+      ? "Preparing custom-list paper GIS export"
+      : "Preparing map export";
+  printWindow.document.write(buildPreparingPrintHtml());
+  printWindow.document.close();
+
+  const previousViewMode = state.viewMode;
+  try {
+    if (checkedOnly) {
+      state.checkedExportPins = new Set(checkedPins);
+      setViewMode("map");
+      applyLayerState();
+      await zoomToPins(checkedPins);
+      if (reactiveUtilsRef && parcelLayerView) {
+        await reactiveUtilsRef.whenOnce(() => !parcelLayerView.updating);
+      }
+    } else if (state.customList?.matchedPins?.length) {
+      await zoomToCustomList();
+      if (reactiveUtilsRef && parcelLayerView) {
+        await reactiveUtilsRef.whenOnce(() => !parcelLayerView.updating);
+      }
+    }
+
+    const features = filteredFeatures();
+    const stats = exportStats(features);
+    const mapImage = await captureMapImage();
+    printWindow.document.open();
+    printWindow.document.write(buildPrintHtml(mapImage, stats));
+    printWindow.document.close();
+    printWindow.focus();
+    window.setTimeout(() => printWindow.print(), 500);
+    nodes.exportStatus.textContent = "PDF ready";
+    window.setTimeout(() => {
+      nodes.exportStatus.textContent = "";
+    }, 3500);
+  } catch (error) {
+    console.error(error);
+    nodes.exportStatus.textContent = "Export failed. Try again after the map finishes loading.";
+  } finally {
+    if (checkedOnly) {
+      state.checkedExportPins = null;
+      applyLayerState();
+      if (previousViewMode === "table") setViewMode("table");
+      updateCheckedSelectionUi();
+    }
+    if (triggerButton) {
+      triggerButton.disabled = checkedOnly ? tableState.checkedPins.size === 0 : false;
+      triggerButton.textContent = previousLabel;
+    }
   }
 }
 
@@ -710,6 +793,10 @@ function featureMatchesActiveFilters(feature) {
     const pin = featurePin(feature);
     if (!state.customList.matchedPinSet.has(pin)) return false;
   }
+  if (state.checkedExportPins?.size) {
+    const pin = featurePin(feature);
+    if (!state.checkedExportPins.has(pin)) return false;
+  }
 
   const useGroup = props.use_group || "Not recorded";
   if (!state.activeUseGroups.has(useGroup)) return false;
@@ -730,7 +817,9 @@ function buildInClause(field, activeValues, allValues) {
 }
 
 function buildCustomListPinClause() {
-  const pins = state.customList?.matchedPins;
+  const pins = state.checkedExportPins?.size
+    ? [...state.checkedExportPins]
+    : state.customList?.matchedPins;
   if (!pins?.length) return null;
   // ArcGIS where clauses can get large; chunk with OR groups.
   const chunkSize = 900;
@@ -1063,6 +1152,48 @@ function renderTableFilterBar() {
   });
 }
 
+function formatTaxDelinquency(attrs) {
+  const band = attrs?.prior_band || "No known prior years";
+  const years = attrs?.prior_years;
+  const yearsText = years === null || years === undefined || years === ""
+    ? "years not recorded"
+    : `${years} prior year${Number(years) === 1 ? "" : "s"}`;
+  return `${band} (${yearsText})`;
+}
+
+function updateCheckedSelectionUi() {
+  const count = tableState.checkedPins.size;
+  if (nodes.tableCheckedCount) {
+    nodes.tableCheckedCount.textContent = count
+      ? `${formatNumber(count)} checked`
+      : "0 checked";
+  }
+  if (nodes.tableExportCheckedPdfButton) {
+    nodes.tableExportCheckedPdfButton.disabled = count === 0;
+  }
+  if (nodes.tableClearCheckedButton) {
+    nodes.tableClearCheckedButton.disabled = count === 0;
+  }
+}
+
+function clearCheckedParcels() {
+  tableState.checkedPins.clear();
+  updateCheckedSelectionUi();
+  if (state.viewMode === "table") renderSpreadsheet();
+}
+
+function selectVisiblePageRows() {
+  const rows = tableRows();
+  const start = (tableState.page - 1) * tableState.pageSize;
+  const pageRows = rows.slice(start, start + tableState.pageSize);
+  pageRows.forEach((feature) => {
+    const pin = featurePin(feature);
+    if (pin) tableState.checkedPins.add(pin);
+  });
+  updateCheckedSelectionUi();
+  renderSpreadsheet();
+}
+
 function renderSpreadsheet() {
   if (!nodes.spreadsheetHead || !nodes.spreadsheetBody) return;
   const columns = TABLE_COLUMNS.filter((column) => tableState.visibleColumns.has(column.key));
@@ -1071,6 +1202,8 @@ function renderSpreadsheet() {
   tableState.page = Math.min(Math.max(1, tableState.page), pageCount);
   const start = (tableState.page - 1) * tableState.pageSize;
   const pageRows = rows.slice(start, start + tableState.pageSize);
+  const pagePins = pageRows.map((feature) => featurePin(feature)).filter(Boolean);
+  const allPageChecked = pagePins.length > 0 && pagePins.every((pin) => tableState.checkedPins.has(pin));
 
   if (nodes.tableRowCount) {
     nodes.tableRowCount.textContent = `${formatNumber(rows.length)} parcels`;
@@ -1080,20 +1213,65 @@ function renderSpreadsheet() {
   }
   if (nodes.tablePrevPage) nodes.tablePrevPage.disabled = tableState.page <= 1;
   if (nodes.tableNextPage) nodes.tableNextPage.disabled = tableState.page >= pageCount;
+  updateCheckedSelectionUi();
 
-  nodes.spreadsheetHead.innerHTML = `<tr>${columns.map((column) => {
-    const marker = tableState.sortKey === column.key ? (tableState.sortDir === "asc" ? " ▲" : " ▼") : "";
-    return `<th data-sort-key="${escapeHtml(column.key)}">${escapeHtml(column.label)}${marker}</th>`;
-  }).join("")}</tr>`;
+  nodes.spreadsheetHead.innerHTML = `<tr>
+    <th class="check-col" scope="col">
+      <label class="row-check" title="Select all on this page">
+        <input type="checkbox" id="tableSelectAllPage" ${allPageChecked ? "checked" : ""} ${pagePins.length ? "" : "disabled"} />
+        <span class="visually-hidden">Select page</span>
+      </label>
+    </th>
+    ${columns.map((column) => {
+      const marker = tableState.sortKey === column.key ? (tableState.sortDir === "asc" ? " ▲" : " ▼") : "";
+      return `<th data-sort-key="${escapeHtml(column.key)}">${escapeHtml(column.label)}${marker}</th>`;
+    }).join("")}
+  </tr>`;
 
   nodes.spreadsheetBody.innerHTML = pageRows.length
     ? pageRows.map((feature) => {
       const props = featureProps(feature);
-      return `<tr>${columns.map((column) => `
-        <td title="${escapeHtml(formatTableCell(column.key, props[column.key]))}">${escapeHtml(formatTableCell(column.key, props[column.key]))}</td>
-      `).join("")}</tr>`;
+      const pin = featurePin(feature);
+      const checked = pin && tableState.checkedPins.has(pin) ? "checked" : "";
+      return `<tr data-pin="${escapeHtml(pin)}">
+        <td class="check-col">
+          <label class="row-check">
+            <input type="checkbox" data-row-check="${escapeHtml(pin)}" ${checked} ${pin ? "" : "disabled"} />
+            <span class="visually-hidden">Select ${escapeHtml(pin || "parcel")}</span>
+          </label>
+        </td>
+        ${columns.map((column) => `
+          <td title="${escapeHtml(formatTableCell(column.key, props[column.key]))}">${escapeHtml(formatTableCell(column.key, props[column.key]))}</td>
+        `).join("")}
+      </tr>`;
     }).join("")
-    : `<tr><td colspan="${Math.max(columns.length, 1)}">No parcels match the current map and table filters.</td></tr>`;
+    : `<tr><td colspan="${Math.max(columns.length + 1, 2)}">No parcels match the current map and table filters.</td></tr>`;
+
+  const selectAll = document.getElementById("tableSelectAllPage");
+  if (selectAll) {
+    selectAll.addEventListener("change", () => {
+      pagePins.forEach((pin) => {
+        if (selectAll.checked) tableState.checkedPins.add(pin);
+        else tableState.checkedPins.delete(pin);
+      });
+      updateCheckedSelectionUi();
+      renderSpreadsheet();
+    });
+  }
+
+  nodes.spreadsheetBody.querySelectorAll("input[data-row-check]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const pin = input.dataset.rowCheck;
+      if (!pin) return;
+      if (input.checked) tableState.checkedPins.add(pin);
+      else tableState.checkedPins.delete(pin);
+      updateCheckedSelectionUi();
+      const header = document.getElementById("tableSelectAllPage");
+      if (header) {
+        header.checked = pagePins.length > 0 && pagePins.every((value) => tableState.checkedPins.has(value));
+      }
+    });
+  });
 
   nodes.spreadsheetHead.querySelectorAll("th[data-sort-key]").forEach((th) => {
     th.addEventListener("click", () => {
@@ -1238,8 +1416,9 @@ function buildPopupContent(event) {
       </dd>
       <dt>PIN</dt><dd>${escapeHtml(attrs.par_pin || "Not recorded")}</dd>
       <dt>Owner</dt><dd>${escapeHtml(attrs.propertyowner || "Not recorded")}</dd>
+      <dt>Tax delinquency</dt><dd>${escapeHtml(formatTaxDelinquency(attrs))}</dd>
       <dt>Prior years</dt><dd>${escapeHtml(attrs.prior_years ?? "No known prior years")}</dd>
-      <dt>Tax band</dt><dd>${escapeHtml(attrs.prior_band)}</dd>
+      <dt>Tax status</dt><dd>${escapeHtml(attrs.taxdesc || "Not recorded")}</dd>
       <dt>Ownership</dt><dd>${escapeHtml(attrs.ownership_group)}</dd>
       <dt>Control path</dt><dd>${escapeHtml(attrs.control_path)}</dd>
       <dt>Vacant lot score</dt><dd>${escapeHtml(attrs.vacant_lot_score_band || "Not scored")}</dd>
@@ -1339,6 +1518,9 @@ function activeFilterSummary() {
       `Custom list: ${state.customList.fileName} (${formatNumber(state.customList.matchedCount)} joined PINs)`
     );
   }
+  if (state.checkedExportPins?.size) {
+    summary.unshift(`Checked parcels: ${formatNumber(state.checkedExportPins.size)}`);
+  }
   return summary;
 }
 
@@ -1401,9 +1583,9 @@ function buildPrintHtml(mapImage, stats) {
         <header class="print-header">
           <div>
             <h1>${escapeHtml(APP_TITLE)}</h1>
-            <p>Generated ${escapeHtml(timestamp)} | Current map extent and active dashboard filters${state.customList ? " | Custom list paper GIS" : ""}</p>
+            <p>Generated ${escapeHtml(timestamp)} | Current map extent and active dashboard filters${state.checkedExportPins?.size ? " | Checked parcels paper GIS" : state.customList ? " | Custom list paper GIS" : ""}</p>
           </div>
-          <p>${state.customList ? "Custom list inner join on parcel PIN. " : ""}Screening only; confirm source records before action.</p>
+          <p>${state.checkedExportPins?.size ? "Checked table parcels only. " : state.customList ? "Custom list inner join on parcel PIN. " : ""}Screening only; confirm source records before action.</p>
         </header>
         <main class="print-page">
           <section class="print-map"><img src="${mapImage}" alt="Current vacant land map" /></section>
@@ -1457,50 +1639,6 @@ async function captureMapImage() {
   }
   const screenshot = await view.takeScreenshot({ format: "png", quality: 95 });
   return screenshot.dataUrl;
-}
-
-async function exportCurrentMapPdf() {
-  const printWindow = window.open("", "_blank");
-  if (!printWindow) {
-    nodes.exportStatus.textContent = "Export blocked. Allow pop-ups and try again.";
-    return;
-  }
-
-  const previousLabel = nodes.exportPdfButton.textContent;
-  nodes.exportPdfButton.disabled = true;
-  nodes.exportPdfButton.textContent = "Preparing";
-  nodes.exportStatus.textContent = state.customList
-    ? "Preparing custom-list paper GIS export"
-    : "Preparing map export";
-  printWindow.document.write(buildPreparingPrintHtml());
-  printWindow.document.close();
-
-  try {
-    if (state.customList?.matchedPins?.length) {
-      await zoomToCustomList();
-      if (reactiveUtilsRef && parcelLayerView) {
-        await reactiveUtilsRef.whenOnce(() => !parcelLayerView.updating);
-      }
-    }
-    const features = filteredFeatures();
-    const stats = exportStats(features);
-    const mapImage = await captureMapImage();
-    printWindow.document.open();
-    printWindow.document.write(buildPrintHtml(mapImage, stats));
-    printWindow.document.close();
-    printWindow.focus();
-    window.setTimeout(() => printWindow.print(), 500);
-    nodes.exportStatus.textContent = "PDF ready";
-    window.setTimeout(() => {
-      nodes.exportStatus.textContent = "";
-    }, 3500);
-  } catch (error) {
-    console.error(error);
-    nodes.exportStatus.textContent = "Export failed. Try again after the map finishes loading.";
-  } finally {
-    nodes.exportPdfButton.disabled = false;
-    nodes.exportPdfButton.textContent = previousLabel;
-  }
 }
 
 async function loadPublicData() {
@@ -1617,7 +1755,17 @@ document.addEventListener("click", (event) => {
 });
 
 nodes.resetFilters.addEventListener("click", resetFilters);
-nodes.exportPdfButton.addEventListener("click", exportCurrentMapPdf);
+nodes.exportPdfButton.addEventListener("click", () => exportCurrentMapPdf());
+
+if (nodes.tableExportCheckedPdfButton) {
+  nodes.tableExportCheckedPdfButton.addEventListener("click", () => exportCurrentMapPdf({ checkedOnly: true }));
+}
+if (nodes.tableSelectPageButton) {
+  nodes.tableSelectPageButton.addEventListener("click", selectVisiblePageRows);
+}
+if (nodes.tableClearCheckedButton) {
+  nodes.tableClearCheckedButton.addEventListener("click", clearCheckedParcels);
+}
 
 if (nodes.customListButton) {
   nodes.customListButton.addEventListener("click", openCustomListModal);
