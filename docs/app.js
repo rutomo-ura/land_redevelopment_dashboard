@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709b";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709d";
 
 const signalModes = {
   tax: {
@@ -30,18 +30,23 @@ const signalModes = {
       { value: "Other Public / Institutional", label: "Other Public", color: "#8a8f98", outline: "#545b62" }
     ]
   },
-  condemned: {
-    label: "Condemned",
-    shortLabel: "Condemned",
-    helper: "Matched parcel overlap",
-    field: "condemned_flag",
-    chartTitle: "Condemned Overlap",
+  vacantLotScore: {
+    label: "Vacant lot score",
+    shortLabel: "Lot score",
+    helper: "Tolemi tax-sale vacant-lot score",
+    field: "vacant_lot_score_band",
+    chartTitle: "Vacant Lot Score Breakdown",
     categories: [
-      { value: "Condemned overlap", label: "Condemned overlap", color: "#c54036", outline: "#7d231e" },
-      { value: "Not flagged", label: "Not flagged", color: "#c7d0d5", outline: "#65727b" }
+      { value: "High (75-100)", label: "High (75-100)", color: "#7a1210", outline: "#4c0908" },
+      { value: "Medium (50-74)", label: "Medium (50-74)", color: "#c54036", outline: "#7d231e" },
+      { value: "Low (25-49)", label: "Low (25-49)", color: "#e97827", outline: "#9b4818" },
+      { value: "Very low (0-24)", label: "Very low (0-24)", color: "#f0c24b", outline: "#9f7411" },
+      { value: "Not scored", label: "Not scored", color: "#c7d0d5", outline: "#65727b" }
     ]
   }
 };
+
+const highVacantLotScoreBands = new Set(["High (75-100)", "Medium (50-74)"]);
 
 const preferredUseOrder = [
   "Residential",
@@ -81,7 +86,7 @@ const state = {
   activeSignalValues: {
     tax: new Set(signalModes.tax.categories.map((item) => item.value)),
     ownership: new Set(signalModes.ownership.categories.map((item) => item.value)),
-    condemned: new Set(signalModes.condemned.categories.map((item) => item.value))
+    vacantLotScore: new Set(signalModes.vacantLotScore.categories.map((item) => item.value))
   }
 };
 
@@ -101,7 +106,7 @@ const nodes = {
   visibleParcelMetric: document.getElementById("visibleParcelMetric"),
   longDelinquencyMetric: document.getElementById("longDelinquencyMetric"),
   publicControlMetric: document.getElementById("publicControlMetric"),
-  condemnedMetric: document.getElementById("condemnedMetric"),
+  vacantLotScoreMetric: document.getElementById("vacantLotScoreMetric"),
   signalChartTitle: document.getElementById("signalChartTitle"),
   signalChart: document.getElementById("signalChart"),
   areaChart: document.getElementById("areaChart"),
@@ -170,7 +175,10 @@ function isDashboardParcel(feature) {
 function countBy(features, field) {
   const counts = new Map();
   features.forEach((feature) => {
-    const value = getProp(feature, field) || "Not recorded";
+    let value = getProp(feature, field);
+    if (value === null || value === undefined || value === "") {
+      value = field === "vacant_lot_score_band" || field === "pli_hazard_band" ? "Not scored" : "Not recorded";
+    }
     counts.set(value, (counts.get(value) || 0) + 1);
   });
   return counts;
@@ -344,13 +352,22 @@ async function queryAllParcelAttributes(layer) {
   }));
 }
 
+function signalValueForFeature(feature, modeName = state.signalMode) {
+  const props = feature.properties || feature;
+  const mode = signalModes[modeName];
+  const raw = props[mode.field];
+  if (raw === null || raw === undefined || raw === "") {
+    return modeName === "vacantLotScore" || modeName === "pliHazard" ? "Not scored" : "Not recorded";
+  }
+  return raw;
+}
+
 function featureMatchesActiveFilters(feature) {
   const props = feature.properties || feature;
   const useGroup = props.use_group || "Not recorded";
   if (!state.activeUseGroups.has(useGroup)) return false;
 
-  const mode = signalModes[state.signalMode];
-  const signalValue = props[mode.field] || "Not recorded";
+  const signalValue = signalValueForFeature(feature);
   return state.activeSignalValues[state.signalMode].has(signalValue);
 }
 
@@ -479,11 +496,11 @@ function renderLegends() {
 function renderMetricCards(features) {
   const longDelinquent = features.filter((feature) => getProp(feature, "prior_band") === "11+ prior years").length;
   const publicControl = features.filter((feature) => publicOwnershipGroups.has(getProp(feature, "ownership_group"))).length;
-  const condemned = features.filter((feature) => getProp(feature, "condemned_flag") === "Condemned overlap").length;
+  const highVacantLotScore = features.filter((feature) => highVacantLotScoreBands.has(getProp(feature, "vacant_lot_score_band"))).length;
   nodes.visibleParcelMetric.textContent = formatNumber(features.length);
   nodes.longDelinquencyMetric.textContent = formatNumber(longDelinquent);
   nodes.publicControlMetric.textContent = formatNumber(publicControl);
-  nodes.condemnedMetric.textContent = formatNumber(condemned);
+  if (nodes.vacantLotScoreMetric) nodes.vacantLotScoreMetric.textContent = formatNumber(highVacantLotScore);
 }
 
 function renderBarChart(container, items, emptyLabel) {
@@ -510,12 +527,12 @@ function groupedAreaRows(features) {
     const props = feature.properties || feature;
     const area = props.city_neighborhood || "Neighborhood not recorded";
     if (!rows.has(area)) {
-      rows.set(area, { area, parcels: 0, long: 0, condemned: 0 });
+      rows.set(area, { area, parcels: 0, long: 0, vacantLotScore: 0 });
     }
     const row = rows.get(area);
     row.parcels += 1;
     if (props.prior_band === "11+ prior years") row.long += 1;
-    if (props.condemned_flag === "Condemned overlap") row.condemned += 1;
+    if (highVacantLotScoreBands.has(props.vacant_lot_score_band)) row.vacantLotScore += 1;
   });
   return [...rows.values()].sort((a, b) => b.parcels - a.parcels || b.long - a.long).slice(0, 7);
 }
@@ -543,7 +560,7 @@ function renderSummary(features) {
         <td>${escapeHtml(row.area)}</td>
         <td>${formatNumber(row.parcels)}</td>
         <td>${formatNumber(row.long)}</td>
-        <td>${formatNumber(row.condemned)}</td>
+        <td>${formatNumber(row.vacantLotScore)}</td>
       </tr>
     `).join("")
     : `<tr><td colspan="4">No parcels match the current filters.</td></tr>`;
@@ -602,8 +619,9 @@ function buildPopupContent(event) {
       <dt>Tax band</dt><dd>${escapeHtml(attrs.prior_band)}</dd>
       <dt>Ownership</dt><dd>${escapeHtml(attrs.ownership_group)}</dd>
       <dt>Control path</dt><dd>${escapeHtml(attrs.control_path)}</dd>
-      <dt>Condemned</dt><dd>${escapeHtml(attrs.condemned_flag || "Not flagged")}</dd>
-      <dt>Inspection band</dt><dd>${escapeHtml(attrs.condemned_score_band || "Not flagged")}</dd>
+      <dt>Vacant lot score</dt><dd>${escapeHtml(attrs.vacant_lot_score_band || "Not scored")}</dd>
+      <dt>Lot score value</dt><dd>${escapeHtml(attrs.tax_sale_vacant_lot_score ?? "Not scored")}</dd>
+      <dt>PLI hazard</dt><dd>${escapeHtml(attrs.pli_hazard_band || "Not scored")}</dd>
       <dt>Use group</dt><dd>${escapeHtml(attrs.use_group || "Not recorded")}</dd>
       <dt>Neighborhood</dt><dd>${escapeHtml(attrs.city_neighborhood)}</dd>
       <dt>Council</dt><dd>${escapeHtml(attrs.council_district_label)}</dd>
@@ -693,7 +711,7 @@ function exportStats(features) {
     visible: features.length,
     longDelinquency: features.filter((feature) => getProp(feature, "prior_band") === "11+ prior years").length,
     publicControl: features.filter((feature) => publicOwnershipGroups.has(getProp(feature, "ownership_group"))).length,
-    condemned: features.filter((feature) => getProp(feature, "condemned_flag") === "Condemned overlap").length,
+    highVacantLotScore: features.filter((feature) => highVacantLotScoreBands.has(getProp(feature, "vacant_lot_score_band"))).length,
     topAreas: groupedAreaRows(features).slice(0, 5)
   };
 }
@@ -758,7 +776,7 @@ function buildPrintHtml(mapImage, stats) {
               <div class="metric"><span>Visible parcels</span><strong>${formatNumber(stats.visible)}</strong></div>
               <div class="metric"><span>11+ prior years</span><strong>${formatNumber(stats.longDelinquency)}</strong></div>
               <div class="metric"><span>Public/control</span><strong>${formatNumber(stats.publicControl)}</strong></div>
-              <div class="metric"><span>Condemned</span><strong>${formatNumber(stats.condemned)}</strong></div>
+              <div class="metric"><span>High lot score</span><strong>${formatNumber(stats.highVacantLotScore)}</strong></div>
             </section>
             <section class="print-card">
               <h2>Filters</h2>
@@ -781,12 +799,12 @@ function buildPrintHtml(mapImage, stats) {
                   <strong>${escapeHtml(row.area)}</strong>
                   <span>${formatNumber(row.parcels)}</span>
                   <span>${formatNumber(row.long)} 11+</span>
-                  <span>${formatNumber(row.condemned)} cond.</span>
+                  <span>${formatNumber(row.vacantLotScore)} high lot</span>
                 </div>
               `).join("") || "<p>No parcels match the current filters.</p>"}
             </section>
             <section class="print-card source">
-              <p>Sources: sanitized vacant-land public GeoJSON, tax delinquency fields, ownership/control classification, and condemned overlap flag. Owner names, addresses, internal notes, and detailed legal/account records are excluded.</p>
+              <p>Sources: sanitized vacant-land public GeoJSON, tax delinquency fields, ownership/control classification, Tolemi vacant-lot scores, and WPRDC PLI hazard. Owner names, addresses, internal notes, and detailed legal/account records are excluded.</p>
             </section>
           </aside>
         </main>
