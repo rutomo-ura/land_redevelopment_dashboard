@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709m";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709n";
 
 const signalModes = {
   tax: {
@@ -218,6 +218,11 @@ const nodes = {
   sideLegend: document.getElementById("sideLegend"),
   mapLegend: document.getElementById("mapLegend"),
   mapStatus: document.getElementById("mapStatus"),
+  mapLoadingOverlay: document.getElementById("mapLoadingOverlay"),
+  mapLoadingTitle: document.getElementById("mapLoadingTitle"),
+  mapLoadingStep: document.getElementById("mapLoadingStep"),
+  mapLoadingBar: document.getElementById("mapLoadingBar"),
+  mapLoadingPercent: document.getElementById("mapLoadingPercent"),
   exportStatus: document.getElementById("exportStatus"),
   exportPdfButton: document.getElementById("exportPdfButton"),
   exportXlsxButton: document.getElementById("exportXlsxButton"),
@@ -1155,6 +1160,56 @@ function setStatus(message, isHidden = false) {
   nodes.mapStatus.classList.toggle("is-hidden", isHidden);
 }
 
+function setMapLoadingProgress(percent, step, title = "Loading map") {
+  const value = Math.max(0, Math.min(100, Math.round(percent)));
+  if (nodes.mapLoadingOverlay) {
+    nodes.mapLoadingOverlay.classList.remove("is-hidden");
+    nodes.mapLoadingOverlay.setAttribute("aria-busy", "true");
+  }
+  if (nodes.mapLoadingTitle) nodes.mapLoadingTitle.textContent = title;
+  if (nodes.mapLoadingStep) nodes.mapLoadingStep.textContent = step;
+  if (nodes.mapLoadingBar) nodes.mapLoadingBar.style.width = `${value}%`;
+  if (nodes.mapLoadingPercent) nodes.mapLoadingPercent.textContent = `${value}%`;
+  setStatus(step, false);
+}
+
+function hideMapLoadingOverlay() {
+  if (!nodes.mapLoadingOverlay) return;
+  nodes.mapLoadingOverlay.classList.add("is-hidden");
+  nodes.mapLoadingOverlay.setAttribute("aria-busy", "false");
+}
+
+function delay(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function waitForViewPredicate(predicate, timeoutMs = 15000) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const tick = () => {
+      if (predicate() || Date.now() - started > timeoutMs) {
+        resolve();
+        return;
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+}
+
+async function waitForMapRenderReady({ settleMs = 900 } = {}) {
+  if (!view) return;
+  await view.when();
+  await waitForViewPredicate(() => view.stationary && !view.updating, 15000);
+  if (parcelLayer) {
+    parcelLayerView = await view.whenLayerView(parcelLayer).catch(() => parcelLayerView);
+  }
+  if (parcelLayerView) {
+    await waitForViewPredicate(() => !parcelLayerView.updating, 15000);
+  }
+  if (settleMs > 0) await delay(settleMs);
+}
+
 function applyLayerState() {
   if (!parcelLayer) return;
   const field = signalColorField();
@@ -1162,7 +1217,7 @@ function applyLayerState() {
   parcelLayer.definitionExpression = buildWhereClause();
 }
 
-function applyDashboardState() {
+function applyDashboardState({ keepLoading = false } = {}) {
   const features = filteredFeatures();
   renderSignalModeControls();
   renderFilters();
@@ -1171,6 +1226,8 @@ function applyDashboardState() {
   renderSummary(features);
   applyLayerState();
   if (state.viewMode === "table") renderTableView();
+
+  if (keepLoading) return;
 
   if (!allFeatures.length) {
     setStatus("Loading vacant land parcels...");
@@ -1877,10 +1934,7 @@ function buildPrintHtml(mapImage, stats, options = {}) {
 
 async function captureMapImage() {
   if (!view) throw new Error("Map is not ready");
-  await view.when();
-  if (reactiveUtilsRef && parcelLayerView) {
-    await reactiveUtilsRef.whenOnce(() => !parcelLayerView.updating);
-  }
+  await waitForMapRenderReady({ settleMs: 700 });
   const screenshot = await view.takeScreenshot({
     width: 2200,
     height: 1450,
@@ -1894,19 +1948,22 @@ async function captureMapImage() {
 
 async function loadPublicData() {
   try {
+    setMapLoadingProgress(48, "Loading parcel attributes and filters...");
     // Always build filters/metrics from the public bundle so Property Use stays Residential/Commercial/etc.
     // Private ArcGIS items can load geometry without the enriched dashboard fields.
     allFeatures = await loadFeaturesFromGeoJsonUrl(layerSources.parcelLocalGeoJsonUrl || layerSources.parcelGeoJsonUrl);
 
+    setMapLoadingProgress(62, "Building dashboard metrics...");
     allFeatures = allFeatures.filter(isDashboardParcel);
     useGroupItems = useItems(allFeatures);
     state.activeUseGroups = new Set(defaultUseGroupValues());
     updateSourceFreshness(
       `${sourceFreshnessLabel(parcelDataSource)} | ${formatNumber(allFeatures.length)} parcels | Source review required before action`
     );
-    applyDashboardState();
+    applyDashboardState({ keepLoading: true });
   } catch (error) {
     console.error(error);
+    hideMapLoadingOverlay();
     setStatus("Parcel data did not load. Check the URA ArcGIS layer or public bundle path.", false);
   }
 }
@@ -2162,7 +2219,7 @@ if (nodes.exportColumnsSelectNone) {
 if (nodes.confirmExportXlsx) nodes.confirmExportXlsx.addEventListener("click", exportTableXlsx);
 
 renderSignalModeControls();
-setStatus("Loading vacant land parcels...");
+setMapLoadingProgress(8, "Starting ArcGIS map and parcel layer...");
 setViewMode("map");
 
 require([
@@ -2183,15 +2240,18 @@ require([
 
   async function initDashboard() {
     try {
+      setMapLoadingProgress(16, "Reading layer sources...");
       layerSources = await loadLayerSources();
       let map = null;
 
       try {
+        setMapLoadingProgress(28, "Connecting parcel layer...");
         const arcgisResult = await createParcelLayerFromArcGIS(GeoJSONLayer, FeatureLayer);
         parcelLayer = arcgisResult.layer;
         parcelDataSource = arcgisResult.source;
       } catch (error) {
         console.warn("URA ArcGIS parcel layer unavailable; using public GeoJSON fallback.", error);
+        setMapLoadingProgress(28, "Using public GeoJSON parcel bundle...");
         const fallbackResult = await createParcelLayerFallback(GeoJSONLayer);
         parcelLayer = fallbackResult.layer;
         parcelDataSource = fallbackResult.source;
@@ -2202,6 +2262,7 @@ require([
         layers: [parcelLayer]
       });
 
+      setMapLoadingProgress(36, "Creating map view...");
       view = new MapView({
         container: "viewDiv",
         map,
@@ -2230,16 +2291,27 @@ require([
         expandTooltip: "ArcGIS legend"
       }), "top-left");
 
-      view.whenLayerView(parcelLayer).then((layerView) => {
-        parcelLayerView = layerView;
-      });
-
+      setMapLoadingProgress(42, "Waiting for parcel layer to load...");
+      await view.when();
+      parcelLayerView = await view.whenLayerView(parcelLayer).catch(() => null);
       await parcelLayer.when();
+
       await loadPublicData();
       applyLayerState();
-      view.goTo(parcelLayer.fullExtent.expand(1.08), { duration: 600 }).catch(() => {});
+
+      setMapLoadingProgress(78, "Zooming to parcel extent...");
+      await view.goTo(parcelLayer.fullExtent.expand(1.08), { duration: 600 }).catch(() => {});
+
+      setMapLoadingProgress(88, "Waiting for map layers to finish drawing...");
+      await waitForMapRenderReady({ settleMs: 1100 });
+
+      setMapLoadingProgress(100, "Map ready");
+      await delay(350);
+      hideMapLoadingOverlay();
+      applyDashboardState();
     } catch (error) {
       console.error(error);
+      hideMapLoadingOverlay();
       setStatus("Map layer did not load. Check the URA ArcGIS parcel item or public bundle path.", false);
     }
   }

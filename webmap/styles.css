@@ -563,6 +563,68 @@ tr:last-child td {
   line-height: 1.35;
 }
 
+.map-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(238, 244, 247, 0.82);
+  backdrop-filter: blur(1.5px);
+}
+
+.map-loading-overlay.is-hidden {
+  display: none;
+}
+
+.map-loading-card {
+  width: min(420px, 100%);
+  padding: 18px 18px 16px;
+  border: 1px solid rgba(0, 152, 211, 0.28);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: var(--soft-shadow);
+  color: #142935;
+}
+
+.map-loading-card strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #00334f;
+  font-size: 16px;
+}
+
+.map-loading-card p {
+  margin: 0 0 12px;
+  color: #586872;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.map-loading-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #d8e4ea;
+}
+
+.map-loading-bar {
+  width: 8%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0098d3, #006c9f);
+  transition: width 0.35s ease;
+}
+
+.map-loading-percent {
+  display: block;
+  margin-top: 8px;
+  color: #006c9f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .export-status {
   bottom: auto;
   top: 16px;

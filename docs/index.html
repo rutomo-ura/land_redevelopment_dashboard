@@ -83,6 +83,16 @@
 
       <section class="map-stage" aria-label="Vacant land redevelopment map">
         <div id="viewDiv"></div>
+        <div class="map-loading-overlay" id="mapLoadingOverlay" aria-live="polite" aria-busy="true">
+          <div class="map-loading-card">
+            <strong id="mapLoadingTitle">Loading map</strong>
+            <p id="mapLoadingStep">Starting ArcGIS map and parcel layer...</p>
+            <div class="map-loading-track" aria-hidden="true">
+              <div class="map-loading-bar" id="mapLoadingBar"></div>
+            </div>
+            <span class="map-loading-percent" id="mapLoadingPercent">8%</span>
+          </div>
+        </div>
         <div class="map-legend" id="mapLegend" aria-label="Current map legend"></div>
         <div class="map-status" id="mapStatus" aria-live="polite">Loading vacant land parcels...</div>
         <div class="export-status" id="exportStatus" aria-live="polite"></div>
