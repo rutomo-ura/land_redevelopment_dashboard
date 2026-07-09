@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709f";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709g";
 
 const signalModes = {
   tax: {
@@ -149,7 +149,6 @@ const nodes = {
   exportStatus: document.getElementById("exportStatus"),
   exportPdfButton: document.getElementById("exportPdfButton"),
   exportXlsxButton: document.getElementById("exportXlsxButton"),
-  arcgisContentLink: document.getElementById("arcgisContentLink"),
   resetFilters: document.getElementById("resetFilters"),
   visibleParcelMetric: document.getElementById("visibleParcelMetric"),
   longDelinquencyMetric: document.getElementById("longDelinquencyMetric"),
@@ -345,31 +344,6 @@ function sourceFreshnessLabel(source) {
   if (source === "arcgis-geojson-url") return "URA ArcGIS GeoJSON URL";
   if (source === "arcgis-geojson-item") return "URA ArcGIS GeoJSON item";
   return "Public GeoJSON bundle";
-}
-
-function preferredArcGisContentUrl() {
-  return layerSources?.arcgisAppUrl
-    || layerSources?.arcgisDashboardUrl
-    || layerSources?.webmapUrl
-    || (layerSources?.webmapItemId
-      ? `${layerSources.portalUrl}/apps/mapviewer/index.html?webmap=${layerSources.webmapItemId}`
-      : null);
-}
-
-function updateArcGisContentLink() {
-  const url = preferredArcGisContentUrl();
-  if (!nodes.arcgisContentLink || !url) return;
-
-  nodes.arcgisContentLink.href = url;
-  nodes.arcgisContentLink.textContent = layerSources?.arcgisAppItemId || layerSources?.arcgisAppUrl || layerSources?.arcgisDashboardUrl
-    ? "URA Maps"
-    : "ArcGIS Map";
-  nodes.arcgisContentLink.setAttribute(
-    "aria-label",
-    nodes.arcgisContentLink.textContent === "URA Maps"
-      ? `Open ${layerSources?.arcgisAppTitle || "this dashboard"} from URA Maps ArcGIS`
-      : "Open the source web map in ArcGIS Map Viewer"
-  );
 }
 
 function parcelLayerConfig() {
@@ -1398,7 +1372,6 @@ require([
   async function initDashboard() {
     try {
       layerSources = await loadLayerSources();
-      updateArcGisContentLink();
       let map = null;
 
       try {

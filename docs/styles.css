@@ -749,11 +749,11 @@ tr:last-child td {
 }
 
 body.is-table-view .dashboard-shell {
-  display: none;
+  display: none !important;
 }
 
 body.is-table-view .table-view {
-  display: grid;
+  display: grid !important;
 }
 
 .table-view {
