@@ -11,14 +11,16 @@ Properties dataset (latest_inspection_score) on Allegheny parcel PIN.
 Tolemi tax-sale vacant-lot scores are joined from the BuildingBlocks export
 (tax_sale_vacant_lot_score) for denser vacant-land prioritization coloring.
 
-EPP project names are joined from the published gis.epp_parcels_full mirror
-(project_name) on parcel PIN for spreadsheet and map popup review.
+EPP parcel attributes (including project_name and vacant class) are joined from
+gis.epp_parcels_full via local PostgreSQL when configured, with a published
+FeatureServer fallback for spreadsheet/table export and vacant filtering.
 """
 
 from __future__ import annotations
 
 import csv
 import json
+import os
 import urllib.parse
 import urllib.request
 from collections import Counter
@@ -34,7 +36,7 @@ WPRDC_CONDEMNED_URL = (
     "https://data.wprdc.org/datastore/dump/0a963f26-eb4b-4325-bbbc-3ddf6a871410"
 )
 TOLEMI_TAX_STATUS_CSV = REPO_ROOT / "exports" / "tolemi_building_tax_delinquency_status.csv"
-EPP_PROJECT_CACHE = REPO_ROOT / "exports" / "epp_project_names.csv"
+EPP_ATTR_CACHE = REPO_ROOT / "exports" / "epp_parcel_attributes.csv"
 EPP_FEATURE_SERVICE_URL = (
     "https://services1.arcgis.com/0DMNBNaacQNEfN4H/arcgis/rest/services/"
     "gisdb_gis_epp_parcels_full/FeatureServer/0/query"
@@ -44,11 +46,47 @@ OUTPUTS = [
     REPO_ROOT / "webmap" / "data" / "vacant_land_triage.geojson",
 ]
 
+EPP_SOURCE_FIELDS = [
+    "par_pin",
+    "par_mapblocklo",
+    "parcel_number",
+    "property_id",
+    "project_name",
+    "inventory_type",
+    "current_status",
+    "property_class",
+    "neighborhood",
+    "council_district",
+    "census_tract",
+    "parcel_sqft",
+    "zoned_as",
+    "tags",
+    "property_maint_mgr_name",
+    "published",
+    "mod_dt",
+]
+
 PUBLIC_FIELDS = [
     "par_pin",
     "parcel_label",
     "propertyowner",
     "project_name",
+    "vacant_flag",
+    "is_vacant",
+    "epp_inventory_type",
+    "epp_current_status",
+    "epp_property_class",
+    "epp_neighborhood",
+    "epp_council_district",
+    "epp_census_tract",
+    "epp_parcel_number",
+    "epp_mapblocklot",
+    "epp_parcel_sqft",
+    "epp_zoned_as",
+    "epp_tags",
+    "epp_property_maint_mgr_name",
+    "epp_published",
+    "epp_mod_dt",
     "taxdesc",
     "usedesc",
     "use_group",
@@ -397,25 +435,125 @@ def load_tolemi_vacant_lot_scores(path: Path = TOLEMI_TAX_STATUS_CSV) -> dict[st
     return best
 
 
-def _clean_project_name(value: object) -> str | None:
+def _clean_text(value: object) -> str | None:
     text = str(value or "").strip()
     if not text or text.lower() in {"none", "null", "nan"}:
         return None
     return text
 
 
-def fetch_epp_project_names(cache_path: Path = EPP_PROJECT_CACHE) -> dict[str, str]:
-    """Page the published EPP FeatureServer (gis.epp_parcels_full mirror) for project_name."""
-    by_pin: dict[str, str] = {}
+def load_dotenv(path: Path = REPO_ROOT / ".env") -> None:
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip("'").strip('"')
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+def vacant_flag_from_epp(attrs: dict[str, object]) -> str:
+    property_class = str(attrs.get("property_class") or "").strip().lower()
+    inventory_type = str(attrs.get("inventory_type") or "").strip().lower()
+    current_status = str(attrs.get("current_status") or "").strip().lower()
+    tags = str(attrs.get("tags") or "").strip().lower()
+    if "vacant land" in property_class:
+        return "Vacant land"
+    if "vacant structure" in property_class:
+        return "Vacant structure"
+    if "vacant" in property_class or "vacant" in inventory_type or "vacant" in current_status or "vacant" in tags:
+        return "Vacant (other)"
+    if any(attrs.get(field) for field in ("property_class", "inventory_type", "current_status", "project_name")):
+        return "Not vacant"
+    return "Not in EPP"
+
+
+def _serialize_epp_value(value: object) -> str | None:
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        try:
+            return value.isoformat(sep=" ", timespec="seconds")
+        except TypeError:
+            return value.isoformat()
+    text = _clean_text(value)
+    return text
+
+
+def write_epp_cache(by_pin: dict[str, dict[str, object]], cache_path: Path) -> None:
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    with cache_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=EPP_SOURCE_FIELDS)
+        writer.writeheader()
+        for pin in sorted(by_pin):
+            row = {"par_pin": pin}
+            row.update({field: by_pin[pin].get(field) for field in EPP_SOURCE_FIELDS if field != "par_pin"})
+            writer.writerow(row)
+
+
+def fetch_epp_attributes_from_postgres() -> dict[str, dict[str, object]]:
+    load_dotenv()
+    host = os.environ.get("PGHOST")
+    database = os.environ.get("PGDATABASE")
+    user = os.environ.get("PGUSER")
+    password = os.environ.get("PGPASSWORD")
+    port = int(os.environ.get("PGPORT") or "5432")
+    if not host or not database or not user or not password:
+        raise RuntimeError("Postgres env not configured (PGHOST/PGDATABASE/PGUSER/PGPASSWORD)")
+
+    try:
+        import psycopg2
+        import psycopg2.extras
+    except ImportError as exc:  # pragma: no cover
+        raise RuntimeError("psycopg2 is required for Postgres EPP joins") from exc
+
+    columns = ", ".join(EPP_SOURCE_FIELDS)
+    query = f"""
+        SELECT {columns}
+        FROM gis.epp_parcels_full
+        WHERE par_pin IS NOT NULL
+    """
+    by_pin: dict[str, dict[str, object]] = {}
+    with psycopg2.connect(
+        host=host,
+        port=port,
+        dbname=database,
+        user=user,
+        password=password,
+    ) as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(query)
+            for row in cur:
+                pin = normalize_pin(row.get("par_pin"))
+                if not pin:
+                    continue
+                attrs = {
+                    field: _serialize_epp_value(row.get(field))
+                    for field in EPP_SOURCE_FIELDS
+                    if field != "par_pin"
+                }
+                attrs["par_pin"] = pin
+                by_pin.setdefault(pin, attrs)
+    return by_pin
+
+
+def fetch_epp_attributes_from_featureserver(cache_path: Path = EPP_ATTR_CACHE) -> dict[str, dict[str, object]]:
+    """Page the published EPP FeatureServer mirror when Postgres is unavailable."""
+    by_pin: dict[str, dict[str, object]] = {}
     offset = 0
     page_size = 2000
+    out_fields = ",".join(EPP_SOURCE_FIELDS)
 
     while True:
         params = {
             "f": "json",
             "where": "1=1",
             "returnGeometry": "false",
-            "outFields": "par_pin,project_name",
+            "outFields": out_fields,
             "resultOffset": str(offset),
             "resultRecordCount": str(page_size),
             "orderByFields": "OBJECTID",
@@ -431,48 +569,70 @@ def fetch_epp_project_names(cache_path: Path = EPP_PROJECT_CACHE) -> dict[str, s
             break
 
         for feature in features:
-            attrs = feature.get("attributes") or {}
-            pin = normalize_pin(attrs.get("par_pin"))
-            project_name = _clean_project_name(attrs.get("project_name"))
-            if not pin or not project_name:
+            attrs_raw = feature.get("attributes") or {}
+            pin = normalize_pin(attrs_raw.get("par_pin"))
+            if not pin:
                 continue
-            # Keep first non-empty project name; EPP should be 1:1 on PIN.
-            by_pin.setdefault(pin, project_name)
+            attrs = {
+                field: _serialize_epp_value(attrs_raw.get(field))
+                for field in EPP_SOURCE_FIELDS
+                if field != "par_pin"
+            }
+            attrs["par_pin"] = pin
+            by_pin.setdefault(pin, attrs)
 
         if not payload.get("exceededTransferLimit"):
             break
         offset += page_size
 
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    with cache_path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["par_pin", "project_name"])
-        writer.writeheader()
-        for pin, project_name in sorted(by_pin.items()):
-            writer.writerow({"par_pin": pin, "project_name": project_name})
+    write_epp_cache(by_pin, cache_path)
     return by_pin
 
 
-def load_epp_project_names(
-    path: Path = EPP_PROJECT_CACHE,
+def load_epp_attributes_from_cache(path: Path = EPP_ATTR_CACHE) -> dict[str, dict[str, object]]:
+    if not path.exists():
+        return {}
+    by_pin: dict[str, dict[str, object]] = {}
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            pin = normalize_pin(row.get("par_pin") or row.get("parcel_id"))
+            if not pin:
+                continue
+            attrs = {
+                field: _clean_text(row.get(field))
+                for field in EPP_SOURCE_FIELDS
+                if field != "par_pin"
+            }
+            attrs["par_pin"] = pin
+            by_pin.setdefault(pin, attrs)
+    return by_pin
+
+
+def load_epp_attributes(
+    path: Path = EPP_ATTR_CACHE,
     *,
     refresh: bool = False,
-) -> dict[str, str]:
+) -> dict[str, dict[str, object]]:
     if path.exists() and not refresh:
-        by_pin: dict[str, str] = {}
-        with path.open(encoding="utf-8-sig", newline="") as handle:
-            reader = csv.DictReader(handle)
-            for row in reader:
-                pin = normalize_pin(row.get("par_pin") or row.get("parcel_id"))
-                project_name = _clean_project_name(row.get("project_name"))
-                if pin and project_name:
-                    by_pin.setdefault(pin, project_name)
-        if by_pin:
-            return by_pin
+        cached = load_epp_attributes_from_cache(path)
+        if cached:
+            return cached
 
     try:
-        return fetch_epp_project_names(path)
-    except Exception as exc:  # noqa: BLE001 - keep build usable offline
-        print(f"EPP project_name fetch failed ({exc}); project names will be blank")
+        by_pin = fetch_epp_attributes_from_postgres()
+        write_epp_cache(by_pin, path)
+        print(f"Loaded EPP attributes from Postgres ({len(by_pin):,} PINs)")
+        return by_pin
+    except Exception as pg_exc:  # noqa: BLE001
+        print(f"Postgres EPP load failed ({pg_exc}); trying FeatureServer fallback")
+
+    try:
+        by_pin = fetch_epp_attributes_from_featureserver(path)
+        print(f"Loaded EPP attributes from FeatureServer ({len(by_pin):,} PINs)")
+        return by_pin
+    except Exception as fs_exc:  # noqa: BLE001
+        print(f"EPP attribute fetch failed ({fs_exc}); EPP fields will be blank")
         return {}
 
 
@@ -509,12 +669,30 @@ def apply_tolemi_vacant_lot_score(
     properties["vacant_lot_score_band"] = vacant_lot_score_band(score)
 
 
-def apply_epp_project_name(
+def apply_epp_attributes(
     properties: dict[str, object],
-    epp_by_pin: dict[str, str],
+    epp_by_pin: dict[str, dict[str, object]],
 ) -> None:
     pin = normalize_pin(properties.get("par_pin"))
-    properties["project_name"] = epp_by_pin.get(pin) or None
+    attrs = epp_by_pin.get(pin) or {}
+    properties["project_name"] = attrs.get("project_name")
+    properties["epp_inventory_type"] = attrs.get("inventory_type")
+    properties["epp_current_status"] = attrs.get("current_status")
+    properties["epp_property_class"] = attrs.get("property_class")
+    properties["epp_neighborhood"] = attrs.get("neighborhood")
+    properties["epp_council_district"] = attrs.get("council_district")
+    properties["epp_census_tract"] = attrs.get("census_tract")
+    properties["epp_parcel_number"] = attrs.get("parcel_number")
+    properties["epp_mapblocklot"] = attrs.get("par_mapblocklo")
+    properties["epp_parcel_sqft"] = attrs.get("parcel_sqft")
+    properties["epp_zoned_as"] = attrs.get("zoned_as")
+    properties["epp_tags"] = attrs.get("tags")
+    properties["epp_property_maint_mgr_name"] = attrs.get("property_maint_mgr_name")
+    properties["epp_published"] = attrs.get("published")
+    properties["epp_mod_dt"] = attrs.get("mod_dt")
+    vacant_flag = vacant_flag_from_epp(attrs)
+    properties["vacant_flag"] = vacant_flag
+    properties["is_vacant"] = vacant_flag.startswith("Vacant")
 
 
 def geometry_centroid(geometry: dict[str, object] | None) -> tuple[float, float] | None:
@@ -562,7 +740,7 @@ def sanitize_feature(
     feature: dict[str, object],
     pli_by_pin: dict[str, int],
     tolemi_by_pin: dict[str, float],
-    epp_by_pin: dict[str, str],
+    epp_by_pin: dict[str, dict[str, object]],
 ) -> dict[str, object]:
     properties = dict(feature.get("properties") or {})
     properties["prior_band"] = properties.get("prior_band") or prior_band(properties.get("prior_years"))
@@ -578,7 +756,7 @@ def sanitize_feature(
         properties["propertyowner"] = str(properties.get("propertyowner") or "").strip() or None
     apply_pli_hazard(properties, pli_by_pin)
     apply_tolemi_vacant_lot_score(properties, tolemi_by_pin)
-    apply_epp_project_name(properties, epp_by_pin)
+    apply_epp_attributes(properties, epp_by_pin)
     apply_centroid(properties, feature.get("geometry") if isinstance(feature.get("geometry"), dict) else None)
 
     return {
@@ -605,8 +783,8 @@ def main() -> None:
     print(f"Loaded {len(pli_by_pin):,} WPRDC PINs with PLI hazard scores 1-4")
     tolemi_by_pin = load_tolemi_vacant_lot_scores()
     print(f"Loaded {len(tolemi_by_pin):,} Tolemi PINs with vacant-lot scores")
-    epp_by_pin = load_epp_project_names(refresh=True)
-    print(f"Loaded {len(epp_by_pin):,} EPP PINs with project_name")
+    epp_by_pin = load_epp_attributes(refresh=True)
+    print(f"Loaded {len(epp_by_pin):,} EPP PINs with parcel attributes")
 
     features_by_pin: dict[str, dict[str, object]] = {}
     excluded_count = 0
@@ -650,7 +828,11 @@ def main() -> None:
         print(f"  {band}: {lot_counts.get(band, 0):,}")
 
     project_matched = sum(1 for item in features if item["properties"].get("project_name"))
+    vacant_counts = Counter(str(item["properties"].get("vacant_flag") or "Not in EPP") for item in features)
     print(f"EPP project_name matches in public bundle: {project_matched:,}")
+    print("Vacant flag coverage:")
+    for label in ["Vacant land", "Vacant structure", "Vacant (other)", "Not vacant", "Not in EPP"]:
+        print(f"  {label}: {vacant_counts.get(label, 0):,}")
 
     collection = {
         "type": "FeatureCollection",

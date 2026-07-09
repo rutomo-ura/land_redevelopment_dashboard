@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709k";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709m";
 
 const signalModes = {
   tax: {
@@ -85,6 +85,10 @@ const TABLE_COLUMNS = [
   { key: "parcel_label", label: "Parcel label", defaultVisible: true, exportDefault: true },
   { key: "propertyowner", label: "Owner", defaultVisible: true, exportDefault: true },
   { key: "project_name", label: "EPP project", defaultVisible: true, exportDefault: true },
+  { key: "vacant_flag", label: "Vacant", defaultVisible: true, exportDefault: true },
+  { key: "epp_property_class", label: "EPP property class", defaultVisible: true, exportDefault: true },
+  { key: "epp_inventory_type", label: "EPP inventory", defaultVisible: true, exportDefault: true },
+  { key: "epp_current_status", label: "EPP status", defaultVisible: true, exportDefault: true },
   { key: "use_group", label: "Use group", defaultVisible: true, exportDefault: true },
   { key: "usedesc", label: "Use desc", defaultVisible: true, exportDefault: true },
   { key: "prior_band", label: "Tax delinquency", defaultVisible: true, exportDefault: true },
@@ -98,6 +102,17 @@ const TABLE_COLUMNS = [
   { key: "council_district_label", label: "Council", defaultVisible: true, exportDefault: true },
   { key: "par_calcacreag", label: "Acreage", defaultVisible: true, exportDefault: true },
   { key: "fairmarkettotal", label: "FMV", defaultVisible: true, exportDefault: true },
+  { key: "epp_neighborhood", label: "EPP neighborhood", defaultVisible: false, exportDefault: true },
+  { key: "epp_council_district", label: "EPP council", defaultVisible: false, exportDefault: true },
+  { key: "epp_census_tract", label: "EPP census tract", defaultVisible: false, exportDefault: true },
+  { key: "epp_parcel_number", label: "EPP parcel number", defaultVisible: false, exportDefault: true },
+  { key: "epp_mapblocklot", label: "EPP mapblocklot", defaultVisible: false, exportDefault: true },
+  { key: "epp_parcel_sqft", label: "EPP sqft", defaultVisible: false, exportDefault: true },
+  { key: "epp_zoned_as", label: "EPP zoning", defaultVisible: false, exportDefault: true },
+  { key: "epp_tags", label: "EPP tags", defaultVisible: false, exportDefault: true },
+  { key: "epp_property_maint_mgr_name", label: "EPP maint mgr", defaultVisible: false, exportDefault: true },
+  { key: "epp_published", label: "EPP published", defaultVisible: false, exportDefault: true },
+  { key: "epp_mod_dt", label: "EPP modified", defaultVisible: false, exportDefault: true },
   { key: "pli_hazard_band", label: "PLI band", defaultVisible: false, exportDefault: true },
   { key: "pli_hazard_score", label: "PLI score", defaultVisible: false, exportDefault: true },
   { key: "condemned_flag", label: "Condemned flag", defaultVisible: false, exportDefault: true },
@@ -108,13 +123,25 @@ const TABLE_COLUMNS = [
 
 const TABLE_FILTER_FIELDS = [
   { key: "use_group", label: "Property Use" },
+  { key: "vacant_flag", label: "Vacant" },
   { key: "ownership_group", label: "Ownership" },
   { key: "prior_band", label: "Tax delinquency" },
   { key: "vacant_lot_score_band", label: "Lot score" },
   { key: "project_name", label: "EPP project" },
+  { key: "epp_inventory_type", label: "EPP inventory" },
+  { key: "epp_current_status", label: "EPP status" },
+  { key: "epp_property_class", label: "EPP property class" },
   { key: "pli_hazard_band", label: "PLI hazard" },
   { key: "city_neighborhood", label: "Neighborhood" },
   { key: "council_district_label", label: "Council" }
+];
+
+const VACANT_FILTER_ITEMS = [
+  { value: "Vacant land", label: "Vacant land", color: "#e97827" },
+  { value: "Vacant structure", label: "Vacant structure", color: "#c54036" },
+  { value: "Vacant (other)", label: "Vacant (other)", color: "#f0c24b" },
+  { value: "Not vacant", label: "Not vacant", color: "#c7d0d5" },
+  { value: "Not in EPP", label: "Not in EPP", color: "#8a8f98" }
 ];
 
 const PIN_COLUMN_CANDIDATES = [
@@ -150,10 +177,13 @@ const PDF_METRIC_ITEMS = [
   { key: "acreage", label: "Total acreage", defaultOn: false }
 ];
 
+const DEFAULT_VACANT_FLAGS = ["Vacant land", "Vacant structure", "Vacant (other)"];
+
 const state = {
   viewMode: "map",
   signalMode: "tax",
   activeUseGroups: new Set(),
+  activeVacantFlags: new Set(DEFAULT_VACANT_FLAGS),
   activeSignalValues: {
     tax: new Set(signalModes.tax.categories.map((item) => item.value)),
     ownership: new Set(signalModes.ownership.categories.map((item) => item.value)),
@@ -182,6 +212,7 @@ const nodes = {
   sourceFreshness: document.getElementById("sourceFreshness"),
   signalModeControls: document.getElementById("signalModeControls"),
   useGroupFilters: document.getElementById("useGroupFilters"),
+  vacantFilters: document.getElementById("vacantFilters"),
   signalFilters: document.getElementById("signalFilters"),
   signalFilterHeading: document.getElementById("signalFilterHeading"),
   sideLegend: document.getElementById("sideLegend"),
@@ -889,6 +920,9 @@ function featureMatchesActiveFilters(feature) {
   const useGroup = props.use_group || "Not recorded";
   if (!state.activeUseGroups.has(useGroup)) return false;
 
+  const vacantFlag = props.vacant_flag || "Not in EPP";
+  if (!state.activeVacantFlags.has(vacantFlag)) return false;
+
   const signalValue = signalValueForFeature(feature);
   return state.activeSignalValues[state.signalMode].has(signalValue);
 }
@@ -925,6 +959,7 @@ function buildWhereClause() {
   const clauses = [
     buildCustomListPinClause(),
     buildInClause("use_group", state.activeUseGroups, useGroupItems.map((item) => item.value)),
+    buildInClause("vacant_flag", state.activeVacantFlags, VACANT_FILTER_ITEMS.map((item) => item.value)),
     buildInClause(mode.field, state.activeSignalValues[state.signalMode], signalValues)
   ].filter(Boolean);
   return clauses.length ? clauses.join(" AND ") : "1=1";
@@ -994,10 +1029,21 @@ function renderSignalModeControls() {
   `).join("");
 }
 
+function vacantFilterItems(features = allFeatures) {
+  const counts = countBy(features, "vacant_flag");
+  return VACANT_FILTER_ITEMS.map((item) => ({
+    ...item,
+    count: counts.get(item.value) || 0
+  }));
+}
+
 function renderFilters() {
   const mode = signalModes[state.signalMode];
   nodes.signalFilterHeading.textContent = mode.label;
   renderFilterList(nodes.useGroupFilters, useGroupItems, state.activeUseGroups, applyDashboardState, { showSwatches: false });
+  if (nodes.vacantFilters) {
+    renderFilterList(nodes.vacantFilters, vacantFilterItems(), state.activeVacantFlags, applyDashboardState);
+  }
   renderFilterList(nodes.signalFilters, categoryItemsForMode(state.signalMode), state.activeSignalValues[state.signalMode], applyDashboardState);
 }
 
@@ -1183,6 +1229,9 @@ function tableRows() {
         props.parcel_label,
         props.propertyowner,
         props.project_name,
+        props.vacant_flag,
+        props.epp_current_status,
+        props.epp_inventory_type,
         props.city_neighborhood,
         props.usedesc
       ].map((value) => String(value || "").toLowerCase()).join(" ");
@@ -1472,6 +1521,7 @@ function exportTableXlsx() {
 
 function resetFilters() {
   state.activeUseGroups = new Set(defaultUseGroupValues());
+  state.activeVacantFlags = new Set(DEFAULT_VACANT_FLAGS);
   Object.entries(signalModes).forEach(([key, mode]) => {
     state.activeSignalValues[key] = new Set(mode.categories.map((item) => item.value));
   });
@@ -1506,6 +1556,10 @@ function buildPopupContent(event) {
       <dt>PIN</dt><dd>${escapeHtml(attrs.par_pin || "Not recorded")}</dd>
       <dt>Owner</dt><dd>${escapeHtml(attrs.propertyowner || "Not recorded")}</dd>
       <dt>EPP project</dt><dd>${escapeHtml(attrs.project_name || "Not recorded")}</dd>
+      <dt>Vacant</dt><dd>${escapeHtml(attrs.vacant_flag || "Not in EPP")}</dd>
+      <dt>EPP status</dt><dd>${escapeHtml(attrs.epp_current_status || "Not recorded")}</dd>
+      <dt>EPP inventory</dt><dd>${escapeHtml(attrs.epp_inventory_type || "Not recorded")}</dd>
+      <dt>EPP property class</dt><dd>${escapeHtml(attrs.epp_property_class || "Not recorded")}</dd>
       <dt>Tax delinquency</dt><dd>${escapeHtml(formatTaxDelinquency(attrs))}</dd>
       <dt>Prior years</dt><dd>${escapeHtml(attrs.prior_years ?? "No known prior years")}</dd>
       <dt>Tax status</dt><dd>${escapeHtml(attrs.taxdesc || "Not recorded")}</dd>
@@ -1599,10 +1653,13 @@ function activeFilterSummary() {
   const useText = state.activeUseGroups.size === useGroupItems.length
     ? "All property uses"
     : [...state.activeUseGroups].join(", ");
+  const vacantText = state.activeVacantFlags.size === VACANT_FILTER_ITEMS.length
+    ? "All vacant flags"
+    : [...state.activeVacantFlags].join(", ");
   const signalText = state.activeSignalValues[state.signalMode].size === mode.categories.length
     ? `All ${mode.label.toLowerCase()} categories`
     : [...state.activeSignalValues[state.signalMode]].join(", ");
-  const summary = [mode.label, useText, signalText];
+  const summary = [mode.label, useText, vacantText, signalText];
   if (state.customList?.matchedCount) {
     summary.unshift(
       `Custom list: ${state.customList.fileName} (${formatNumber(state.customList.matchedCount)} joined PINs)`
