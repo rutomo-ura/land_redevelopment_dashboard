@@ -595,6 +595,20 @@ tr:last-child td {
   overflow-wrap: anywhere;
 }
 
+.popup-external-links {
+  margin: 6px 0 0;
+}
+
+.popup-external-links a {
+  color: #0078a8;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.popup-external-links a:hover {
+  text-decoration: underline;
+}
+
 .esri-popup__main-container {
   border-radius: 8px;
 }

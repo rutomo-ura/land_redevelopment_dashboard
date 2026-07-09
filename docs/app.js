@@ -582,11 +582,16 @@ function resetFilters() {
 
 function buildPopupContent(event) {
   const attrs = event.graphic.attributes;
-  const addressPromise = lookupParcelAddress(event.graphic);
-  return addressPromise.then((address) => `
+  const centroid = parcelCentroid(event.graphic);
+  const lat = centroid?.latitude;
+  const lng = centroid?.longitude;
+  return lookupParcelAddress(event.graphic).then((address) => `
     <dl class="popup-grid">
       <dt>Parcel</dt><dd>${escapeHtml(attrs.parcel_label || attrs.par_pin)}</dd>
-      <dt>Address</dt><dd>${escapeHtml(address || "Address not available")}</dd>
+      <dt>Address</dt><dd>
+        ${escapeHtml(address || "Address not available")}
+        ${buildPopupStreetViewLink(lat, lng)}
+      </dd>
       <dt>PIN</dt><dd>${escapeHtml(attrs.par_pin || "Not recorded")}</dd>
       <dt>Prior years</dt><dd>${escapeHtml(attrs.prior_years ?? "No known prior years")}</dd>
       <dt>Tax band</dt><dd>${escapeHtml(attrs.prior_band)}</dd>
@@ -603,10 +608,27 @@ function buildPopupContent(event) {
   `);
 }
 
+function parcelCentroid(graphic) {
+  if (!graphic?.geometry) return null;
+  const geometry = graphic.geometry;
+  if (geometry.type === "polygon") return geometry.centroid;
+  if (geometry.type === "point") return geometry;
+  return null;
+}
+
+function buildGoogleStreetViewUrl(lat, lng) {
+  return `https://www.google.com/maps/@${lat},${lng},3a,75y,0h,90t`;
+}
+
+function buildPopupStreetViewLink(lat, lng) {
+  if (lat == null || lng == null) return "";
+  const url = buildGoogleStreetViewUrl(lat, lng);
+  return `<p class="popup-external-links"><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Street View</a></p>`;
+}
+
 async function lookupParcelAddress(graphic) {
-  if (!reverseGeocodeRef || !graphic?.geometry) return null;
-  const location = graphic.geometry.type === "polygon" ? graphic.geometry.centroid : graphic.geometry;
-  if (!location) return null;
+  const location = parcelCentroid(graphic);
+  if (!reverseGeocodeRef || !location) return null;
   try {
     const result = await reverseGeocodeRef(REVERSE_GEOCODE_URL, { location });
     const address = result?.address;
