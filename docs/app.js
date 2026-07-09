@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709d";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709e";
 
 const signalModes = {
   tax: {
@@ -604,6 +604,11 @@ function resetFilters() {
   applyDashboardState();
 }
 
+function formatLatLng(coords) {
+  if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng)) return "Not available";
+  return `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`;
+}
+
 function buildPopupContent(event) {
   const attrs = event.graphic.attributes;
   const coords = parcelLatLng(event.graphic);
@@ -612,6 +617,7 @@ function buildPopupContent(event) {
       <dt>Parcel</dt><dd>${escapeHtml(attrs.parcel_label || attrs.par_pin)}</dd>
       <dt>Address</dt><dd>
         ${escapeHtml(address || "Address not available")}
+        <p class="popup-coords">${escapeHtml(formatLatLng(coords))}</p>
         ${buildPopupStreetViewLink(coords)}
       </dd>
       <dt>PIN</dt><dd>${escapeHtml(attrs.par_pin || "Not recorded")}</dd>
@@ -623,8 +629,8 @@ function buildPopupContent(event) {
       <dt>Lot score value</dt><dd>${escapeHtml(attrs.tax_sale_vacant_lot_score ?? "Not scored")}</dd>
       <dt>PLI hazard</dt><dd>${escapeHtml(attrs.pli_hazard_band || "Not scored")}</dd>
       <dt>Use group</dt><dd>${escapeHtml(attrs.use_group || "Not recorded")}</dd>
-      <dt>Neighborhood</dt><dd>${escapeHtml(attrs.city_neighborhood)}</dd>
-      <dt>Council</dt><dd>${escapeHtml(attrs.council_district_label)}</dd>
+      <dt>Neighborhood</dt><dd>${escapeHtml(attrs.city_neighborhood || "Not recorded")}</dd>
+      <dt>Council</dt><dd>${escapeHtml(attrs.council_district_label || "Not recorded")}</dd>
       <dt>Acreage</dt><dd>${formatAcreage(attrs.par_calcacreag)}</dd>
       <dt>Fair market value</dt><dd>${formatMoney(attrs.fairmarkettotal)}</dd>
     </dl>
@@ -688,7 +694,14 @@ async function lookupParcelAddress(coords) {
       }
     });
     const address = result?.address || result;
-    return address?.LongLabel || address?.Match_addr || address?.Address || address?.PlaceName || null;
+    const street = address?.Address || address?.ShortLabel || "";
+    const city = address?.City || "";
+    const region = address?.RegionAbbr || address?.Region || "";
+    const postal = address?.Postal || "";
+    const composed = [street, [city, region].filter(Boolean).join(", "), postal]
+      .filter((part) => part && String(part).trim())
+      .join(", ");
+    return address?.LongLabel || address?.Match_addr || composed || address?.PlaceName || null;
   } catch (error) {
     console.warn("Reverse geocode failed for parcel popup.", error);
     return null;
