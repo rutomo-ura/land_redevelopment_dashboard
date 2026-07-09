@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709o";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709p";
 
 const signalModes = {
   tax: {
@@ -556,6 +556,9 @@ function expandFiltersForCustomList(matchedPinSet) {
   const matchedFeatures = allFeatures.filter((feature) => matchedPinSet.has(featurePin(feature)));
   const useGroups = new Set(matchedFeatures.map((feature) => getProp(feature, "use_group") || "Not recorded"));
   useGroups.forEach((value) => state.activeUseGroups.add(value));
+
+  const vacantFlags = new Set(matchedFeatures.map((feature) => getProp(feature, "vacant_flag") || "Not in EPP"));
+  vacantFlags.forEach((value) => state.activeVacantFlags.add(value));
 
   Object.keys(signalModes).forEach((modeName) => {
     const values = new Set(matchedFeatures.map((feature) => signalValueForFeature(feature, modeName)));
@@ -1293,7 +1296,8 @@ function tableRows() {
     return TABLE_FILTER_FIELDS.every((filter) => {
       const active = tableState.filters[filter.key];
       if (!active || active.size === 0) return true;
-      const value = props[filter.key] || "Not recorded";
+      const value = props[filter.key]
+        || (filter.key === "vacant_flag" ? "Not in EPP" : "Not recorded");
       return active.has(String(value));
     });
   });
@@ -1384,14 +1388,21 @@ function updateCheckedMapUi() {
   if (nodes.checkedMapBanner) {
     nodes.checkedMapBanner.classList.toggle("is-hidden", !active);
     if (active) {
+      const overlapNote = state.customList?.matchedPinSet?.size
+        ? " Custom list is also active (intersection)."
+        : "";
       nodes.checkedMapBanner.innerHTML = `
         <strong>Checked parcels on map: ${formatNumber(state.checkedMapPins.size)}</strong>
-        Adjust zoom/extent, then use Export PDF. Clear checked map to return to the full filtered view.
+        Adjust zoom/extent, then use Export PDF. Clear checked map to return to the full filtered view.${overlapNote}
       `;
     } else {
       nodes.checkedMapBanner.textContent = "";
     }
   }
+  if (nodes.exportPdfButton) {
+    nodes.exportPdfButton.textContent = active ? "Export checked PDF" : "Export PDF";
+  }
+  updateCheckedSelectionUi();
 }
 
 function clearCheckedMapPreview(refresh = true) {
@@ -1412,6 +1423,15 @@ async function showCheckedParcelsOnMap() {
   }
 
   state.checkedMapPins = new Set(pins);
+  // Ensure checked parcels aren't hidden by default vacant / use filters.
+  const matchedFeatures = allFeatures.filter((feature) => state.checkedMapPins.has(featurePin(feature)));
+  matchedFeatures.forEach((feature) => {
+    state.activeUseGroups.add(getProp(feature, "use_group") || "Not recorded");
+    state.activeVacantFlags.add(getProp(feature, "vacant_flag") || "Not in EPP");
+    Object.keys(signalModes).forEach((modeName) => {
+      state.activeSignalValues[modeName].add(signalValueForFeature(feature, modeName));
+    });
+  });
   updateCheckedMapUi();
   setViewMode("map");
   applyDashboardState();
@@ -1422,6 +1442,7 @@ async function showCheckedParcelsOnMap() {
     setMapLoadingProgress(100, "Checked parcels ready — adjust zoom, then Export PDF");
     await delay(400);
     hideMapLoadingOverlay();
+    updateCheckedSelectionUi();
     if (nodes.exportStatus) {
       nodes.exportStatus.textContent = `Checked map ready (${formatNumber(pins.length)}). Adjust zoom, then Export PDF.`;
       window.setTimeout(() => {
@@ -1437,6 +1458,7 @@ async function showCheckedParcelsOnMap() {
 
 function updateCheckedSelectionUi() {
   const count = tableState.checkedPins.size;
+  const mapReady = Boolean(state.checkedMapPins?.size);
   if (nodes.tableCheckedCount) {
     nodes.tableCheckedCount.textContent = count
       ? `${formatNumber(count)} checked`
@@ -1446,7 +1468,10 @@ function updateCheckedSelectionUi() {
     nodes.tableShowCheckedMapButton.disabled = count === 0;
   }
   if (nodes.tableExportCheckedPdfButton) {
-    nodes.tableExportCheckedPdfButton.disabled = count === 0;
+    nodes.tableExportCheckedPdfButton.disabled = count === 0 || !mapReady;
+    nodes.tableExportCheckedPdfButton.title = mapReady
+      ? "Export paper GIS PDF for checked parcels at the current map zoom"
+      : "Show checked on map first, adjust zoom, then export";
   }
   if (nodes.tableClearCheckedButton) {
     nodes.tableClearCheckedButton.disabled = count === 0;
@@ -1665,6 +1690,7 @@ function resetFilters() {
   Object.entries(signalModes).forEach(([key, mode]) => {
     state.activeSignalValues[key] = new Set(mode.categories.map((item) => item.value));
   });
+  // Keep custom list / checked map preview; only reset map filter checklists.
   applyDashboardState();
 }
 
