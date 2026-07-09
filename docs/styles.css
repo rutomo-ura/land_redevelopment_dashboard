@@ -1140,6 +1140,12 @@ body.is-table-view .table-view {
   font-size: 13px;
 }
 
+.checked-map-banner {
+  border-color: rgba(231, 120, 39, 0.45);
+  background: rgba(231, 120, 39, 0.1);
+  color: #7a3b0d;
+}
+
 .custom-list-modal {
   grid-template-rows: auto auto auto auto;
 }

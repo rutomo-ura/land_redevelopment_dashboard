@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709n";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709o";
 
 const signalModes = {
   tax: {
@@ -190,6 +190,7 @@ const state = {
     vacantLotScore: new Set(signalModes.vacantLotScore.categories.map((item) => item.value))
   },
   customList: null,
+  checkedMapPins: null,
   checkedExportPins: null,
   pendingPdfOptions: null
 };
@@ -229,6 +230,8 @@ const nodes = {
   customListButton: document.getElementById("customListButton"),
   clearCustomListButton: document.getElementById("clearCustomListButton"),
   customListBanner: document.getElementById("customListBanner"),
+  checkedMapBanner: document.getElementById("checkedMapBanner"),
+  clearCheckedMapButton: document.getElementById("clearCheckedMapButton"),
   customListModal: document.getElementById("customListModal"),
   customListFileInput: document.getElementById("customListFileInput"),
   customListSheetLabel: document.getElementById("customListSheetLabel"),
@@ -253,6 +256,7 @@ const nodes = {
   tableClearFilters: document.getElementById("tableClearFilters"),
   tableColumnsButton: document.getElementById("tableColumnsButton"),
   tableExportButton: document.getElementById("tableExportButton"),
+  tableShowCheckedMapButton: document.getElementById("tableShowCheckedMapButton"),
   tableExportCheckedPdfButton: document.getElementById("tableExportCheckedPdfButton"),
   tableSelectPageButton: document.getElementById("tableSelectPageButton"),
   tableClearCheckedButton: document.getElementById("tableClearCheckedButton"),
@@ -654,6 +658,12 @@ function openPdfOptionsModal(options = {}) {
     if (nodes.exportStatus) nodes.exportStatus.textContent = "Check at least one parcel in the table first.";
     return;
   }
+  if (checkedOnly && !state.checkedMapPins?.size) {
+    if (nodes.exportStatus) {
+      nodes.exportStatus.textContent = "Use Show checked on map first, adjust zoom, then Export PDF.";
+    }
+    return;
+  }
   if (!view) {
     if (nodes.exportStatus) nodes.exportStatus.textContent = "Wait for the map to finish loading.";
     return;
@@ -665,9 +675,17 @@ function openPdfOptionsModal(options = {}) {
 
 async function exportCurrentMapPdf(options = {}) {
   const checkedOnly = Boolean(options.checkedOnly);
-  const checkedPins = checkedOnly ? [...tableState.checkedPins] : [];
+  const checkedPins = checkedOnly
+    ? [...(state.checkedMapPins?.size ? state.checkedMapPins : tableState.checkedPins)]
+    : [];
   if (checkedOnly && !checkedPins.length) {
     if (nodes.exportStatus) nodes.exportStatus.textContent = "Check at least one parcel in the table first.";
+    return;
+  }
+  if (checkedOnly && !state.checkedMapPins?.size) {
+    if (nodes.exportStatus) {
+      nodes.exportStatus.textContent = "Use Show checked on map first, adjust zoom, then Export PDF.";
+    }
     return;
   }
 
@@ -696,16 +714,13 @@ async function exportCurrentMapPdf(options = {}) {
   printWindow.document.write(buildPreparingPrintHtml());
   printWindow.document.close();
 
-  const previousViewMode = state.viewMode;
   try {
+    // Keep the user's current zoom/extent. Checked parcels should already be on the map.
     if (checkedOnly) {
       state.checkedExportPins = new Set(checkedPins);
       setViewMode("map");
       applyLayerState();
-      // Keep the user's current zoom/extent; only wait for checked parcels to redraw.
-      if (reactiveUtilsRef && parcelLayerView) {
-        await reactiveUtilsRef.whenOnce(() => !parcelLayerView.updating);
-      }
+      await waitForMapRenderReady({ settleMs: 500 });
     }
 
     const features = filteredFeatures();
@@ -730,7 +745,6 @@ async function exportCurrentMapPdf(options = {}) {
     if (checkedOnly) {
       state.checkedExportPins = null;
       applyLayerState();
-      if (previousViewMode === "table") setViewMode("table");
       updateCheckedSelectionUi();
     }
     if (triggerButton) {
@@ -917,6 +931,10 @@ function featureMatchesActiveFilters(feature) {
     const pin = featurePin(feature);
     if (!state.customList.matchedPinSet.has(pin)) return false;
   }
+  if (state.checkedMapPins?.size) {
+    const pin = featurePin(feature);
+    if (!state.checkedMapPins.has(pin)) return false;
+  }
   if (state.checkedExportPins?.size) {
     const pin = featurePin(feature);
     if (!state.checkedExportPins.has(pin)) return false;
@@ -946,7 +964,9 @@ function buildInClause(field, activeValues, allValues) {
 function buildCustomListPinClause() {
   const pins = state.checkedExportPins?.size
     ? [...state.checkedExportPins]
-    : state.customList?.matchedPins;
+    : state.checkedMapPins?.size
+      ? [...state.checkedMapPins]
+      : state.customList?.matchedPins;
   if (!pins?.length) return null;
   // ArcGIS where clauses can get large; chunk with OR groups.
   const chunkSize = 900;
@@ -1356,12 +1376,74 @@ function formatTaxDelinquency(attrs) {
   return `${band} (${yearsText})`;
 }
 
+function updateCheckedMapUi() {
+  const active = Boolean(state.checkedMapPins?.size);
+  if (nodes.clearCheckedMapButton) {
+    nodes.clearCheckedMapButton.classList.toggle("is-hidden", !active);
+  }
+  if (nodes.checkedMapBanner) {
+    nodes.checkedMapBanner.classList.toggle("is-hidden", !active);
+    if (active) {
+      nodes.checkedMapBanner.innerHTML = `
+        <strong>Checked parcels on map: ${formatNumber(state.checkedMapPins.size)}</strong>
+        Adjust zoom/extent, then use Export PDF. Clear checked map to return to the full filtered view.
+      `;
+    } else {
+      nodes.checkedMapBanner.textContent = "";
+    }
+  }
+}
+
+function clearCheckedMapPreview(refresh = true) {
+  state.checkedMapPins = null;
+  updateCheckedMapUi();
+  if (refresh) applyDashboardState();
+}
+
+async function showCheckedParcelsOnMap() {
+  const pins = [...tableState.checkedPins];
+  if (!pins.length) {
+    if (nodes.exportStatus) nodes.exportStatus.textContent = "Check at least one parcel in the table first.";
+    return;
+  }
+  if (!view || !parcelLayer) {
+    if (nodes.exportStatus) nodes.exportStatus.textContent = "Wait for the map to finish loading.";
+    return;
+  }
+
+  state.checkedMapPins = new Set(pins);
+  updateCheckedMapUi();
+  setViewMode("map");
+  applyDashboardState();
+  setMapLoadingProgress(35, `Showing ${formatNumber(pins.length)} checked parcels on map...`, "Checked map preview");
+  try {
+    await zoomToPins(pins);
+    await waitForMapRenderReady({ settleMs: 700 });
+    setMapLoadingProgress(100, "Checked parcels ready — adjust zoom, then Export PDF");
+    await delay(400);
+    hideMapLoadingOverlay();
+    if (nodes.exportStatus) {
+      nodes.exportStatus.textContent = `Checked map ready (${formatNumber(pins.length)}). Adjust zoom, then Export PDF.`;
+      window.setTimeout(() => {
+        if (nodes.exportStatus) nodes.exportStatus.textContent = "";
+      }, 5000);
+    }
+  } catch (error) {
+    console.error(error);
+    hideMapLoadingOverlay();
+    if (nodes.exportStatus) nodes.exportStatus.textContent = "Could not zoom to checked parcels. Try again after the map settles.";
+  }
+}
+
 function updateCheckedSelectionUi() {
   const count = tableState.checkedPins.size;
   if (nodes.tableCheckedCount) {
     nodes.tableCheckedCount.textContent = count
       ? `${formatNumber(count)} checked`
       : "0 checked";
+  }
+  if (nodes.tableShowCheckedMapButton) {
+    nodes.tableShowCheckedMapButton.disabled = count === 0;
   }
   if (nodes.tableExportCheckedPdfButton) {
     nodes.tableExportCheckedPdfButton.disabled = count === 0;
@@ -1373,6 +1455,7 @@ function updateCheckedSelectionUi() {
 
 function clearCheckedParcels() {
   tableState.checkedPins.clear();
+  if (state.checkedMapPins) clearCheckedMapPreview(true);
   updateCheckedSelectionUi();
   if (state.viewMode === "table") renderSpreadsheet();
 }
@@ -1722,6 +1805,9 @@ function activeFilterSummary() {
       `Custom list: ${state.customList.fileName} (${formatNumber(state.customList.matchedCount)} joined PINs)`
     );
   }
+  if (state.checkedMapPins?.size) {
+    summary.unshift(`Checked map preview: ${formatNumber(state.checkedMapPins.size)} parcels`);
+  }
   if (state.checkedExportPins?.size) {
     summary.unshift(`Checked parcels: ${formatNumber(state.checkedExportPins.size)}`);
   }
@@ -2063,8 +2149,15 @@ document.addEventListener("click", (event) => {
 });
 
 nodes.resetFilters.addEventListener("click", resetFilters);
-nodes.exportPdfButton.addEventListener("click", () => openPdfOptionsModal());
+nodes.exportPdfButton.addEventListener("click", () => {
+  openPdfOptionsModal({ checkedOnly: Boolean(state.checkedMapPins?.size) });
+});
 
+if (nodes.tableShowCheckedMapButton) {
+  nodes.tableShowCheckedMapButton.addEventListener("click", () => {
+    showCheckedParcelsOnMap().catch((error) => console.error(error));
+  });
+}
 if (nodes.tableExportCheckedPdfButton) {
   nodes.tableExportCheckedPdfButton.addEventListener("click", () => openPdfOptionsModal({ checkedOnly: true }));
 }
@@ -2073,6 +2166,9 @@ if (nodes.tableSelectPageButton) {
 }
 if (nodes.tableClearCheckedButton) {
   nodes.tableClearCheckedButton.addEventListener("click", clearCheckedParcels);
+}
+if (nodes.clearCheckedMapButton) {
+  nodes.clearCheckedMapButton.addEventListener("click", () => clearCheckedMapPreview(true));
 }
 if (nodes.pdfMetricsSelectAll) {
   nodes.pdfMetricsSelectAll.addEventListener("click", () => {

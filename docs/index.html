@@ -26,6 +26,7 @@
         </div>
         <button class="ghost-button" id="customListButton" type="button">Custom List</button>
         <button class="small-button is-hidden" id="clearCustomListButton" type="button">Clear list</button>
+        <button class="small-button is-hidden" id="clearCheckedMapButton" type="button">Clear checked map</button>
         <button class="primary-button" id="exportPdfButton" type="button">Export PDF</button>
         <button class="primary-button is-hidden" id="exportXlsxButton" type="button">Export XLSX</button>
       </div>
@@ -38,6 +39,7 @@
           <h1>Find parcels that need a closer look.</h1>
           <p>Switch map signals for analysis and filter by property use. Parcel colors follow the active map signal. Upload a Custom List (XLSX/CSV) to inner-join your parcel PINs, then Export PDF for a paper GIS map.</p>
           <div class="custom-list-banner is-hidden" id="customListBanner" aria-live="polite"></div>
+          <div class="custom-list-banner checked-map-banner is-hidden" id="checkedMapBanner" aria-live="polite"></div>
         </section>
 
         <section class="panel">
@@ -178,6 +180,7 @@
           <span class="table-checked-count" id="tableCheckedCount">0 checked</span>
           <button class="small-button" id="tableSelectPageButton" type="button">Check page</button>
           <button class="small-button" id="tableClearCheckedButton" type="button" disabled>Clear checks</button>
+          <button class="primary-button" id="tableShowCheckedMapButton" type="button" disabled>Show checked on map</button>
           <button class="primary-button" id="tableExportCheckedPdfButton" type="button" disabled>Export checked PDF</button>
           <button class="small-button" id="tableClearFilters" type="button">Clear table filters</button>
           <button class="small-button" id="tableColumnsButton" type="button">Columns</button>

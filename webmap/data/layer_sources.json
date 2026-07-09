@@ -17,6 +17,6 @@
   "parcelFeatureServiceUrl": null,
   "preferPublicGeoJson": true,
   "parcelGeoJsonUrl": "https://urap.maps.arcgis.com/sharing/rest/content/items/c013cc3b5df54a79ae51cccd2baa224f/data",
-  "parcelLocalGeoJsonUrl": "data/vacant_land_triage.geojson?v=redevelopment-explorer-20260709n",
+  "parcelLocalGeoJsonUrl": "data/vacant_land_triage.geojson?v=redevelopment-explorer-20260709o",
   "notes": "Internal staff GitHub Pages bundle includes owner names for spreadsheet review. Vacant-lot score bands come from Tolemi; PLI hazard from WPRDC; neighborhood/Council from WPRDC City boundaries. App is embedded as a live dashboard (no URA Maps outbound button)."
 }
