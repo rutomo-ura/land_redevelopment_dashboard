@@ -1,19 +1,6 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
 const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709";
 
-const colorModes = {
-  signal: {
-    label: "Map signal",
-    shortLabel: "Signal",
-    helper: "Tax, ownership, or condemned"
-  },
-  use: {
-    label: "Property use",
-    shortLabel: "Use",
-    helper: "Residential, commercial, industrial"
-  }
-};
-
 const signalModes = {
   tax: {
     label: "Tax delinquency",
@@ -90,7 +77,6 @@ const excludedDashboardUses = new Set([
 
 const state = {
   signalMode: "tax",
-  colorMode: "signal",
   activeUseGroups: new Set(),
   activeSignalValues: {
     tax: new Set(signalModes.tax.categories.map((item) => item.value)),
@@ -102,7 +88,6 @@ const state = {
 const nodes = {
   sourceFreshness: document.getElementById("sourceFreshness"),
   signalModeControls: document.getElementById("signalModeControls"),
-  colorModeControls: document.getElementById("colorModeControls"),
   useGroupFilters: document.getElementById("useGroupFilters"),
   signalFilters: document.getElementById("signalFilters"),
   signalFilterHeading: document.getElementById("signalFilterHeading"),
@@ -131,6 +116,9 @@ let view = null;
 let parcelLayer = null;
 let parcelLayerView = null;
 let reactiveUtilsRef = null;
+let reverseGeocodeRef = null;
+
+const REVERSE_GEOCODE_URL = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
 function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(Number(value || 0));
@@ -228,39 +216,32 @@ function useColor(value) {
   return colors[value] || "#8a8f98";
 }
 
-function activeColorField() {
-  if (state.colorMode === "use") return "use_group";
+function signalColorField() {
   return signalModes[state.signalMode].field;
 }
 
-function activeColorLegendTitle() {
-  if (state.colorMode === "use") return "Property use";
+function signalColorLegendTitle() {
   return signalModes[state.signalMode].label;
 }
 
-function colorLegendItems(features = filteredFeatures()) {
-  const field = activeColorField();
+function signalLegendItems(features = filteredFeatures()) {
+  const field = signalColorField();
   const counts = countBy(features, field);
-  if (state.colorMode === "use") {
-    return useItems(allFeatures).map((item) => ({
-      ...item,
-      count: counts.get(item.value) || 0
-    }));
-  }
   return categoryItemsForMode(state.signalMode).map((item) => ({
     ...item,
     count: counts.get(item.value) || 0
   }));
 }
 
-function colorRendererItems() {
-  if (state.colorMode === "use") return useItems(allFeatures);
+function signalRendererItems() {
   return categoryItemsForMode(state.signalMode);
 }
 
 function defaultUseGroupValues() {
   const values = useGroupItems.map((item) => item.value);
-  return values.includes("Residential") ? ["Residential"] : values;
+  const defaults = ["Residential", "Commercial"].filter((value) => values.includes(value));
+  if (defaults.length) return defaults;
+  return values.length ? [values[0]] : [];
 }
 
 async function loadLayerSources() {
@@ -358,9 +339,12 @@ async function queryAllParcelAttributes(layer) {
 
 function featureMatchesActiveFilters(feature) {
   const props = feature.properties || feature;
+  const useGroup = props.use_group || "Not recorded";
+  if (!state.activeUseGroups.has(useGroup)) return false;
+
   const mode = signalModes[state.signalMode];
-  return state.activeUseGroups.has(props.use_group)
-    && state.activeSignalValues[state.signalMode].has(props[mode.field] || "Not recorded");
+  const signalValue = props[mode.field] || "Not recorded";
+  return state.activeSignalValues[state.signalMode].has(signalValue);
 }
 
 function filteredFeatures() {
@@ -405,24 +389,6 @@ function uniqueValueRenderer(field, items) {
   };
 }
 
-function renderColorModeControls() {
-  nodes.colorModeControls.innerHTML = Object.entries(colorModes).map(([key, mode]) => `
-    <button class="segment-button ${state.colorMode === key ? "is-active" : ""}" type="button" data-color-mode="${key}">
-      ${escapeHtml(mode.label)}
-      <span>${escapeHtml(mode.helper)}</span>
-    </button>
-  `).join("");
-}
-
-function renderSignalModeControls() {
-  nodes.signalModeControls.innerHTML = Object.entries(signalModes).map(([key, mode]) => `
-    <button class="segment-button ${state.signalMode === key ? "is-active" : ""}" type="button" data-signal-mode="${key}">
-      ${escapeHtml(mode.label)}
-      <span>${escapeHtml(mode.helper)}</span>
-    </button>
-  `).join("");
-}
-
 function renderFilterList(container, items, activeValues, onChange, options = {}) {
   const showSwatches = options.showSwatches !== false;
   container.innerHTML = items.map((item) => {
@@ -444,11 +410,26 @@ function renderFilterList(container, items, activeValues, onChange, options = {}
 
   container.querySelectorAll("input").forEach((input) => {
     input.addEventListener("change", () => {
-      if (input.checked) activeValues.add(input.value);
-      else activeValues.delete(input.value);
+      if (input.checked) {
+        activeValues.add(input.value);
+      } else if (activeValues.size <= 1) {
+        input.checked = true;
+        return;
+      } else {
+        activeValues.delete(input.value);
+      }
       onChange();
     });
   });
+}
+
+function renderSignalModeControls() {
+  nodes.signalModeControls.innerHTML = Object.entries(signalModes).map(([key, mode]) => `
+    <button class="segment-button ${state.signalMode === key ? "is-active" : ""}" type="button" data-signal-mode="${key}">
+      ${escapeHtml(mode.label)}
+      <span>${escapeHtml(mode.helper)}</span>
+    </button>
+  `).join("");
 }
 
 function renderFilters() {
@@ -459,16 +440,16 @@ function renderFilters() {
 }
 
 function legendItems() {
-  const items = colorLegendItems(filteredFeatures());
-  if (state.colorMode === "signal" && state.signalMode === "ownership") {
+  const items = signalLegendItems(filteredFeatures());
+  if (state.signalMode === "ownership") {
     return items.filter((item) => item.showInOwnershipLegend);
   }
   return items;
 }
 
 function legendHtml(includeTitle = false) {
-  const title = includeTitle ? `<strong class="legend-title">${escapeHtml(activeColorLegendTitle())}</strong>` : "";
-  const ownershipLegend = state.colorMode === "signal" && state.signalMode === "ownership";
+  const title = includeTitle ? `<strong class="legend-title">${escapeHtml(signalColorLegendTitle())}</strong>` : "";
+  const ownershipLegend = state.signalMode === "ownership";
   return `
     ${title}
     <div class="legend-list ${ownershipLegend ? "ownership-legend-list" : ""}">
@@ -568,15 +549,14 @@ function setStatus(message, isHidden = false) {
 
 function applyLayerState() {
   if (!parcelLayer) return;
-  const field = activeColorField();
-  parcelLayer.renderer = uniqueValueRenderer(field, colorRendererItems());
+  const field = signalColorField();
+  parcelLayer.renderer = uniqueValueRenderer(field, signalRendererItems());
   parcelLayer.definitionExpression = buildWhereClause();
 }
 
 function applyDashboardState() {
   const features = filteredFeatures();
   renderSignalModeControls();
-  renderColorModeControls();
   renderFilters();
   renderLegends();
   renderMetricCards(features);
@@ -602,9 +582,12 @@ function resetFilters() {
 
 function buildPopupContent(event) {
   const attrs = event.graphic.attributes;
-  return `
+  const addressPromise = lookupParcelAddress(event.graphic);
+  return addressPromise.then((address) => `
     <dl class="popup-grid">
       <dt>Parcel</dt><dd>${escapeHtml(attrs.parcel_label || attrs.par_pin)}</dd>
+      <dt>Address</dt><dd>${escapeHtml(address || "Address not available")}</dd>
+      <dt>PIN</dt><dd>${escapeHtml(attrs.par_pin || "Not recorded")}</dd>
       <dt>Prior years</dt><dd>${escapeHtml(attrs.prior_years ?? "No known prior years")}</dd>
       <dt>Tax band</dt><dd>${escapeHtml(attrs.prior_band)}</dd>
       <dt>Ownership</dt><dd>${escapeHtml(attrs.ownership_group)}</dd>
@@ -617,7 +600,21 @@ function buildPopupContent(event) {
       <dt>Acreage</dt><dd>${formatAcreage(attrs.par_calcacreag)}</dd>
       <dt>Fair market value</dt><dd>${formatMoney(attrs.fairmarkettotal)}</dd>
     </dl>
-  `;
+  `);
+}
+
+async function lookupParcelAddress(graphic) {
+  if (!reverseGeocodeRef || !graphic?.geometry) return null;
+  const location = graphic.geometry.type === "polygon" ? graphic.geometry.centroid : graphic.geometry;
+  if (!location) return null;
+  try {
+    const result = await reverseGeocodeRef(REVERSE_GEOCODE_URL, { location });
+    const address = result?.address;
+    return address?.LongLabel || address?.Match_addr || address?.Address || null;
+  } catch (error) {
+    console.warn("Reverse geocode failed for parcel popup.", error);
+    return null;
+  }
 }
 
 function activeFilterSummary() {
@@ -708,7 +705,7 @@ function buildPrintHtml(mapImage, stats) {
               ${filters.map((item) => `<div class="filter-item">${escapeHtml(item)}</div>`).join("")}
             </section>
             <section class="print-card">
-              <h2>Legend: ${escapeHtml(activeColorLegendTitle())}</h2>
+              <h2>Legend: ${escapeHtml(signalColorLegendTitle())}</h2>
               ${legendItems().map((item) => `
                 <div class="legend-item">
                   <span style="background:${item.color}"></span>
@@ -861,7 +858,7 @@ async function createParcelLayerFallback(GeoJSONLayer) {
     url: layerSources.parcelLocalGeoJsonUrl || layerSources.parcelGeoJsonUrl,
     title: layerSources.parcelLayerTitle || "Vacant land parcels",
     outFields: ["*"],
-    renderer: uniqueValueRenderer(activeColorField(), colorRendererItems()),
+    renderer: uniqueValueRenderer(signalColorField(), signalRendererItems()),
     popupTemplate: {
       title: "{parcel_label}",
       content: buildPopupContent
@@ -879,13 +876,6 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const colorButton = event.target.closest("[data-color-mode]");
-  if (colorButton) {
-    state.colorMode = colorButton.dataset.colorMode;
-    applyDashboardState();
-    return;
-  }
-
   const bookmark = event.target.closest(".bookmark");
   if (bookmark && view) {
     const center = bookmark.dataset.center.split(",").map(Number);
@@ -898,7 +888,6 @@ nodes.resetFilters.addEventListener("click", resetFilters);
 nodes.exportPdfButton.addEventListener("click", exportCurrentMapPdf);
 
 renderSignalModeControls();
-renderColorModeControls();
 setStatus("Loading vacant land parcels...");
 
 require([
@@ -911,9 +900,11 @@ require([
   "esri/widgets/BasemapToggle",
   "esri/widgets/Expand",
   "esri/widgets/Legend",
-  "esri/core/reactiveUtils"
-], (Map, MapView, GeoJSONLayer, FeatureLayer, Home, Search, BasemapToggle, Expand, Legend, reactiveUtils) => {
+  "esri/core/reactiveUtils",
+  "esri/rest/locator"
+], (Map, MapView, GeoJSONLayer, FeatureLayer, Home, Search, BasemapToggle, Expand, Legend, reactiveUtils, locator) => {
   reactiveUtilsRef = reactiveUtils;
+  reverseGeocodeRef = locator.reverseGeocode;
 
   async function initDashboard() {
     try {
