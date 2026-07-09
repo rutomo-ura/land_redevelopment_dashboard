@@ -15,7 +15,8 @@
   "parcelLayerDataUrl": "https://urap.maps.arcgis.com/sharing/rest/content/items/c013cc3b5df54a79ae51cccd2baa224f/data",
   "parcelLayerItemUrl": "https://urap.maps.arcgis.com/home/item.html?id=c013cc3b5df54a79ae51cccd2baa224f",
   "parcelFeatureServiceUrl": null,
+  "preferPublicGeoJson": true,
   "parcelGeoJsonUrl": "https://urap.maps.arcgis.com/sharing/rest/content/items/c013cc3b5df54a79ae51cccd2baa224f/data",
-  "parcelLocalGeoJsonUrl": "data/vacant_land_triage.geojson?v=redevelopment-explorer-20260709",
-  "notes": "Primary parcel source is the URA ArcGIS item data URL, separate from LandCare monitoring. The local GeoJSON is a cleaned fallback for public availability if the ArcGIS item is not shared publicly. Publish the parcel item to create a FeatureServer URL if needed later."
+  "parcelLocalGeoJsonUrl": "data/vacant_land_triage.geojson?v=redevelopment-explorer-20260709b",
+  "notes": "Public GitHub Pages uses the local GeoJSON bundle so the app does not prompt for private ArcGIS login. Prefer a public FeatureServer URL when available. The ArcGIS GeoJSON item remains documented for internal Map Viewer use."
 }

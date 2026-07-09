@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709b";
 
 const signalModes = {
   tax: {
@@ -116,7 +116,7 @@ let view = null;
 let parcelLayer = null;
 let parcelLayerView = null;
 let reactiveUtilsRef = null;
-let reverseGeocodeRef = null;
+let locationToAddressRef = null;
 
 const REVERSE_GEOCODE_URL = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
@@ -196,7 +196,14 @@ function categoryItemsForMode(modeName, features = allFeatures) {
 
 function useItems(features = allFeatures) {
   const counts = countBy(features, "use_group");
-  return sortByPreferred(counts.keys(), preferredUseOrder).map((value) => ({
+  const values = new Set([...preferredUseOrder.filter((value) => counts.has(value)), ...counts.keys()]);
+  // Keep known dashboard use groups even if a bad ArcGIS source returns blanks.
+  preferredUseOrder.forEach((value) => {
+    if (!excludedDashboardUseGroups.has(value)) values.add(value);
+  });
+  values.delete("Not recorded");
+  const ordered = sortByPreferred(values, preferredUseOrder).filter((value) => value !== "Not recorded");
+  return ordered.map((value) => ({
     value,
     label: value,
     color: useColor(value),
@@ -582,15 +589,13 @@ function resetFilters() {
 
 function buildPopupContent(event) {
   const attrs = event.graphic.attributes;
-  const centroid = parcelCentroid(event.graphic);
-  const lat = centroid?.latitude;
-  const lng = centroid?.longitude;
-  return lookupParcelAddress(event.graphic).then((address) => `
+  const coords = parcelLatLng(event.graphic);
+  return lookupParcelAddress(coords).then((address) => `
     <dl class="popup-grid">
       <dt>Parcel</dt><dd>${escapeHtml(attrs.parcel_label || attrs.par_pin)}</dd>
       <dt>Address</dt><dd>
         ${escapeHtml(address || "Address not available")}
-        ${buildPopupStreetViewLink(lat, lng)}
+        ${buildPopupStreetViewLink(coords)}
       </dd>
       <dt>PIN</dt><dd>${escapeHtml(attrs.par_pin || "Not recorded")}</dd>
       <dt>Prior years</dt><dd>${escapeHtml(attrs.prior_years ?? "No known prior years")}</dd>
@@ -599,7 +604,7 @@ function buildPopupContent(event) {
       <dt>Control path</dt><dd>${escapeHtml(attrs.control_path)}</dd>
       <dt>Condemned</dt><dd>${escapeHtml(attrs.condemned_flag || "Not flagged")}</dd>
       <dt>Inspection band</dt><dd>${escapeHtml(attrs.condemned_score_band || "Not flagged")}</dd>
-      <dt>Use group</dt><dd>${escapeHtml(attrs.use_group)}</dd>
+      <dt>Use group</dt><dd>${escapeHtml(attrs.use_group || "Not recorded")}</dd>
       <dt>Neighborhood</dt><dd>${escapeHtml(attrs.city_neighborhood)}</dd>
       <dt>Council</dt><dd>${escapeHtml(attrs.council_district_label)}</dd>
       <dt>Acreage</dt><dd>${formatAcreage(attrs.par_calcacreag)}</dd>
@@ -611,28 +616,61 @@ function buildPopupContent(event) {
 function parcelCentroid(graphic) {
   if (!graphic?.geometry) return null;
   const geometry = graphic.geometry;
-  if (geometry.type === "polygon") return geometry.centroid;
+  if (geometry.type === "polygon" || geometry.type === "multipolygon") return geometry.centroid;
   if (geometry.type === "point") return geometry;
-  return null;
+  return geometry.extent?.center || null;
+}
+
+function webMercatorToLatLng(x, y) {
+  const lng = (x / 20037508.34) * 180;
+  let lat = (y / 20037508.34) * 180;
+  lat = (180 / Math.PI) * (2 * Math.atan(Math.exp((lat * Math.PI) / 180)) - Math.PI / 2);
+  return { lat, lng };
+}
+
+function parcelLatLng(graphic) {
+  const point = parcelCentroid(graphic);
+  if (!point) return null;
+
+  if (Number.isFinite(point.latitude) && Number.isFinite(point.longitude)) {
+    return { lat: point.latitude, lng: point.longitude };
+  }
+
+  const x = point.x;
+  const y = point.y;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+  const wkid = point.spatialReference?.wkid || point.spatialReference?.latestWkid;
+  if (wkid === 4326) return { lat: y, lng: x };
+  if (wkid === 3857 || wkid === 102100 || wkid === 102113 || Math.abs(x) > 180 || Math.abs(y) > 90) {
+    return webMercatorToLatLng(x, y);
+  }
+  return { lat: y, lng: x };
 }
 
 function buildGoogleStreetViewUrl(lat, lng) {
-  return `https://www.google.com/maps/@${lat},${lng},3a,75y,0h,90t`;
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
 }
 
-function buildPopupStreetViewLink(lat, lng) {
-  if (lat == null || lng == null) return "";
-  const url = buildGoogleStreetViewUrl(lat, lng);
+function buildPopupStreetViewLink(coords) {
+  if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng)) return "";
+  const url = buildGoogleStreetViewUrl(coords.lat, coords.lng);
   return `<p class="popup-external-links"><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Street View</a></p>`;
 }
 
-async function lookupParcelAddress(graphic) {
-  const location = parcelCentroid(graphic);
-  if (!reverseGeocodeRef || !location) return null;
+async function lookupParcelAddress(coords) {
+  if (!locationToAddressRef || !coords) return null;
   try {
-    const result = await reverseGeocodeRef(REVERSE_GEOCODE_URL, { location });
-    const address = result?.address;
-    return address?.LongLabel || address?.Match_addr || address?.Address || null;
+    const result = await locationToAddressRef(REVERSE_GEOCODE_URL, {
+      location: {
+        type: "point",
+        x: coords.lng,
+        y: coords.lat,
+        spatialReference: { wkid: 4326 }
+      }
+    });
+    const address = result?.address || result;
+    return address?.LongLabel || address?.Match_addr || address?.Address || address?.PlaceName || null;
   } catch (error) {
     console.warn("Reverse geocode failed for parcel popup.", error);
     return null;
@@ -805,16 +843,9 @@ async function exportCurrentMapPdf() {
 
 async function loadPublicData() {
   try {
-    if (parcelDataSource !== "geojson") {
-      try {
-        allFeatures = await loadFeaturesFromLayer(parcelLayer);
-      } catch (error) {
-        console.warn("ArcGIS layer query failed; using public GeoJSON bundle for analytics.", error);
-        allFeatures = await loadFeaturesFromGeoJsonUrl(layerSources.parcelLocalGeoJsonUrl || layerSources.parcelGeoJsonUrl);
-      }
-    } else {
-      allFeatures = await loadFeaturesFromGeoJsonUrl(layerSources.parcelLocalGeoJsonUrl || layerSources.parcelGeoJsonUrl);
-    }
+    // Always build filters/metrics from the public bundle so Property Use stays Residential/Commercial/etc.
+    // Private ArcGIS items can load geometry without the enriched dashboard fields.
+    allFeatures = await loadFeaturesFromGeoJsonUrl(layerSources.parcelLocalGeoJsonUrl || layerSources.parcelGeoJsonUrl);
 
     allFeatures = allFeatures.filter(isDashboardParcel);
     useGroupItems = useItems(allFeatures);
@@ -830,6 +861,8 @@ async function loadPublicData() {
 }
 
 async function createParcelLayerFromArcGIS(GeoJSONLayer, FeatureLayer) {
+  // Public GitHub Pages must not hit private org ArcGIS items (login modal + missing fields).
+  // Prefer a public FeatureServer when configured; otherwise use the local public GeoJSON bundle.
   if (layerSources.parcelFeatureServiceUrl) {
     try {
       const layer = new FeatureLayer({
@@ -839,8 +872,12 @@ async function createParcelLayerFromArcGIS(GeoJSONLayer, FeatureLayer) {
       await layer.load();
       return { layer, source: "feature-service" };
     } catch (error) {
-      console.warn("URA ArcGIS feature service unavailable; trying GeoJSON source.", error);
+      console.warn("URA ArcGIS feature service unavailable; using public GeoJSON bundle.", error);
     }
+  }
+
+  if (layerSources.preferPublicGeoJson !== false && (layerSources.parcelLocalGeoJsonUrl || layerSources.parcelGeoJsonUrl)) {
+    return createParcelLayerFallback(GeoJSONLayer);
   }
 
   if (layerSources.parcelGeoJsonUrl) {
@@ -926,7 +963,7 @@ require([
   "esri/rest/locator"
 ], (Map, MapView, GeoJSONLayer, FeatureLayer, Home, Search, BasemapToggle, Expand, Legend, reactiveUtils, locator) => {
   reactiveUtilsRef = reactiveUtils;
-  reverseGeocodeRef = locator.reverseGeocode;
+  locationToAddressRef = locator.locationToAddress;
 
   async function initDashboard() {
     try {
