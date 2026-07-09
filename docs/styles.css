@@ -151,6 +151,12 @@ button {
   background: var(--ura-blue-dark);
 }
 
+.ghost-button.is-active-list {
+  border-color: var(--ura-blue);
+  color: var(--ura-blue-dark);
+  background: rgba(0, 152, 211, 0.12);
+}
+
 .dashboard-shell {
   display: grid;
   grid-template-columns: 292px minmax(520px, 1fr) 360px;
@@ -971,6 +977,75 @@ body.is-table-view .table-view {
   align-items: center;
   font-size: 13px;
   color: #142935;
+}
+
+.custom-list-banner {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 152, 211, 0.35);
+  border-radius: 8px;
+  background: rgba(0, 152, 211, 0.08);
+  color: #0f3a4d;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.custom-list-banner strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 13px;
+}
+
+.custom-list-modal {
+  grid-template-rows: auto auto auto auto;
+}
+
+.custom-list-form {
+  display: grid;
+  gap: 12px;
+  padding: 0 14px 12px;
+}
+
+.custom-list-file,
+.custom-list-select {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334a56;
+}
+
+.custom-list-file input,
+.custom-list-select select {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid #c7d5dd;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  color: #142935;
+}
+
+.custom-list-preview {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f3f7f9;
+  color: #445966;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.custom-list-preview.is-error {
+  background: #fff1f0;
+  color: #8f1d18;
+}
+
+.custom-list-preview.is-ready {
+  background: #eef8f1;
+  color: #14582e;
 }
 
 @media (max-width: 900px) {

@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709g";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709h";
 
 const signalModes = {
   tax: {
@@ -115,6 +115,20 @@ const TABLE_FILTER_FIELDS = [
   { key: "council_district_label", label: "Council" }
 ];
 
+const PIN_COLUMN_CANDIDATES = [
+  "parcel_id",
+  "par_pin",
+  "pin",
+  "parcelid",
+  "parcel id",
+  "pid",
+  "parid",
+  "parcel_pin",
+  "parcelpin",
+  "mapblocklot",
+  "mapblocklo"
+];
+
 const state = {
   viewMode: "map",
   signalMode: "tax",
@@ -123,7 +137,8 @@ const state = {
     tax: new Set(signalModes.tax.categories.map((item) => item.value)),
     ownership: new Set(signalModes.ownership.categories.map((item) => item.value)),
     vacantLotScore: new Set(signalModes.vacantLotScore.categories.map((item) => item.value))
-  }
+  },
+  customList: null
 };
 
 const tableState = {
@@ -149,6 +164,17 @@ const nodes = {
   exportStatus: document.getElementById("exportStatus"),
   exportPdfButton: document.getElementById("exportPdfButton"),
   exportXlsxButton: document.getElementById("exportXlsxButton"),
+  customListButton: document.getElementById("customListButton"),
+  clearCustomListButton: document.getElementById("clearCustomListButton"),
+  customListBanner: document.getElementById("customListBanner"),
+  customListModal: document.getElementById("customListModal"),
+  customListFileInput: document.getElementById("customListFileInput"),
+  customListSheetLabel: document.getElementById("customListSheetLabel"),
+  customListSheetSelect: document.getElementById("customListSheetSelect"),
+  customListPinLabel: document.getElementById("customListPinLabel"),
+  customListPinSelect: document.getElementById("customListPinSelect"),
+  customListPreview: document.getElementById("customListPreview"),
+  applyCustomListButton: document.getElementById("applyCustomListButton"),
   resetFilters: document.getElementById("resetFilters"),
   visibleParcelMetric: document.getElementById("visibleParcelMetric"),
   longDelinquencyMetric: document.getElementById("longDelinquencyMetric"),
@@ -192,6 +218,8 @@ let parcelLayer = null;
 let parcelLayerView = null;
 let reactiveUtilsRef = null;
 let locationToAddressRef = null;
+let customListWorkbook = null;
+let customListDraft = null;
 
 const REVERSE_GEOCODE_URL = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
@@ -232,8 +260,277 @@ function sqlEscape(value) {
   return String(value).replaceAll("'", "''");
 }
 
+function normalizePin(value) {
+  return String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\.0+$/, "")
+    .replace(/[^A-Z0-9]/g, "");
+}
+
 function getProp(feature, field) {
   return feature?.properties?.[field] ?? feature?.[field];
+}
+
+function featurePin(feature) {
+  return normalizePin(getProp(feature, "par_pin") || getProp(feature, "parcel_label"));
+}
+
+function buildParcelPinIndex() {
+  const index = new Map();
+  allFeatures.forEach((feature) => {
+    const pin = featurePin(feature);
+    if (!pin) return;
+    if (!index.has(pin)) index.set(pin, []);
+    index.get(pin).push(feature);
+  });
+  return index;
+}
+
+function guessPinColumn(headers) {
+  const normalized = headers.map((header) => ({
+    header,
+    key: String(header ?? "").trim().toLowerCase().replace(/[\s_]+/g, "_")
+  }));
+  for (const candidate of PIN_COLUMN_CANDIDATES) {
+    const key = candidate.replace(/[\s_]+/g, "_");
+    const match = normalized.find((item) => item.key === key || item.key.includes(key));
+    if (match) return match.header;
+  }
+  return headers[0] || "";
+}
+
+function rowsFromSheet(workbook, sheetName) {
+  const sheet = workbook.Sheets[sheetName];
+  if (!sheet) return [];
+  return XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
+}
+
+function extractPinsFromRows(rows, pinColumn) {
+  const pins = [];
+  const seen = new Set();
+  rows.forEach((row) => {
+    const pin = normalizePin(row?.[pinColumn]);
+    if (!pin || seen.has(pin)) return;
+    seen.add(pin);
+    pins.push(pin);
+  });
+  return pins;
+}
+
+function joinCustomListPins(pins) {
+  const index = buildParcelPinIndex();
+  const matchedPins = [];
+  const unmatchedPins = [];
+  pins.forEach((pin) => {
+    if (index.has(pin)) matchedPins.push(pin);
+    else unmatchedPins.push(pin);
+  });
+  return { matchedPins, unmatchedPins, matchedCount: matchedPins.length, uploadCount: pins.length };
+}
+
+function setCustomListPreview(message, tone = "") {
+  if (!nodes.customListPreview) return;
+  nodes.customListPreview.textContent = message;
+  nodes.customListPreview.classList.toggle("is-error", tone === "error");
+  nodes.customListPreview.classList.toggle("is-ready", tone === "ready");
+}
+
+function updateCustomListUi() {
+  const active = Boolean(state.customList?.matchedPins?.length);
+  if (nodes.clearCustomListButton) {
+    nodes.clearCustomListButton.classList.toggle("is-hidden", !active);
+  }
+  if (nodes.customListBanner) {
+    nodes.customListBanner.classList.toggle("is-hidden", !active);
+    if (active) {
+      const list = state.customList;
+      nodes.customListBanner.innerHTML = `
+        <strong>Custom list active: ${escapeHtml(list.fileName)}</strong>
+        Inner join ${formatNumber(list.matchedCount)} of ${formatNumber(list.uploadCount)} uploaded PINs
+        ${list.unmatchedCount ? ` · ${formatNumber(list.unmatchedCount)} not in vacant-land layer` : ""}
+        · Colors follow Map Signal · Export PDF for paper GIS
+      `;
+    } else {
+      nodes.customListBanner.textContent = "";
+    }
+  }
+  if (nodes.customListButton) {
+    nodes.customListButton.classList.toggle("is-active-list", active);
+  }
+}
+
+function clearCustomList(refresh = true) {
+  state.customList = null;
+  customListWorkbook = null;
+  customListDraft = null;
+  if (nodes.customListFileInput) nodes.customListFileInput.value = "";
+  if (nodes.customListSheetLabel) nodes.customListSheetLabel.classList.add("is-hidden");
+  if (nodes.customListPinLabel) nodes.customListPinLabel.classList.add("is-hidden");
+  if (nodes.applyCustomListButton) nodes.applyCustomListButton.disabled = true;
+  setCustomListPreview("No file selected.");
+  updateCustomListUi();
+  if (refresh) applyDashboardState();
+}
+
+function refreshCustomListDraftPreview() {
+  if (!customListDraft) {
+    if (nodes.applyCustomListButton) nodes.applyCustomListButton.disabled = true;
+    return;
+  }
+  const pinColumn = nodes.customListPinSelect?.value || customListDraft.pinColumn;
+  const sheetName = nodes.customListSheetSelect?.value || customListDraft.sheetName;
+  const rows = customListWorkbook
+    ? rowsFromSheet(customListWorkbook, sheetName)
+    : customListDraft.rows || [];
+  const pins = extractPinsFromRows(rows, pinColumn);
+  const join = joinCustomListPins(pins);
+  customListDraft = {
+    ...customListDraft,
+    sheetName,
+    pinColumn,
+    rows,
+    pins,
+    ...join,
+    unmatchedCount: join.unmatchedPins.length
+  };
+
+  if (!pins.length) {
+    setCustomListPreview("No PIN values found in the selected column.", "error");
+    if (nodes.applyCustomListButton) nodes.applyCustomListButton.disabled = true;
+    return;
+  }
+  if (!join.matchedCount) {
+    setCustomListPreview(
+      `Found ${formatNumber(pins.length)} unique PINs, but none match the vacant-land layer.\nCheck the PIN column or whether these parcels are vacant land in the app.`,
+      "error"
+    );
+    if (nodes.applyCustomListButton) nodes.applyCustomListButton.disabled = true;
+    return;
+  }
+
+  setCustomListPreview(
+    [
+      `File: ${customListDraft.fileName}`,
+      `Sheet: ${sheetName}`,
+      `PIN column: ${pinColumn}`,
+      `Unique PINs: ${formatNumber(pins.length)}`,
+      `Inner join matches: ${formatNumber(join.matchedCount)}`,
+      join.unmatchedPins.length
+        ? `Not in vacant-land layer: ${formatNumber(join.unmatchedPins.length)} (example: ${join.unmatchedPins.slice(0, 3).join(", ")})`
+        : "All uploaded PINs matched."
+    ].join("\n"),
+    "ready"
+  );
+  if (nodes.applyCustomListButton) nodes.applyCustomListButton.disabled = false;
+}
+
+async function loadCustomListFile(file) {
+  if (!file) return;
+  if (typeof XLSX === "undefined") {
+    setCustomListPreview("Spreadsheet library failed to load. Refresh and try again.", "error");
+    return;
+  }
+
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array" });
+  customListWorkbook = workbook;
+  const sheetNames = workbook.SheetNames || [];
+  if (!sheetNames.length) {
+    setCustomListPreview("No sheets found in this workbook.", "error");
+    if (nodes.applyCustomListButton) nodes.applyCustomListButton.disabled = true;
+    return;
+  }
+
+  const preferredSheet = sheetNames.find((name) => /parcel|pin|membership|list/i.test(name)) || sheetNames[0];
+  const rows = rowsFromSheet(workbook, preferredSheet);
+  const headers = rows.length ? Object.keys(rows[0]) : [];
+  if (!headers.length) {
+    setCustomListPreview(`Sheet "${preferredSheet}" has no data rows.`, "error");
+    if (nodes.applyCustomListButton) nodes.applyCustomListButton.disabled = true;
+    return;
+  }
+
+  const pinColumn = guessPinColumn(headers);
+  customListDraft = {
+    fileName: file.name,
+    sheetName: preferredSheet,
+    pinColumn,
+    headers,
+    rows
+  };
+
+  if (nodes.customListSheetSelect) {
+    nodes.customListSheetSelect.innerHTML = sheetNames
+      .map((name) => `<option value="${escapeHtml(name)}" ${name === preferredSheet ? "selected" : ""}>${escapeHtml(name)}</option>`)
+      .join("");
+    nodes.customListSheetLabel?.classList.toggle("is-hidden", sheetNames.length <= 1);
+  }
+  if (nodes.customListPinSelect) {
+    nodes.customListPinSelect.innerHTML = headers
+      .map((header) => `<option value="${escapeHtml(header)}" ${header === pinColumn ? "selected" : ""}>${escapeHtml(header)}</option>`)
+      .join("");
+    nodes.customListPinLabel?.classList.remove("is-hidden");
+  }
+
+  refreshCustomListDraftPreview();
+}
+
+function expandFiltersForCustomList(matchedPinSet) {
+  // Show every joined parcel; default Residential/Commercial-only would hide many list rows.
+  const matchedFeatures = allFeatures.filter((feature) => matchedPinSet.has(featurePin(feature)));
+  const useGroups = new Set(matchedFeatures.map((feature) => getProp(feature, "use_group") || "Not recorded"));
+  useGroups.forEach((value) => state.activeUseGroups.add(value));
+
+  Object.keys(signalModes).forEach((modeName) => {
+    const values = new Set(matchedFeatures.map((feature) => signalValueForFeature(feature, modeName)));
+    values.forEach((value) => state.activeSignalValues[modeName].add(value));
+  });
+}
+
+function applyCustomListDraft() {
+  if (!customListDraft?.matchedPins?.length) return;
+  const matchedPinSet = new Set(customListDraft.matchedPins);
+  state.customList = {
+    fileName: customListDraft.fileName,
+    sheetName: customListDraft.sheetName,
+    pinColumn: customListDraft.pinColumn,
+    matchedPins: [...customListDraft.matchedPins],
+    matchedPinSet,
+    uploadCount: customListDraft.uploadCount,
+    matchedCount: customListDraft.matchedCount,
+    unmatchedCount: customListDraft.unmatchedCount,
+    unmatchedPins: customListDraft.unmatchedPins.slice(0, 50)
+  };
+  expandFiltersForCustomList(matchedPinSet);
+  closeModal(nodes.customListModal);
+  updateCustomListUi();
+  setViewMode("map");
+  applyDashboardState();
+  zoomToCustomList().catch(() => {});
+  if (nodes.exportStatus) {
+    nodes.exportStatus.textContent = `Custom list: ${formatNumber(state.customList.matchedCount)} parcels on map`;
+    window.setTimeout(() => {
+      if (nodes.exportStatus) nodes.exportStatus.textContent = "";
+    }, 4000);
+  }
+}
+
+async function zoomToCustomList() {
+  if (!view || !parcelLayer || !state.customList?.matchedPins?.length) return;
+  const pins = state.customList.matchedPins;
+  const chunkSize = 900;
+  let extent = null;
+  for (let i = 0; i < pins.length; i += chunkSize) {
+    const chunk = pins.slice(i, i + chunkSize);
+    const where = `par_pin IN (${chunk.map((pin) => `'${sqlEscape(pin)}'`).join(",")})`;
+    const result = await parcelLayer.queryExtent({ where });
+    if (!result?.extent) continue;
+    extent = extent ? extent.union(result.extent) : result.extent.clone();
+  }
+  if (extent) {
+    await view.goTo(extent.expand(1.2), { duration: 700 });
+  }
 }
 
 function isDashboardParcel(feature) {
@@ -409,6 +706,11 @@ function signalValueForFeature(feature, modeName = state.signalMode) {
 
 function featureMatchesActiveFilters(feature) {
   const props = feature.properties || feature;
+  if (state.customList?.matchedPinSet?.size) {
+    const pin = featurePin(feature);
+    if (!state.customList.matchedPinSet.has(pin)) return false;
+  }
+
   const useGroup = props.use_group || "Not recorded";
   if (!state.activeUseGroups.has(useGroup)) return false;
 
@@ -427,10 +729,24 @@ function buildInClause(field, activeValues, allValues) {
   return `${field} IN (${values.join(",")})`;
 }
 
+function buildCustomListPinClause() {
+  const pins = state.customList?.matchedPins;
+  if (!pins?.length) return null;
+  // ArcGIS where clauses can get large; chunk with OR groups.
+  const chunkSize = 900;
+  const groups = [];
+  for (let i = 0; i < pins.length; i += chunkSize) {
+    const chunk = pins.slice(i, i + chunkSize);
+    groups.push(`par_pin IN (${chunk.map((pin) => `'${sqlEscape(pin)}'`).join(",")})`);
+  }
+  return groups.length === 1 ? groups[0] : `(${groups.join(" OR ")})`;
+}
+
 function buildWhereClause() {
   const mode = signalModes[state.signalMode];
   const signalValues = mode.categories.map((item) => item.value);
   const clauses = [
+    buildCustomListPinClause(),
     buildInClause("use_group", state.activeUseGroups, useGroupItems.map((item) => item.value)),
     buildInClause(mode.field, state.activeSignalValues[state.signalMode], signalValues)
   ].filter(Boolean);
@@ -636,7 +952,11 @@ function applyDashboardState() {
   if (!allFeatures.length) {
     setStatus("Loading vacant land parcels...");
   } else if (!features.length) {
-    setStatus("No parcels match the current filters.");
+    setStatus(
+      state.customList
+        ? "Custom list is active, but no joined parcels match the current Property Use / Map Signal filters."
+        : "No parcels match the current filters."
+    );
   } else {
     setStatus("", true);
   }
@@ -865,6 +1185,7 @@ function exportTableXlsx() {
     { Field: "Mode", Value: "Internal staff use" },
     { Field: "Map signal", Value: signalModes[state.signalMode].label },
     { Field: "Active filters", Value: activeFilterSummary().join(" | ") },
+    { Field: "Custom list", Value: state.customList?.fileName || "(none)" },
     { Field: "Table search", Value: tableState.search || "(none)" },
     { Field: "Row count", Value: rows.length }
   ];
@@ -888,6 +1209,15 @@ function resetFilters() {
     state.activeSignalValues[key] = new Set(mode.categories.map((item) => item.value));
   });
   applyDashboardState();
+}
+
+function openCustomListModal() {
+  if (!allFeatures.length) {
+    if (nodes.exportStatus) nodes.exportStatus.textContent = "Wait for parcels to finish loading.";
+    return;
+  }
+  openModal(nodes.customListModal);
+  if (!customListDraft) setCustomListPreview("No file selected.");
 }
 
 function formatLatLng(coords) {
@@ -1003,7 +1333,13 @@ function activeFilterSummary() {
   const signalText = state.activeSignalValues[state.signalMode].size === mode.categories.length
     ? `All ${mode.label.toLowerCase()} categories`
     : [...state.activeSignalValues[state.signalMode]].join(", ");
-  return [mode.label, useText, signalText];
+  const summary = [mode.label, useText, signalText];
+  if (state.customList?.matchedCount) {
+    summary.unshift(
+      `Custom list: ${state.customList.fileName} (${formatNumber(state.customList.matchedCount)} joined PINs)`
+    );
+  }
+  return summary;
 }
 
 function exportStats(features) {
@@ -1065,9 +1401,9 @@ function buildPrintHtml(mapImage, stats) {
         <header class="print-header">
           <div>
             <h1>${escapeHtml(APP_TITLE)}</h1>
-            <p>Generated ${escapeHtml(timestamp)} | Current map extent and active dashboard filters</p>
+            <p>Generated ${escapeHtml(timestamp)} | Current map extent and active dashboard filters${state.customList ? " | Custom list paper GIS" : ""}</p>
           </div>
-          <p>Public-safe bundle. Screening only; confirm source records before action.</p>
+          <p>${state.customList ? "Custom list inner join on parcel PIN. " : ""}Screening only; confirm source records before action.</p>
         </header>
         <main class="print-page">
           <section class="print-map"><img src="${mapImage}" alt="Current vacant land map" /></section>
@@ -1133,11 +1469,19 @@ async function exportCurrentMapPdf() {
   const previousLabel = nodes.exportPdfButton.textContent;
   nodes.exportPdfButton.disabled = true;
   nodes.exportPdfButton.textContent = "Preparing";
-  nodes.exportStatus.textContent = "Preparing map export";
+  nodes.exportStatus.textContent = state.customList
+    ? "Preparing custom-list paper GIS export"
+    : "Preparing map export";
   printWindow.document.write(buildPreparingPrintHtml());
   printWindow.document.close();
 
   try {
+    if (state.customList?.matchedPins?.length) {
+      await zoomToCustomList();
+      if (reactiveUtilsRef && parcelLayerView) {
+        await reactiveUtilsRef.whenOnce(() => !parcelLayerView.updating);
+      }
+    }
     const features = filteredFeatures();
     const stats = exportStats(features);
     const mapImage = await captureMapImage();
@@ -1274,6 +1618,52 @@ document.addEventListener("click", (event) => {
 
 nodes.resetFilters.addEventListener("click", resetFilters);
 nodes.exportPdfButton.addEventListener("click", exportCurrentMapPdf);
+
+if (nodes.customListButton) {
+  nodes.customListButton.addEventListener("click", openCustomListModal);
+}
+if (nodes.clearCustomListButton) {
+  nodes.clearCustomListButton.addEventListener("click", () => clearCustomList(true));
+}
+if (nodes.customListFileInput) {
+  nodes.customListFileInput.addEventListener("change", async () => {
+    const file = nodes.customListFileInput.files?.[0];
+    if (!file) return;
+    try {
+      setCustomListPreview("Reading spreadsheet...");
+      await loadCustomListFile(file);
+    } catch (error) {
+      console.error(error);
+      setCustomListPreview("Could not read that file. Use XLSX or CSV with a PIN column.", "error");
+      if (nodes.applyCustomListButton) nodes.applyCustomListButton.disabled = true;
+    }
+  });
+}
+if (nodes.customListSheetSelect) {
+  nodes.customListSheetSelect.addEventListener("change", () => {
+    if (!customListWorkbook || !customListDraft) return;
+    const sheetName = nodes.customListSheetSelect.value;
+    const rows = rowsFromSheet(customListWorkbook, sheetName);
+    const headers = rows.length ? Object.keys(rows[0]) : [];
+    customListDraft.sheetName = sheetName;
+    customListDraft.headers = headers;
+    customListDraft.rows = rows;
+    customListDraft.pinColumn = guessPinColumn(headers);
+    if (nodes.customListPinSelect) {
+      nodes.customListPinSelect.innerHTML = headers
+        .map((header) => `<option value="${escapeHtml(header)}" ${header === customListDraft.pinColumn ? "selected" : ""}>${escapeHtml(header)}</option>`)
+        .join("");
+      nodes.customListPinLabel?.classList.toggle("is-hidden", !headers.length);
+    }
+    refreshCustomListDraftPreview();
+  });
+}
+if (nodes.customListPinSelect) {
+  nodes.customListPinSelect.addEventListener("change", refreshCustomListDraftPreview);
+}
+if (nodes.applyCustomListButton) {
+  nodes.applyCustomListButton.addEventListener("click", applyCustomListDraft);
+}
 
 if (nodes.exportXlsxButton) {
   nodes.exportXlsxButton.addEventListener("click", () => {
