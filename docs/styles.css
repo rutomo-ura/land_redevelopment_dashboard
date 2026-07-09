@@ -1040,6 +1040,27 @@ body.is-table-view .table-view {
   color: #142935;
 }
 
+.pdf-options-group {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e4edf2;
+}
+
+.pdf-options-group:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.pdf-options-group strong {
+  color: #00334f;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .custom-list-banner {
   margin-top: 12px;
   padding: 10px 12px;

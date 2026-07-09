@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709i";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709j";
 
 const signalModes = {
   tax: {
@@ -129,6 +129,25 @@ const PIN_COLUMN_CANDIDATES = [
   "mapblocklo"
 ];
 
+const PDF_SIDE_SECTIONS = [
+  { key: "metrics", label: "Summary metrics", defaultOn: true },
+  { key: "filters", label: "Active filters", defaultOn: true },
+  { key: "legend", label: "Map legend", defaultOn: true },
+  { key: "topAreas", label: "Top areas", defaultOn: true },
+  { key: "source", label: "Source / caveat note", defaultOn: true }
+];
+
+const PDF_METRIC_ITEMS = [
+  { key: "visible", label: "Visible parcels", defaultOn: true },
+  { key: "longDelinquency", label: "11+ prior years", defaultOn: true },
+  { key: "publicControl", label: "Public/control", defaultOn: true },
+  { key: "highVacantLotScore", label: "High lot score", defaultOn: true },
+  { key: "neighborhoods", label: "Neighborhoods represented", defaultOn: false },
+  { key: "cityOwned", label: "City owned", defaultOn: false },
+  { key: "uraOwned", label: "URA owned", defaultOn: false },
+  { key: "acreage", label: "Total acreage", defaultOn: false }
+];
+
 const state = {
   viewMode: "map",
   signalMode: "tax",
@@ -138,7 +157,9 @@ const state = {
     ownership: new Set(signalModes.ownership.categories.map((item) => item.value)),
     vacantLotScore: new Set(signalModes.vacantLotScore.categories.map((item) => item.value))
   },
-  customList: null
+  customList: null,
+  checkedExportPins: null,
+  pendingPdfOptions: null
 };
 
 const tableState = {
@@ -147,6 +168,8 @@ const tableState = {
   visibleColumns: new Set(TABLE_COLUMNS.filter((item) => item.defaultVisible).map((item) => item.key)),
   exportColumns: new Set(TABLE_COLUMNS.filter((item) => item.exportDefault).map((item) => item.key)),
   checkedPins: new Set(),
+  pdfSections: new Set(PDF_SIDE_SECTIONS.filter((item) => item.defaultOn).map((item) => item.key)),
+  pdfMetrics: new Set(PDF_METRIC_ITEMS.filter((item) => item.defaultOn).map((item) => item.key)),
   sortKey: "par_pin",
   sortDir: "asc",
   page: 1,
@@ -211,7 +234,12 @@ const nodes = {
   exportColumnsList: document.getElementById("exportColumnsList"),
   exportColumnsSelectAll: document.getElementById("exportColumnsSelectAll"),
   exportColumnsSelectNone: document.getElementById("exportColumnsSelectNone"),
-  confirmExportXlsx: document.getElementById("confirmExportXlsx")
+  confirmExportXlsx: document.getElementById("confirmExportXlsx"),
+  pdfOptionsModal: document.getElementById("pdfOptionsModal"),
+  pdfMetricsList: document.getElementById("pdfMetricsList"),
+  pdfMetricsSelectAll: document.getElementById("pdfMetricsSelectAll"),
+  pdfMetricsSelectNone: document.getElementById("pdfMetricsSelectNone"),
+  confirmExportPdf: document.getElementById("confirmExportPdf")
 };
 
 let allFeatures = [];
@@ -542,11 +570,73 @@ async function zoomToCustomList() {
   await zoomToPins(state.customList.matchedPins);
 }
 
+function renderPdfOptionsChecklist() {
+  if (!nodes.pdfMetricsList) return;
+  const sectionHtml = `
+    <div class="pdf-options-group">
+      <strong>Side panel sections</strong>
+      ${PDF_SIDE_SECTIONS.map((item) => `
+        <label>
+          <input type="checkbox" data-pdf-section="${escapeHtml(item.key)}" ${tableState.pdfSections.has(item.key) ? "checked" : ""} />
+          <span>${escapeHtml(item.label)}</span>
+        </label>
+      `).join("")}
+    </div>
+  `;
+  const metricsHtml = `
+    <div class="pdf-options-group">
+      <strong>Summary metrics</strong>
+      ${PDF_METRIC_ITEMS.map((item) => `
+        <label>
+          <input type="checkbox" data-pdf-metric="${escapeHtml(item.key)}" ${tableState.pdfMetrics.has(item.key) ? "checked" : ""} />
+          <span>${escapeHtml(item.label)}</span>
+        </label>
+      `).join("")}
+    </div>
+  `;
+  nodes.pdfMetricsList.innerHTML = `${sectionHtml}${metricsHtml}`;
+
+  nodes.pdfMetricsList.querySelectorAll("input[data-pdf-section]").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (input.checked) tableState.pdfSections.add(input.dataset.pdfSection);
+      else tableState.pdfSections.delete(input.dataset.pdfSection);
+    });
+  });
+  nodes.pdfMetricsList.querySelectorAll("input[data-pdf-metric]").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (input.checked) tableState.pdfMetrics.add(input.dataset.pdfMetric);
+      else tableState.pdfMetrics.delete(input.dataset.pdfMetric);
+    });
+  });
+}
+
+function openPdfOptionsModal(options = {}) {
+  const checkedOnly = Boolean(options.checkedOnly);
+  if (checkedOnly && !tableState.checkedPins.size) {
+    if (nodes.exportStatus) nodes.exportStatus.textContent = "Check at least one parcel in the table first.";
+    return;
+  }
+  if (!view) {
+    if (nodes.exportStatus) nodes.exportStatus.textContent = "Wait for the map to finish loading.";
+    return;
+  }
+  state.pendingPdfOptions = { checkedOnly };
+  renderPdfOptionsChecklist();
+  openModal(nodes.pdfOptionsModal);
+}
+
 async function exportCurrentMapPdf(options = {}) {
   const checkedOnly = Boolean(options.checkedOnly);
   const checkedPins = checkedOnly ? [...tableState.checkedPins] : [];
   if (checkedOnly && !checkedPins.length) {
     if (nodes.exportStatus) nodes.exportStatus.textContent = "Check at least one parcel in the table first.";
+    return;
+  }
+
+  const selectedSections = new Set(tableState.pdfSections);
+  const selectedMetrics = new Set(tableState.pdfMetrics);
+  if (selectedSections.has("metrics") && !selectedMetrics.size) {
+    if (nodes.exportStatus) nodes.exportStatus.textContent = "Select at least one summary metric, or turn off Summary metrics.";
     return;
   }
 
@@ -564,9 +654,7 @@ async function exportCurrentMapPdf(options = {}) {
   }
   nodes.exportStatus.textContent = checkedOnly
     ? `Preparing checked-parcel paper GIS (${formatNumber(checkedPins.length)})`
-    : state.customList
-      ? "Preparing custom-list paper GIS export"
-      : "Preparing map export";
+    : "Preparing paper GIS from current map view";
   printWindow.document.write(buildPreparingPrintHtml());
   printWindow.document.close();
 
@@ -576,12 +664,7 @@ async function exportCurrentMapPdf(options = {}) {
       state.checkedExportPins = new Set(checkedPins);
       setViewMode("map");
       applyLayerState();
-      await zoomToPins(checkedPins);
-      if (reactiveUtilsRef && parcelLayerView) {
-        await reactiveUtilsRef.whenOnce(() => !parcelLayerView.updating);
-      }
-    } else if (state.customList?.matchedPins?.length) {
-      await zoomToCustomList();
+      // Keep the user's current zoom/extent; only wait for checked parcels to redraw.
       if (reactiveUtilsRef && parcelLayerView) {
         await reactiveUtilsRef.whenOnce(() => !parcelLayerView.updating);
       }
@@ -589,16 +672,19 @@ async function exportCurrentMapPdf(options = {}) {
 
     const features = filteredFeatures();
     const stats = exportStats(features);
-    const mapImage = await captureMapImage();
+    const mapCapture = await captureMapImage();
     printWindow.document.open();
-    printWindow.document.write(buildPrintHtml(mapImage, stats));
+    printWindow.document.write(buildPrintHtml(mapCapture.dataUrl, stats, {
+      scale: mapCapture.scale,
+      sections: selectedSections,
+      metrics: selectedMetrics,
+      checkedOnly
+    }));
     printWindow.document.close();
-    printWindow.focus();
-    window.setTimeout(() => printWindow.print(), 500);
-    nodes.exportStatus.textContent = "PDF ready";
+    nodes.exportStatus.textContent = "Print layout opened. Choose Save as PDF.";
     window.setTimeout(() => {
       nodes.exportStatus.textContent = "";
-    }, 3500);
+    }, 4500);
   } catch (error) {
     console.error(error);
     nodes.exportStatus.textContent = "Export failed. Try again after the map finishes loading.";
@@ -1525,13 +1611,48 @@ function activeFilterSummary() {
 }
 
 function exportStats(features) {
+  const neighborhoods = new Set(
+    features
+      .map((feature) => getProp(feature, "city_neighborhood"))
+      .filter((value) => value && String(value).trim() && value !== "Not recorded")
+  );
+  const acreage = features.reduce((sum, feature) => {
+    const value = Number(getProp(feature, "par_calcacreag"));
+    return sum + (Number.isFinite(value) ? value : 0);
+  }, 0);
+
   return {
     visible: features.length,
     longDelinquency: features.filter((feature) => getProp(feature, "prior_band") === "11+ prior years").length,
     publicControl: features.filter((feature) => publicOwnershipGroups.has(getProp(feature, "ownership_group"))).length,
     highVacantLotScore: features.filter((feature) => highVacantLotScoreBands.has(getProp(feature, "vacant_lot_score_band"))).length,
+    neighborhoods: neighborhoods.size,
+    cityOwned: features.filter((feature) => getProp(feature, "ownership_group") === "City Owned").length,
+    uraOwned: features.filter((feature) => getProp(feature, "ownership_group") === "URA Owned").length,
+    acreage,
     topAreas: groupedAreaRows(features).slice(0, 5)
   };
+}
+
+function printStatLine(label, value) {
+  return `<div class="print-stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+}
+
+function printMetricLines(stats, selectedMetrics) {
+  const metricValues = {
+    visible: formatNumber(stats.visible),
+    longDelinquency: formatNumber(stats.longDelinquency),
+    publicControl: formatNumber(stats.publicControl),
+    highVacantLotScore: formatNumber(stats.highVacantLotScore),
+    neighborhoods: formatNumber(stats.neighborhoods),
+    cityOwned: formatNumber(stats.cityOwned),
+    uraOwned: formatNumber(stats.uraOwned),
+    acreage: formatAcreage(stats.acreage)
+  };
+  return PDF_METRIC_ITEMS
+    .filter((item) => selectedMetrics.has(item.key))
+    .map((item) => printStatLine(item.label, metricValues[item.key]))
+    .join("");
 }
 
 function buildPreparingPrintHtml() {
@@ -1540,95 +1661,157 @@ function buildPreparingPrintHtml() {
     <html>
       <head><title>Preparing ${escapeHtml(APP_TITLE)} PDF</title></head>
       <body style="font-family:Arial,sans-serif;padding:24px;color:#142935">
-        <h1>Preparing map export</h1>
-        <p>Capturing the current map extent, filters, and legend.</p>
+        <h1>Preparing paper GIS export</h1>
+        <p>Capturing the current map zoom, filters, and selected side-panel details.</p>
       </body>
     </html>
   `;
 }
 
-function buildPrintHtml(mapImage, stats) {
+function buildPrintHtml(mapImage, stats, options = {}) {
   const filters = activeFilterSummary();
-  const timestamp = new Date().toLocaleString();
-  return `
-    <!doctype html>
-    <html>
-      <head>
-        <title>${escapeHtml(APP_TITLE)}</title>
-        <style>
-          @page { size: A3 landscape; margin: 0.35in; }
-          * { box-sizing: border-box; }
-          body { margin: 0; color: #142935; background: #eef4f7; font-family: Arial, sans-serif; }
-          .print-header { display: flex; justify-content: space-between; gap: 18px; margin-bottom: 12px; }
-          h1 { margin: 0 0 4px; font-size: 25px; }
-          p { margin: 0; color: #667985; font-size: 11px; line-height: 1.35; }
-          .print-page { display: grid; grid-template-columns: minmax(0, 1.55fr) 0.75fr; gap: 12px; }
-          .print-map, .print-card { background: #fff; border: 1px solid #d8e4ea; border-radius: 8px; }
-          .print-map { min-height: 610px; overflow: hidden; }
-          .print-map img { display: block; width: 100%; height: 100%; object-fit: cover; }
-          .print-side { display: grid; gap: 10px; align-content: start; }
-          .print-card { padding: 11px; }
-          .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-          .metric strong { display: block; color: #006c9f; font-size: 24px; line-height: 1; }
-          .metric span, h2 { color: #142935; font-size: 11px; font-weight: 800; text-transform: uppercase; }
-          h2 { margin: 0 0 8px; }
-          .legend-item, .filter-item, .area-row { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 7px; align-items: center; min-height: 22px; font-size: 11px; }
-          .legend-item span:first-child { width: 10px; height: 10px; border-radius: 50%; }
-          .filter-item { grid-template-columns: minmax(0, 1fr); color: #334a56; }
-          .area-row { grid-template-columns: minmax(0, 1fr) auto auto auto; }
-          .source { border-top: 1px solid #d8e4ea; padding-top: 8px; }
-        </style>
-      </head>
-      <body>
-        <header class="print-header">
-          <div>
-            <h1>${escapeHtml(APP_TITLE)}</h1>
-            <p>Generated ${escapeHtml(timestamp)} | Current map extent and active dashboard filters${state.checkedExportPins?.size ? " | Checked parcels paper GIS" : state.customList ? " | Custom list paper GIS" : ""}</p>
+  const timestamp = new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+  const sections = options.sections || tableState.pdfSections;
+  const metrics = options.metrics || tableState.pdfMetrics;
+  const scale = Number(options.scale || 0);
+  const scaleText = scale > 0 ? `Approx. scale 1:${formatNumber(Math.round(scale))}` : "Current map view";
+  const logoUrl = new URL("assets/ura-logo.png", window.location.href).href;
+  const subtitleParts = [
+    options.checkedOnly ? `Checked parcels (${formatNumber(stats.visible)})` : null,
+    state.customList ? `Custom list: ${state.customList.fileName}` : null,
+    `Map signal: ${signalModes[state.signalMode].label}`,
+    "Current map zoom retained"
+  ].filter(Boolean);
+
+  const sideCards = [];
+  if (sections.has("metrics")) {
+    sideCards.push(`
+      <div class="box">
+        <h2>Summary Stats</h2>
+        ${printMetricLines(stats, metrics) || "<p class='muted'>No metrics selected.</p>"}
+      </div>
+    `);
+  }
+  if (sections.has("filters")) {
+    sideCards.push(`
+      <div class="box">
+        <h2>Filters</h2>
+        ${filters.map((item) => `<div class="filter-item">${escapeHtml(item)}</div>`).join("")}
+      </div>
+    `);
+  }
+  if (sections.has("legend")) {
+    sideCards.push(`
+      <div class="box">
+        <h2>Legend: ${escapeHtml(signalColorLegendTitle())}</h2>
+        ${legendItems().map((item) => `
+          <div class="print-legend-row">
+            <span style="background:${item.color}"></span>
+            <strong>${escapeHtml(item.label)}</strong>
+            <em>${formatNumber(item.count)}</em>
           </div>
-          <p>${state.checkedExportPins?.size ? "Checked table parcels only. " : state.customList ? "Custom list inner join on parcel PIN. " : ""}Screening only; confirm source records before action.</p>
-        </header>
-        <main class="print-page">
-          <section class="print-map"><img src="${mapImage}" alt="Current vacant land map" /></section>
-          <aside class="print-side">
-            <section class="print-card metrics">
-              <div class="metric"><span>Visible parcels</span><strong>${formatNumber(stats.visible)}</strong></div>
-              <div class="metric"><span>11+ prior years</span><strong>${formatNumber(stats.longDelinquency)}</strong></div>
-              <div class="metric"><span>Public/control</span><strong>${formatNumber(stats.publicControl)}</strong></div>
-              <div class="metric"><span>High lot score</span><strong>${formatNumber(stats.highVacantLotScore)}</strong></div>
-            </section>
-            <section class="print-card">
-              <h2>Filters</h2>
-              ${filters.map((item) => `<div class="filter-item">${escapeHtml(item)}</div>`).join("")}
-            </section>
-            <section class="print-card">
-              <h2>Legend: ${escapeHtml(signalColorLegendTitle())}</h2>
-              ${legendItems().map((item) => `
-                <div class="legend-item">
-                  <span style="background:${item.color}"></span>
-                  <strong>${escapeHtml(item.label)}</strong>
-                  <em>${formatNumber(item.count)}</em>
-                </div>
-              `).join("")}
-            </section>
-            <section class="print-card">
-              <h2>Top Areas</h2>
-              ${stats.topAreas.map((row) => `
-                <div class="area-row">
-                  <strong>${escapeHtml(row.area)}</strong>
-                  <span>${formatNumber(row.parcels)}</span>
-                  <span>${formatNumber(row.long)} 11+</span>
-                  <span>${formatNumber(row.vacantLotScore)} high lot</span>
-                </div>
-              `).join("") || "<p>No parcels match the current filters.</p>"}
-            </section>
-            <section class="print-card source">
-              <p>Sources: sanitized vacant-land public GeoJSON, tax delinquency fields, ownership/control classification, Tolemi vacant-lot scores, and WPRDC PLI hazard. Owner names, addresses, internal notes, and detailed legal/account records are excluded.</p>
-            </section>
-          </aside>
-        </main>
-      </body>
-    </html>
-  `;
+        `).join("")}
+      </div>
+    `);
+  }
+  if (sections.has("topAreas")) {
+    sideCards.push(`
+      <div class="box">
+        <h2>Top Areas</h2>
+        ${stats.topAreas.map((row) => `
+          <div class="area-row">
+            <strong>${escapeHtml(row.area)}</strong>
+            <span>${formatNumber(row.parcels)}</span>
+            <span>${formatNumber(row.long)} 11+</span>
+            <span>${formatNumber(row.vacantLotScore)} high lot</span>
+          </div>
+        `).join("") || "<p class='muted'>No parcels match the current filters.</p>"}
+      </div>
+    `);
+  }
+  if (sections.has("source")) {
+    sideCards.push(`
+      <div class="box source">
+        <h2>Source</h2>
+        <p>Vacant-land GeoJSON, tax delinquency, ownership/control, Tolemi vacant-lot scores, WPRDC PLI hazard. Screening only; confirm source records before action.</p>
+      </div>
+    `);
+  }
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(APP_TITLE)}</title>
+    <style>
+      @page { size: A3 landscape; margin: 10mm; }
+      * { box-sizing: border-box; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      body { margin: 0; background: #e8eef2; color: #111820; font-family: Arial, Helvetica, sans-serif; }
+      .sheet { width: 400mm; height: 277mm; margin: 0 auto; background: #fff; border: 1px solid #b9c9d4; display: grid; grid-template-rows: 27mm 1fr 12mm; }
+      header { display: grid; grid-template-columns: auto 1fr auto; gap: 8mm; align-items: center; padding: 6mm 10mm 4mm; border-bottom: 1px solid #d8e4ea; }
+      .logo { width: 18mm; height: auto; display: block; }
+      h1 { margin: 0; color: #00334f; font-size: 18pt; line-height: 1.05; }
+      .subtitle { margin-top: 2mm; color: #586872; font-size: 9pt; font-weight: 700; }
+      .brand { color: #0098d3; font-size: 16pt; font-weight: 800; letter-spacing: .02em; text-align: right; }
+      main { display: grid; grid-template-columns: 1fr 82mm; gap: 6mm; padding: 6mm 8mm; min-height: 0; }
+      .map-frame { position: relative; border: 1px solid #b9c9d4; background: #eef4f7; overflow: hidden; min-height: 0; }
+      .map-frame img { width: 100%; height: 100%; object-fit: contain; display: block; background: #eef4f7; }
+      .north { position: absolute; left: 8mm; bottom: 11mm; display: grid; place-items: center; color: #00334f; font-weight: 800; font-size: 16pt; }
+      .north::before { content: ""; width: 0; height: 0; border-left: 6mm solid transparent; border-right: 6mm solid transparent; border-bottom: 18mm solid #00334f; display: block; margin-bottom: 1mm; }
+      .scale { position: absolute; right: 8mm; bottom: 8mm; min-width: 42mm; color: #111820; font-size: 7pt; font-weight: 800; }
+      .scale-bar { height: 4mm; border-left: 1px solid #111820; border-right: 1px solid #111820; border-bottom: 3mm solid #111820; background: #fff; margin-bottom: 1mm; }
+      aside { display: grid; gap: 4mm; align-content: start; min-width: 0; overflow: hidden; }
+      .box { border: 1px solid #d8e4ea; padding: 4.5mm; background: #f7fbfd; }
+      .box h2 { margin: 0 0 2.5mm; color: #00334f; font-size: 9pt; text-transform: uppercase; letter-spacing: .04em; }
+      .print-stat { display: grid; grid-template-columns: 1fr auto; gap: 4mm; padding: 1.8mm 0; border-bottom: 1px solid #d8e4ea; font-size: 8pt; }
+      .print-stat:last-child { border-bottom: 0; }
+      .print-stat span { color: #586872; font-weight: 700; }
+      .print-stat strong { color: #111820; font-size: 10pt; }
+      .print-legend-row { display: grid; grid-template-columns: 6mm 1fr auto; gap: 3mm; align-items: center; margin: 2.2mm 0; font-size: 8pt; }
+      .print-legend-row span { width: 6mm; height: 6mm; border: 1px solid rgba(17,24,32,.32); display: inline-block; }
+      .filter-item, .area-row, .muted, .source p { color: #334a56; font-size: 8pt; line-height: 1.35; margin: 0 0 2mm; }
+      .area-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 2mm; }
+      footer { display: flex; align-items: center; justify-content: space-between; padding: 0 10mm; color: #586872; font-size: 7.5pt; border-top: 1px solid #d8e4ea; }
+      @media print { body { background: #fff; } .sheet { margin: 0; border: 0; } }
+    </style>
+  </head>
+  <body>
+    <section class="sheet">
+      <header>
+        <img class="logo" src="${escapeHtml(logoUrl)}" alt="URA logo" />
+        <div>
+          <h1>${escapeHtml(APP_TITLE)}</h1>
+          <div class="subtitle">${escapeHtml(subtitleParts.join("  |  "))}</div>
+        </div>
+        <div class="brand">URA</div>
+      </header>
+      <main>
+        <div class="map-frame">
+          <img src="${mapImage}" alt="Current vacant land map" />
+          <div class="north">N</div>
+          <div class="scale"><div class="scale-bar"></div>${escapeHtml(scaleText)}</div>
+        </div>
+        <aside>
+          ${sideCards.join("") || "<div class='box'><p class='muted'>No side-panel details selected.</p></div>"}
+        </aside>
+      </main>
+      <footer>
+        <span>Generated: ${escapeHtml(timestamp)}</span>
+        <span>Urban Redevelopment Authority of Pittsburgh</span>
+      </footer>
+    </section>
+    <script>
+      async function printWhenMapImageIsReady() {
+        const image = document.querySelector(".map-frame img");
+        if (image && image.decode) {
+          await image.decode().catch(function () {});
+        }
+        setTimeout(function () { window.print(); }, 650);
+      }
+      window.addEventListener("load", printWhenMapImageIsReady);
+    </script>
+  </body>
+</html>`;
 }
 
 async function captureMapImage() {
@@ -1637,8 +1820,15 @@ async function captureMapImage() {
   if (reactiveUtilsRef && parcelLayerView) {
     await reactiveUtilsRef.whenOnce(() => !parcelLayerView.updating);
   }
-  const screenshot = await view.takeScreenshot({ format: "png", quality: 95 });
-  return screenshot.dataUrl;
+  const screenshot = await view.takeScreenshot({
+    width: 2200,
+    height: 1450,
+    format: "png"
+  });
+  return {
+    dataUrl: screenshot.dataUrl,
+    scale: view.scale
+  };
 }
 
 async function loadPublicData() {
@@ -1755,16 +1945,39 @@ document.addEventListener("click", (event) => {
 });
 
 nodes.resetFilters.addEventListener("click", resetFilters);
-nodes.exportPdfButton.addEventListener("click", () => exportCurrentMapPdf());
+nodes.exportPdfButton.addEventListener("click", () => openPdfOptionsModal());
 
 if (nodes.tableExportCheckedPdfButton) {
-  nodes.tableExportCheckedPdfButton.addEventListener("click", () => exportCurrentMapPdf({ checkedOnly: true }));
+  nodes.tableExportCheckedPdfButton.addEventListener("click", () => openPdfOptionsModal({ checkedOnly: true }));
 }
 if (nodes.tableSelectPageButton) {
   nodes.tableSelectPageButton.addEventListener("click", selectVisiblePageRows);
 }
 if (nodes.tableClearCheckedButton) {
   nodes.tableClearCheckedButton.addEventListener("click", clearCheckedParcels);
+}
+if (nodes.pdfMetricsSelectAll) {
+  nodes.pdfMetricsSelectAll.addEventListener("click", () => {
+    PDF_SIDE_SECTIONS.forEach((item) => tableState.pdfSections.add(item.key));
+    PDF_METRIC_ITEMS.forEach((item) => tableState.pdfMetrics.add(item.key));
+    renderPdfOptionsChecklist();
+  });
+}
+if (nodes.pdfMetricsSelectNone) {
+  nodes.pdfMetricsSelectNone.addEventListener("click", () => {
+    tableState.pdfSections.clear();
+    tableState.pdfMetrics.clear();
+    // Keep legend on by default so the paper map still has symbology context.
+    tableState.pdfSections.add("legend");
+    renderPdfOptionsChecklist();
+  });
+}
+if (nodes.confirmExportPdf) {
+  nodes.confirmExportPdf.addEventListener("click", () => {
+    const options = state.pendingPdfOptions || {};
+    closeModal(nodes.pdfOptionsModal);
+    exportCurrentMapPdf(options);
+  });
 }
 
 if (nodes.customListButton) {

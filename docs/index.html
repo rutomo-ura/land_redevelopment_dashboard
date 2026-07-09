@@ -228,6 +228,24 @@
       </div>
     </div>
 
+    <div class="modal-backdrop is-hidden" id="pdfOptionsModal" aria-hidden="true">
+      <div class="modal-card" role="dialog" aria-labelledby="pdfOptionsTitle">
+        <div class="modal-head">
+          <h2 id="pdfOptionsTitle">Paper GIS PDF options</h2>
+          <button class="small-button" type="button" data-close-modal="pdfOptionsModal">Close</button>
+        </div>
+        <p class="modal-note">
+          Keeps the current map zoom/extent. Choose which side-panel details to include on the paper map.
+        </p>
+        <div class="modal-checklist" id="pdfMetricsList"></div>
+        <div class="modal-actions">
+          <button class="small-button" id="pdfMetricsSelectAll" type="button">Select all</button>
+          <button class="small-button" id="pdfMetricsSelectNone" type="button">Select none</button>
+          <button class="primary-button" id="confirmExportPdf" type="button">Create PDF</button>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-backdrop is-hidden" id="customListModal" aria-hidden="true">
       <div class="modal-card custom-list-modal" role="dialog" aria-labelledby="customListTitle">
         <div class="modal-head">
