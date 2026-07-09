@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709e";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709f";
 
 const signalModes = {
   tax: {
@@ -80,7 +80,43 @@ const excludedDashboardUses = new Set([
   "CEMETERY/MONUMENTS"
 ]);
 
+const TABLE_COLUMNS = [
+  { key: "par_pin", label: "PIN", defaultVisible: true, exportDefault: true },
+  { key: "parcel_label", label: "Parcel label", defaultVisible: true, exportDefault: true },
+  { key: "propertyowner", label: "Owner", defaultVisible: true, exportDefault: true },
+  { key: "use_group", label: "Use group", defaultVisible: true, exportDefault: true },
+  { key: "usedesc", label: "Use desc", defaultVisible: true, exportDefault: true },
+  { key: "prior_band", label: "Tax band", defaultVisible: true, exportDefault: true },
+  { key: "prior_years", label: "Prior years", defaultVisible: true, exportDefault: true },
+  { key: "ownership_group", label: "Ownership", defaultVisible: true, exportDefault: true },
+  { key: "control_path", label: "Control path", defaultVisible: true, exportDefault: true },
+  { key: "vacant_lot_score_band", label: "Lot score band", defaultVisible: true, exportDefault: true },
+  { key: "tax_sale_vacant_lot_score", label: "Lot score", defaultVisible: true, exportDefault: true },
+  { key: "city_neighborhood", label: "Neighborhood", defaultVisible: true, exportDefault: true },
+  { key: "council_district_label", label: "Council", defaultVisible: true, exportDefault: true },
+  { key: "par_calcacreag", label: "Acreage", defaultVisible: true, exportDefault: true },
+  { key: "fairmarkettotal", label: "FMV", defaultVisible: true, exportDefault: true },
+  { key: "taxdesc", label: "Tax desc", defaultVisible: false, exportDefault: true },
+  { key: "pli_hazard_band", label: "PLI band", defaultVisible: false, exportDefault: true },
+  { key: "pli_hazard_score", label: "PLI score", defaultVisible: false, exportDefault: true },
+  { key: "condemned_flag", label: "Condemned flag", defaultVisible: false, exportDefault: true },
+  { key: "council_district", label: "Council ID", defaultVisible: false, exportDefault: false },
+  { key: "centroid_lat", label: "Lat", defaultVisible: false, exportDefault: true },
+  { key: "centroid_lng", label: "Lon", defaultVisible: false, exportDefault: true }
+];
+
+const TABLE_FILTER_FIELDS = [
+  { key: "use_group", label: "Property Use" },
+  { key: "ownership_group", label: "Ownership" },
+  { key: "prior_band", label: "Tax band" },
+  { key: "vacant_lot_score_band", label: "Lot score" },
+  { key: "pli_hazard_band", label: "PLI hazard" },
+  { key: "city_neighborhood", label: "Neighborhood" },
+  { key: "council_district_label", label: "Council" }
+];
+
 const state = {
+  viewMode: "map",
   signalMode: "tax",
   activeUseGroups: new Set(),
   activeSignalValues: {
@@ -88,6 +124,17 @@ const state = {
     ownership: new Set(signalModes.ownership.categories.map((item) => item.value)),
     vacantLotScore: new Set(signalModes.vacantLotScore.categories.map((item) => item.value))
   }
+};
+
+const tableState = {
+  search: "",
+  filters: Object.fromEntries(TABLE_FILTER_FIELDS.map((item) => [item.key, new Set()])),
+  visibleColumns: new Set(TABLE_COLUMNS.filter((item) => item.defaultVisible).map((item) => item.key)),
+  exportColumns: new Set(TABLE_COLUMNS.filter((item) => item.exportDefault).map((item) => item.key)),
+  sortKey: "par_pin",
+  sortDir: "asc",
+  page: 1,
+  pageSize: 250
 };
 
 const nodes = {
@@ -101,6 +148,7 @@ const nodes = {
   mapStatus: document.getElementById("mapStatus"),
   exportStatus: document.getElementById("exportStatus"),
   exportPdfButton: document.getElementById("exportPdfButton"),
+  exportXlsxButton: document.getElementById("exportXlsxButton"),
   arcgisContentLink: document.getElementById("arcgisContentLink"),
   resetFilters: document.getElementById("resetFilters"),
   visibleParcelMetric: document.getElementById("visibleParcelMetric"),
@@ -110,7 +158,30 @@ const nodes = {
   signalChartTitle: document.getElementById("signalChartTitle"),
   signalChart: document.getElementById("signalChart"),
   areaChart: document.getElementById("areaChart"),
-  reviewTableBody: document.getElementById("reviewTableBody")
+  reviewTableBody: document.getElementById("reviewTableBody"),
+  mapView: document.getElementById("mapView"),
+  tableView: document.getElementById("tableView"),
+  tableRowCount: document.getElementById("tableRowCount"),
+  tableSearchInput: document.getElementById("tableSearchInput"),
+  tableClearFilters: document.getElementById("tableClearFilters"),
+  tableColumnsButton: document.getElementById("tableColumnsButton"),
+  tableExportButton: document.getElementById("tableExportButton"),
+  tableFilterBar: document.getElementById("tableFilterBar"),
+  spreadsheetHead: document.getElementById("spreadsheetHead"),
+  spreadsheetBody: document.getElementById("spreadsheetBody"),
+  tablePrevPage: document.getElementById("tablePrevPage"),
+  tableNextPage: document.getElementById("tableNextPage"),
+  tablePageLabel: document.getElementById("tablePageLabel"),
+  tablePageSize: document.getElementById("tablePageSize"),
+  columnPickerModal: document.getElementById("columnPickerModal"),
+  columnPickerList: document.getElementById("columnPickerList"),
+  columnPickerSelectAll: document.getElementById("columnPickerSelectAll"),
+  columnPickerSelectNone: document.getElementById("columnPickerSelectNone"),
+  exportColumnsModal: document.getElementById("exportColumnsModal"),
+  exportColumnsList: document.getElementById("exportColumnsList"),
+  exportColumnsSelectAll: document.getElementById("exportColumnsSelectAll"),
+  exportColumnsSelectNone: document.getElementById("exportColumnsSelectNone"),
+  confirmExportXlsx: document.getElementById("confirmExportXlsx")
 };
 
 let allFeatures = [];
@@ -586,6 +657,7 @@ function applyDashboardState() {
   renderMetricCards(features);
   renderSummary(features);
   applyLayerState();
+  if (state.viewMode === "table") renderTableView();
 
   if (!allFeatures.length) {
     setStatus("Loading vacant land parcels...");
@@ -593,6 +665,246 @@ function applyDashboardState() {
     setStatus("No parcels match the current filters.");
   } else {
     setStatus("", true);
+  }
+}
+
+function setViewMode(mode) {
+  state.viewMode = mode === "table" ? "table" : "map";
+  document.body.classList.toggle("is-table-view", state.viewMode === "table");
+  document.querySelectorAll("[data-view-mode]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.viewMode === state.viewMode);
+  });
+  if (nodes.exportPdfButton) nodes.exportPdfButton.classList.toggle("is-hidden", state.viewMode === "table");
+  if (nodes.exportXlsxButton) nodes.exportXlsxButton.classList.toggle("is-hidden", state.viewMode !== "table");
+  if (state.viewMode === "table") renderTableView();
+}
+
+function featureProps(feature) {
+  return feature.properties || feature;
+}
+
+function uniqueSortedValues(features, field) {
+  const values = new Set();
+  features.forEach((feature) => {
+    const value = getProp(feature, field);
+    if (value !== null && value !== undefined && String(value).trim() !== "") values.add(String(value));
+  });
+  return [...values].sort((a, b) => a.localeCompare(b));
+}
+
+function tableRows() {
+  const search = tableState.search.trim().toLowerCase();
+  let rows = filteredFeatures().filter((feature) => {
+    const props = featureProps(feature);
+    return TABLE_FILTER_FIELDS.every((filter) => {
+      const active = tableState.filters[filter.key];
+      if (!active || active.size === 0) return true;
+      const value = props[filter.key] || "Not recorded";
+      return active.has(String(value));
+    });
+  });
+
+  if (search) {
+    rows = rows.filter((feature) => {
+      const props = featureProps(feature);
+      const haystack = [
+        props.par_pin,
+        props.parcel_label,
+        props.propertyowner,
+        props.city_neighborhood,
+        props.usedesc
+      ].map((value) => String(value || "").toLowerCase()).join(" ");
+      return haystack.includes(search);
+    });
+  }
+
+  const sortKey = tableState.sortKey;
+  const direction = tableState.sortDir === "desc" ? -1 : 1;
+  rows.sort((a, b) => {
+    const av = featureProps(a)[sortKey];
+    const bv = featureProps(b)[sortKey];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (typeof av === "number" && typeof bv === "number") return (av - bv) * direction;
+    return String(av).localeCompare(String(bv), undefined, { numeric: true }) * direction;
+  });
+  return rows;
+}
+
+function formatTableCell(key, value) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (key === "fairmarkettotal") return formatMoney(value);
+  if (key === "par_calcacreag") return formatAcreage(value);
+  return String(value);
+}
+
+function renderTableFilterBar() {
+  if (!nodes.tableFilterBar) return;
+  const base = filteredFeatures();
+  nodes.tableFilterBar.innerHTML = TABLE_FILTER_FIELDS.map((filter) => {
+    const options = uniqueSortedValues(base, filter.key);
+    const active = tableState.filters[filter.key];
+    const selected = active.size === 1 ? [...active][0] : "";
+    return `
+      <label class="table-filter-group">
+        <span>${escapeHtml(filter.label)}</span>
+        <select data-table-filter="${escapeHtml(filter.key)}">
+          <option value="">All</option>
+          ${options.map((value) => `
+            <option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(value)}</option>
+          `).join("")}
+        </select>
+      </label>
+    `;
+  }).join("");
+
+  nodes.tableFilterBar.querySelectorAll("select[data-table-filter]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const key = select.dataset.tableFilter;
+      tableState.filters[key] = select.value ? new Set([select.value]) : new Set();
+      tableState.page = 1;
+      renderTableView();
+    });
+  });
+}
+
+function renderSpreadsheet() {
+  if (!nodes.spreadsheetHead || !nodes.spreadsheetBody) return;
+  const columns = TABLE_COLUMNS.filter((column) => tableState.visibleColumns.has(column.key));
+  const rows = tableRows();
+  const pageCount = Math.max(1, Math.ceil(rows.length / tableState.pageSize));
+  tableState.page = Math.min(Math.max(1, tableState.page), pageCount);
+  const start = (tableState.page - 1) * tableState.pageSize;
+  const pageRows = rows.slice(start, start + tableState.pageSize);
+
+  if (nodes.tableRowCount) {
+    nodes.tableRowCount.textContent = `${formatNumber(rows.length)} parcels`;
+  }
+  if (nodes.tablePageLabel) {
+    nodes.tablePageLabel.textContent = `Page ${tableState.page} of ${pageCount}`;
+  }
+  if (nodes.tablePrevPage) nodes.tablePrevPage.disabled = tableState.page <= 1;
+  if (nodes.tableNextPage) nodes.tableNextPage.disabled = tableState.page >= pageCount;
+
+  nodes.spreadsheetHead.innerHTML = `<tr>${columns.map((column) => {
+    const marker = tableState.sortKey === column.key ? (tableState.sortDir === "asc" ? " ▲" : " ▼") : "";
+    return `<th data-sort-key="${escapeHtml(column.key)}">${escapeHtml(column.label)}${marker}</th>`;
+  }).join("")}</tr>`;
+
+  nodes.spreadsheetBody.innerHTML = pageRows.length
+    ? pageRows.map((feature) => {
+      const props = featureProps(feature);
+      return `<tr>${columns.map((column) => `
+        <td title="${escapeHtml(formatTableCell(column.key, props[column.key]))}">${escapeHtml(formatTableCell(column.key, props[column.key]))}</td>
+      `).join("")}</tr>`;
+    }).join("")
+    : `<tr><td colspan="${Math.max(columns.length, 1)}">No parcels match the current map and table filters.</td></tr>`;
+
+  nodes.spreadsheetHead.querySelectorAll("th[data-sort-key]").forEach((th) => {
+    th.addEventListener("click", () => {
+      const key = th.dataset.sortKey;
+      if (tableState.sortKey === key) {
+        tableState.sortDir = tableState.sortDir === "asc" ? "desc" : "asc";
+      } else {
+        tableState.sortKey = key;
+        tableState.sortDir = "asc";
+      }
+      renderSpreadsheet();
+    });
+  });
+}
+
+function renderChecklist(container, selectedSet) {
+  if (!container) return;
+  container.innerHTML = TABLE_COLUMNS.map((column) => `
+    <label>
+      <input type="checkbox" value="${escapeHtml(column.key)}" ${selectedSet.has(column.key) ? "checked" : ""} />
+      <span>${escapeHtml(column.label)}</span>
+    </label>
+  `).join("");
+  container.querySelectorAll("input[type=checkbox]").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (input.checked) selectedSet.add(input.value);
+      else selectedSet.delete(input.value);
+      if (container === nodes.columnPickerList) renderSpreadsheet();
+    });
+  });
+}
+
+function openModal(modal) {
+  if (!modal) return;
+  modal.classList.remove("is-hidden");
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closeModal(modal) {
+  if (!modal) return;
+  modal.classList.add("is-hidden");
+  modal.setAttribute("aria-hidden", "true");
+}
+
+function renderTableView() {
+  renderTableFilterBar();
+  renderSpreadsheet();
+  renderChecklist(nodes.columnPickerList, tableState.visibleColumns);
+  renderChecklist(nodes.exportColumnsList, tableState.exportColumns);
+}
+
+function clearTableFilters() {
+  TABLE_FILTER_FIELDS.forEach((filter) => {
+    tableState.filters[filter.key] = new Set();
+  });
+  tableState.search = "";
+  tableState.page = 1;
+  if (nodes.tableSearchInput) nodes.tableSearchInput.value = "";
+  renderTableView();
+}
+
+function exportTableXlsx() {
+  if (typeof XLSX === "undefined") {
+    if (nodes.exportStatus) nodes.exportStatus.textContent = "XLSX library failed to load.";
+    return;
+  }
+  const columns = TABLE_COLUMNS.filter((column) => tableState.exportColumns.has(column.key));
+  if (!columns.length) {
+    if (nodes.exportStatus) nodes.exportStatus.textContent = "Select at least one export column.";
+    return;
+  }
+
+  const rows = tableRows().map((feature) => {
+    const props = featureProps(feature);
+    const row = {};
+    columns.forEach((column) => {
+      row[column.label] = props[column.key] ?? "";
+    });
+    return row;
+  });
+
+  const workbook = XLSX.utils.book_new();
+  const parcelSheet = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(workbook, parcelSheet, "Parcels");
+
+  const infoRows = [
+    { Field: "Generated", Value: new Date().toLocaleString() },
+    { Field: "App", Value: APP_TITLE },
+    { Field: "Mode", Value: "Internal staff use" },
+    { Field: "Map signal", Value: signalModes[state.signalMode].label },
+    { Field: "Active filters", Value: activeFilterSummary().join(" | ") },
+    { Field: "Table search", Value: tableState.search || "(none)" },
+    { Field: "Row count", Value: rows.length }
+  ];
+  const infoSheet = XLSX.utils.json_to_sheet(infoRows);
+  XLSX.utils.book_append_sheet(workbook, infoSheet, "Export_Info");
+
+  const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  XLSX.writeFile(workbook, `vacant_land_export_${stamp}.xlsx`);
+  closeModal(nodes.exportColumnsModal);
+  if (nodes.exportStatus) {
+    nodes.exportStatus.textContent = `Exported ${formatNumber(rows.length)} rows`;
+    window.setTimeout(() => {
+      if (nodes.exportStatus) nodes.exportStatus.textContent = "";
+    }, 3500);
   }
 }
 
@@ -621,6 +933,7 @@ function buildPopupContent(event) {
         ${buildPopupStreetViewLink(coords)}
       </dd>
       <dt>PIN</dt><dd>${escapeHtml(attrs.par_pin || "Not recorded")}</dd>
+      <dt>Owner</dt><dd>${escapeHtml(attrs.propertyowner || "Not recorded")}</dd>
       <dt>Prior years</dt><dd>${escapeHtml(attrs.prior_years ?? "No known prior years")}</dd>
       <dt>Tax band</dt><dd>${escapeHtml(attrs.prior_band)}</dd>
       <dt>Ownership</dt><dd>${escapeHtml(attrs.ownership_group)}</dd>
@@ -959,6 +1272,12 @@ async function createParcelLayerFallback(GeoJSONLayer) {
 }
 
 document.addEventListener("click", (event) => {
+  const viewButton = event.target.closest("[data-view-mode]");
+  if (viewButton) {
+    setViewMode(viewButton.dataset.viewMode);
+    return;
+  }
+
   const signalButton = event.target.closest("[data-signal-mode]");
   if (signalButton) {
     state.signalMode = signalButton.dataset.signalMode;
@@ -972,13 +1291,93 @@ document.addEventListener("click", (event) => {
     const zoom = Number(bookmark.dataset.zoom);
     view.goTo({ center, zoom }, { duration: 650 }).catch(() => {});
   }
+
+  const closeModalButton = event.target.closest("[data-close-modal]");
+  if (closeModalButton) {
+    closeModal(document.getElementById(closeModalButton.dataset.closeModal));
+  }
 });
 
 nodes.resetFilters.addEventListener("click", resetFilters);
 nodes.exportPdfButton.addEventListener("click", exportCurrentMapPdf);
 
+if (nodes.exportXlsxButton) {
+  nodes.exportXlsxButton.addEventListener("click", () => {
+    renderChecklist(nodes.exportColumnsList, tableState.exportColumns);
+    openModal(nodes.exportColumnsModal);
+  });
+}
+if (nodes.tableExportButton) {
+  nodes.tableExportButton.addEventListener("click", () => {
+    renderChecklist(nodes.exportColumnsList, tableState.exportColumns);
+    openModal(nodes.exportColumnsModal);
+  });
+}
+if (nodes.tableColumnsButton) {
+  nodes.tableColumnsButton.addEventListener("click", () => {
+    renderChecklist(nodes.columnPickerList, tableState.visibleColumns);
+    openModal(nodes.columnPickerModal);
+  });
+}
+if (nodes.tableClearFilters) nodes.tableClearFilters.addEventListener("click", clearTableFilters);
+if (nodes.tableSearchInput) {
+  nodes.tableSearchInput.addEventListener("input", () => {
+    tableState.search = nodes.tableSearchInput.value || "";
+    tableState.page = 1;
+    renderSpreadsheet();
+  });
+}
+if (nodes.tablePrevPage) {
+  nodes.tablePrevPage.addEventListener("click", () => {
+    tableState.page -= 1;
+    renderSpreadsheet();
+  });
+}
+if (nodes.tableNextPage) {
+  nodes.tableNextPage.addEventListener("click", () => {
+    tableState.page += 1;
+    renderSpreadsheet();
+  });
+}
+if (nodes.tablePageSize) {
+  nodes.tablePageSize.addEventListener("change", () => {
+    tableState.pageSize = Number(nodes.tablePageSize.value) || 250;
+    tableState.page = 1;
+    renderSpreadsheet();
+  });
+}
+if (nodes.columnPickerSelectAll) {
+  nodes.columnPickerSelectAll.addEventListener("click", () => {
+    TABLE_COLUMNS.forEach((column) => tableState.visibleColumns.add(column.key));
+    renderChecklist(nodes.columnPickerList, tableState.visibleColumns);
+    renderSpreadsheet();
+  });
+}
+if (nodes.columnPickerSelectNone) {
+  nodes.columnPickerSelectNone.addEventListener("click", () => {
+    tableState.visibleColumns.clear();
+    TABLE_COLUMNS.slice(0, 3).forEach((column) => tableState.visibleColumns.add(column.key));
+    renderChecklist(nodes.columnPickerList, tableState.visibleColumns);
+    renderSpreadsheet();
+  });
+}
+if (nodes.exportColumnsSelectAll) {
+  nodes.exportColumnsSelectAll.addEventListener("click", () => {
+    TABLE_COLUMNS.forEach((column) => tableState.exportColumns.add(column.key));
+    renderChecklist(nodes.exportColumnsList, tableState.exportColumns);
+  });
+}
+if (nodes.exportColumnsSelectNone) {
+  nodes.exportColumnsSelectNone.addEventListener("click", () => {
+    tableState.exportColumns.clear();
+    renderChecklist(nodes.exportColumnsList, tableState.exportColumns);
+  });
+}
+if (nodes.confirmExportXlsx) nodes.confirmExportXlsx.addEventListener("click", exportTableXlsx);
+
 renderSignalModeControls();
 setStatus("Loading vacant land parcels...");
+setViewMode("map");
 
 require([
   "esri/Map",

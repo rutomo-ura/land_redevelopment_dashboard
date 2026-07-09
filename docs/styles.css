@@ -718,3 +718,268 @@ tr:last-child td {
     display: none;
   }
 }
+
+/* Map / Table view toggle */
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid rgba(0, 51, 79, 0.18);
+  border-radius: 999px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.view-toggle-button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--ura-deep);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.view-toggle-button.is-active {
+  background: var(--ura-blue);
+  color: #ffffff;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+body.is-table-view .dashboard-shell {
+  display: none;
+}
+
+body.is-table-view .table-view {
+  display: grid;
+}
+
+.table-view {
+  display: none;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  height: calc(100vh - 72px);
+  min-height: 520px;
+  background: #eef4f7;
+  padding: 12px 14px 16px;
+  gap: 10px;
+}
+
+.table-toolbar,
+.table-filter-bar,
+.table-pagination,
+.modal-card {
+  background: #ffffff;
+  border: 1px solid #d8e4ea;
+  border-radius: 10px;
+}
+
+.table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.table-toolbar-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: end;
+}
+
+.table-toolbar-main strong {
+  display: block;
+  color: var(--ura-deep);
+  font-size: 16px;
+}
+
+.table-toolbar-note {
+  color: #687985;
+  font-size: 12px;
+}
+
+.table-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.table-search {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #687985;
+  text-transform: uppercase;
+}
+
+.table-search input,
+.table-page-size select,
+.table-filter-group select {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #c9d7df;
+  border-radius: 8px;
+  color: #142935;
+  background: #fff;
+  font-size: 13px;
+}
+
+.table-search input {
+  min-width: 260px;
+}
+
+.table-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.table-filter-group {
+  display: grid;
+  gap: 4px;
+  min-width: 150px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #687985;
+  text-transform: uppercase;
+}
+
+.table-filter-group select {
+  min-width: 160px;
+  max-width: 220px;
+}
+
+.spreadsheet-wrap {
+  min-height: 0;
+  overflow: auto;
+  background: #ffffff;
+  border: 1px solid #d8e4ea;
+  border-radius: 10px;
+}
+
+.spreadsheet-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+}
+
+.spreadsheet-table th,
+.spreadsheet-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e4edf2;
+  border-right: 1px solid #eef4f7;
+  text-align: left;
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spreadsheet-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f4f8fa;
+  color: #142935;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.spreadsheet-table th:hover {
+  background: #e8f1f6;
+}
+
+.spreadsheet-table tr:hover td {
+  background: #f7fbfd;
+}
+
+.table-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+}
+
+.table-page-size {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #445966;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(10, 28, 38, 0.45);
+}
+
+.modal-card {
+  width: min(560px, 100%);
+  max-height: min(80vh, 720px);
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.modal-head,
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.modal-note {
+  margin: 0;
+  padding: 0 14px 8px;
+  color: #687985;
+  font-size: 12px;
+}
+
+.modal-checklist {
+  overflow: auto;
+  padding: 4px 14px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.modal-checklist label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: #142935;
+}
+
+@media (max-width: 900px) {
+  .table-view {
+    height: auto;
+    min-height: calc(100vh - 120px);
+  }
+
+  .table-search input {
+    min-width: 180px;
+  }
+}

@@ -20,17 +20,22 @@
         Loading parcel source...
       </p>
       <div class="header-actions">
+        <div class="view-toggle" role="group" aria-label="App view">
+          <button class="view-toggle-button is-active" type="button" data-view-mode="map">Map</button>
+          <button class="view-toggle-button" type="button" data-view-mode="table">Table</button>
+        </div>
         <a class="ghost-button" id="arcgisContentLink" href="https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2">URA Maps</a>
         <button class="primary-button" id="exportPdfButton" type="button">Export PDF</button>
+        <button class="primary-button is-hidden" id="exportXlsxButton" type="button">Export XLSX</button>
       </div>
     </header>
 
-    <main class="dashboard-shell">
+    <main class="dashboard-shell" id="mapView">
       <aside class="control-panel" aria-label="Map controls">
         <section class="panel hero-panel">
-          <span class="eyebrow">Public screening dashboard</span>
+          <span class="eyebrow">Internal staff dashboard</span>
           <h1>Find parcels that need a closer look.</h1>
-          <p>Switch map signals for analysis and filter by property use. Parcel colors follow the active map signal. Updates apply to the map, legend, metrics, and export.</p>
+          <p>Switch map signals for analysis and filter by property use. Parcel colors follow the active map signal. Use Table for spreadsheet review and XLSX export.</p>
         </section>
 
         <section class="panel">
@@ -137,12 +142,87 @@
         </section>
 
         <section class="source-note">
-          <strong>Public-safe view.</strong>
-          Owner names, addresses, internal notes, and detailed legal/account records are not published here.
+          <strong>Internal staff view.</strong>
+          Owner names and parcel attributes are included for URA review. Confirm source records before action.
         </section>
       </aside>
     </main>
 
+    <section class="table-view is-hidden" id="tableView" aria-label="Parcel spreadsheet table">
+      <div class="table-toolbar">
+        <div class="table-toolbar-main">
+          <div>
+            <strong id="tableRowCount">0 parcels</strong>
+            <span class="table-toolbar-note">Starts from current map filters · Internal staff use</span>
+          </div>
+          <label class="table-search">
+            <span>Search</span>
+            <input id="tableSearchInput" type="search" placeholder="PIN, parcel label, or owner" />
+          </label>
+        </div>
+        <div class="table-toolbar-actions">
+          <button class="small-button" id="tableClearFilters" type="button">Clear table filters</button>
+          <button class="small-button" id="tableColumnsButton" type="button">Columns</button>
+          <button class="primary-button" id="tableExportButton" type="button">Export XLSX</button>
+        </div>
+      </div>
+
+      <div class="table-filter-bar" id="tableFilterBar"></div>
+
+      <div class="spreadsheet-wrap">
+        <table class="spreadsheet-table" id="spreadsheetTable">
+          <thead id="spreadsheetHead"></thead>
+          <tbody id="spreadsheetBody"></tbody>
+        </table>
+      </div>
+
+      <div class="table-pagination">
+        <button class="small-button" id="tablePrevPage" type="button">Previous</button>
+        <span id="tablePageLabel">Page 1</span>
+        <button class="small-button" id="tableNextPage" type="button">Next</button>
+        <label class="table-page-size">
+          Rows
+          <select id="tablePageSize">
+            <option value="100">100</option>
+            <option value="250" selected>250</option>
+            <option value="500">500</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <div class="modal-backdrop is-hidden" id="columnPickerModal" aria-hidden="true">
+      <div class="modal-card" role="dialog" aria-labelledby="columnPickerTitle">
+        <div class="modal-head">
+          <h2 id="columnPickerTitle">Visible columns</h2>
+          <button class="small-button" type="button" data-close-modal="columnPickerModal">Close</button>
+        </div>
+        <div class="modal-checklist" id="columnPickerList"></div>
+        <div class="modal-actions">
+          <button class="small-button" id="columnPickerSelectAll" type="button">Select all</button>
+          <button class="small-button" id="columnPickerSelectNone" type="button">Select none</button>
+          <button class="primary-button" type="button" data-close-modal="columnPickerModal">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop is-hidden" id="exportColumnsModal" aria-hidden="true">
+      <div class="modal-card" role="dialog" aria-labelledby="exportColumnsTitle">
+        <div class="modal-head">
+          <h2 id="exportColumnsTitle">Export XLSX columns</h2>
+          <button class="small-button" type="button" data-close-modal="exportColumnsModal">Close</button>
+        </div>
+        <p class="modal-note">Exports the current table-filtered rows. Internal staff use only.</p>
+        <div class="modal-checklist" id="exportColumnsList"></div>
+        <div class="modal-actions">
+          <button class="small-button" id="exportColumnsSelectAll" type="button">Select all</button>
+          <button class="small-button" id="exportColumnsSelectNone" type="button">Select none</button>
+          <button class="primary-button" id="confirmExportXlsx" type="button">Download XLSX</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script src="https://js.arcgis.com/4.30/"></script>
     <script src="app.js"></script>
   </body>

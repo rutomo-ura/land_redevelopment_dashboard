@@ -1,9 +1,9 @@
 r"""Build the public web-app GeoJSON with property-use groups.
 
-The public bundle keeps parcel identifiers and screening fields, but omits owner
-names. It combines the already reviewed residential public layer with the
-broader vacant-land export so commercial, industrial, public/institutional, and
-other parcels can be filtered in the app.
+The internal staff bundle keeps parcel identifiers, screening fields, and owner
+names for spreadsheet review. It combines the already reviewed residential
+public layer with the broader vacant-land export so commercial, industrial,
+public/institutional, and other parcels can be filtered in the app.
 
 PLI hazard bands are joined from the public WPRDC Condemned and Dead-End
 Properties dataset (latest_inspection_score) on Allegheny parcel PIN.
@@ -38,6 +38,7 @@ OUTPUTS = [
 PUBLIC_FIELDS = [
     "par_pin",
     "parcel_label",
+    "propertyowner",
     "taxdesc",
     "usedesc",
     "use_group",
@@ -58,6 +59,8 @@ PUBLIC_FIELDS = [
     "pli_hazard_band",
     "tax_sale_vacant_lot_score",
     "vacant_lot_score_band",
+    "centroid_lat",
+    "centroid_lng",
 ]
 
 RESIDENTIAL_USES = {
@@ -417,6 +420,47 @@ def apply_tolemi_vacant_lot_score(
     properties["vacant_lot_score_band"] = vacant_lot_score_band(score)
 
 
+def geometry_centroid(geometry: dict[str, object] | None) -> tuple[float, float] | None:
+    if not geometry:
+        return None
+    coords = geometry.get("coordinates")
+    geom_type = geometry.get("type")
+    points: list[tuple[float, float]] = []
+
+    def collect(value: object) -> None:
+        if (
+            isinstance(value, list)
+            and len(value) >= 2
+            and isinstance(value[0], (int, float))
+            and isinstance(value[1], (int, float))
+        ):
+            points.append((float(value[0]), float(value[1])))
+            return
+        if isinstance(value, list):
+            for item in value:
+                collect(item)
+
+    if geom_type in {"Polygon", "MultiPolygon"} and coords is not None:
+        collect(coords)
+    if not points:
+        return None
+    return (
+        sum(point[0] for point in points) / len(points),
+        sum(point[1] for point in points) / len(points),
+    )
+
+
+def apply_centroid(properties: dict[str, object], geometry: dict[str, object] | None) -> None:
+    point = geometry_centroid(geometry)
+    if not point:
+        properties["centroid_lng"] = None
+        properties["centroid_lat"] = None
+        return
+    lng, lat = point
+    properties["centroid_lng"] = round(lng, 6)
+    properties["centroid_lat"] = round(lat, 6)
+
+
 def sanitize_feature(
     feature: dict[str, object],
     pli_by_pin: dict[str, int],
@@ -426,14 +470,17 @@ def sanitize_feature(
     properties["prior_band"] = properties.get("prior_band") or prior_band(properties.get("prior_years"))
     properties["use_group"] = use_group(properties.get("usedesc"))
     # Preserve ownership/control when rebuilding from the already-sanitized public bundle
-    # (owner names are omitted there). Recompute when owner/use fields are present.
+    # unless owner is present and groups should be recomputed.
     if properties.get("propertyowner") or not properties.get("ownership_group"):
         properties["ownership_group"] = ownership_group(properties)
     if properties.get("propertyowner") or not properties.get("control_path"):
         properties["control_path"] = control_path(properties, str(properties["ownership_group"]))
     properties["parcel_label"] = properties.get("parcel_label") or parcel_label(properties.get("par_pin"))
+    if properties.get("propertyowner") is not None:
+        properties["propertyowner"] = str(properties.get("propertyowner") or "").strip() or None
     apply_pli_hazard(properties, pli_by_pin)
     apply_tolemi_vacant_lot_score(properties, tolemi_by_pin)
+    apply_centroid(properties, feature.get("geometry") if isinstance(feature.get("geometry"), dict) else None)
 
     return {
         "type": "Feature",
