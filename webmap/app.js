@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709j";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709k";
 
 const signalModes = {
   tax: {
@@ -84,6 +84,7 @@ const TABLE_COLUMNS = [
   { key: "par_pin", label: "PIN", defaultVisible: true, exportDefault: true },
   { key: "parcel_label", label: "Parcel label", defaultVisible: true, exportDefault: true },
   { key: "propertyowner", label: "Owner", defaultVisible: true, exportDefault: true },
+  { key: "project_name", label: "EPP project", defaultVisible: true, exportDefault: true },
   { key: "use_group", label: "Use group", defaultVisible: true, exportDefault: true },
   { key: "usedesc", label: "Use desc", defaultVisible: true, exportDefault: true },
   { key: "prior_band", label: "Tax delinquency", defaultVisible: true, exportDefault: true },
@@ -110,6 +111,7 @@ const TABLE_FILTER_FIELDS = [
   { key: "ownership_group", label: "Ownership" },
   { key: "prior_band", label: "Tax delinquency" },
   { key: "vacant_lot_score_band", label: "Lot score" },
+  { key: "project_name", label: "EPP project" },
   { key: "pli_hazard_band", label: "PLI hazard" },
   { key: "city_neighborhood", label: "Neighborhood" },
   { key: "council_district_label", label: "Council" }
@@ -1180,6 +1182,7 @@ function tableRows() {
         props.par_pin,
         props.parcel_label,
         props.propertyowner,
+        props.project_name,
         props.city_neighborhood,
         props.usedesc
       ].map((value) => String(value || "").toLowerCase()).join(" ");
@@ -1502,6 +1505,7 @@ function buildPopupContent(event) {
       </dd>
       <dt>PIN</dt><dd>${escapeHtml(attrs.par_pin || "Not recorded")}</dd>
       <dt>Owner</dt><dd>${escapeHtml(attrs.propertyowner || "Not recorded")}</dd>
+      <dt>EPP project</dt><dd>${escapeHtml(attrs.project_name || "Not recorded")}</dd>
       <dt>Tax delinquency</dt><dd>${escapeHtml(formatTaxDelinquency(attrs))}</dd>
       <dt>Prior years</dt><dd>${escapeHtml(attrs.prior_years ?? "No known prior years")}</dd>
       <dt>Tax status</dt><dd>${escapeHtml(attrs.taxdesc || "Not recorded")}</dd>

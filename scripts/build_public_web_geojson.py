@@ -10,12 +10,16 @@ Properties dataset (latest_inspection_score) on Allegheny parcel PIN.
 
 Tolemi tax-sale vacant-lot scores are joined from the BuildingBlocks export
 (tax_sale_vacant_lot_score) for denser vacant-land prioritization coloring.
+
+EPP project names are joined from the published gis.epp_parcels_full mirror
+(project_name) on parcel PIN for spreadsheet and map popup review.
 """
 
 from __future__ import annotations
 
 import csv
 import json
+import urllib.parse
 import urllib.request
 from collections import Counter
 from pathlib import Path
@@ -30,6 +34,11 @@ WPRDC_CONDEMNED_URL = (
     "https://data.wprdc.org/datastore/dump/0a963f26-eb4b-4325-bbbc-3ddf6a871410"
 )
 TOLEMI_TAX_STATUS_CSV = REPO_ROOT / "exports" / "tolemi_building_tax_delinquency_status.csv"
+EPP_PROJECT_CACHE = REPO_ROOT / "exports" / "epp_project_names.csv"
+EPP_FEATURE_SERVICE_URL = (
+    "https://services1.arcgis.com/0DMNBNaacQNEfN4H/arcgis/rest/services/"
+    "gisdb_gis_epp_parcels_full/FeatureServer/0/query"
+)
 OUTPUTS = [
     REPO_ROOT / "docs" / "data" / "vacant_land_triage.geojson",
     REPO_ROOT / "webmap" / "data" / "vacant_land_triage.geojson",
@@ -39,6 +48,7 @@ PUBLIC_FIELDS = [
     "par_pin",
     "parcel_label",
     "propertyowner",
+    "project_name",
     "taxdesc",
     "usedesc",
     "use_group",
@@ -387,6 +397,85 @@ def load_tolemi_vacant_lot_scores(path: Path = TOLEMI_TAX_STATUS_CSV) -> dict[st
     return best
 
 
+def _clean_project_name(value: object) -> str | None:
+    text = str(value or "").strip()
+    if not text or text.lower() in {"none", "null", "nan"}:
+        return None
+    return text
+
+
+def fetch_epp_project_names(cache_path: Path = EPP_PROJECT_CACHE) -> dict[str, str]:
+    """Page the published EPP FeatureServer (gis.epp_parcels_full mirror) for project_name."""
+    by_pin: dict[str, str] = {}
+    offset = 0
+    page_size = 2000
+
+    while True:
+        params = {
+            "f": "json",
+            "where": "1=1",
+            "returnGeometry": "false",
+            "outFields": "par_pin,project_name",
+            "resultOffset": str(offset),
+            "resultRecordCount": str(page_size),
+            "orderByFields": "OBJECTID",
+        }
+        url = f"{EPP_FEATURE_SERVICE_URL}?{urllib.parse.urlencode(params)}"
+        with urllib.request.urlopen(url, timeout=120) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        if "error" in payload:
+            raise RuntimeError(payload["error"])
+
+        features = payload.get("features") or []
+        if not features:
+            break
+
+        for feature in features:
+            attrs = feature.get("attributes") or {}
+            pin = normalize_pin(attrs.get("par_pin"))
+            project_name = _clean_project_name(attrs.get("project_name"))
+            if not pin or not project_name:
+                continue
+            # Keep first non-empty project name; EPP should be 1:1 on PIN.
+            by_pin.setdefault(pin, project_name)
+
+        if not payload.get("exceededTransferLimit"):
+            break
+        offset += page_size
+
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    with cache_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["par_pin", "project_name"])
+        writer.writeheader()
+        for pin, project_name in sorted(by_pin.items()):
+            writer.writerow({"par_pin": pin, "project_name": project_name})
+    return by_pin
+
+
+def load_epp_project_names(
+    path: Path = EPP_PROJECT_CACHE,
+    *,
+    refresh: bool = False,
+) -> dict[str, str]:
+    if path.exists() and not refresh:
+        by_pin: dict[str, str] = {}
+        with path.open(encoding="utf-8-sig", newline="") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                pin = normalize_pin(row.get("par_pin") or row.get("parcel_id"))
+                project_name = _clean_project_name(row.get("project_name"))
+                if pin and project_name:
+                    by_pin.setdefault(pin, project_name)
+        if by_pin:
+            return by_pin
+
+    try:
+        return fetch_epp_project_names(path)
+    except Exception as exc:  # noqa: BLE001 - keep build usable offline
+        print(f"EPP project_name fetch failed ({exc}); project names will be blank")
+        return {}
+
+
 def load_features(path: Path) -> list[dict[str, object]]:
     data = json.loads(path.read_text(encoding="utf-8-sig"))
     return data.get("features", [])
@@ -418,6 +507,14 @@ def apply_tolemi_vacant_lot_score(
     score = tolemi_by_pin.get(pin)
     properties["tax_sale_vacant_lot_score"] = None if score is None else round(score, 2)
     properties["vacant_lot_score_band"] = vacant_lot_score_band(score)
+
+
+def apply_epp_project_name(
+    properties: dict[str, object],
+    epp_by_pin: dict[str, str],
+) -> None:
+    pin = normalize_pin(properties.get("par_pin"))
+    properties["project_name"] = epp_by_pin.get(pin) or None
 
 
 def geometry_centroid(geometry: dict[str, object] | None) -> tuple[float, float] | None:
@@ -465,6 +562,7 @@ def sanitize_feature(
     feature: dict[str, object],
     pli_by_pin: dict[str, int],
     tolemi_by_pin: dict[str, float],
+    epp_by_pin: dict[str, str],
 ) -> dict[str, object]:
     properties = dict(feature.get("properties") or {})
     properties["prior_band"] = properties.get("prior_band") or prior_band(properties.get("prior_years"))
@@ -480,6 +578,7 @@ def sanitize_feature(
         properties["propertyowner"] = str(properties.get("propertyowner") or "").strip() or None
     apply_pli_hazard(properties, pli_by_pin)
     apply_tolemi_vacant_lot_score(properties, tolemi_by_pin)
+    apply_epp_project_name(properties, epp_by_pin)
     apply_centroid(properties, feature.get("geometry") if isinstance(feature.get("geometry"), dict) else None)
 
     return {
@@ -506,6 +605,8 @@ def main() -> None:
     print(f"Loaded {len(pli_by_pin):,} WPRDC PINs with PLI hazard scores 1-4")
     tolemi_by_pin = load_tolemi_vacant_lot_scores()
     print(f"Loaded {len(tolemi_by_pin):,} Tolemi PINs with vacant-lot scores")
+    epp_by_pin = load_epp_project_names(refresh=True)
+    print(f"Loaded {len(epp_by_pin):,} EPP PINs with project_name")
 
     features_by_pin: dict[str, dict[str, object]] = {}
     excluded_count = 0
@@ -513,7 +614,7 @@ def main() -> None:
     for source in source_paths():
         print(f"Reading {source}")
         for feature in load_features(source):
-            sanitized = sanitize_feature(feature, pli_by_pin, tolemi_by_pin)
+            sanitized = sanitize_feature(feature, pli_by_pin, tolemi_by_pin, epp_by_pin)
             if not include_dashboard_feature(sanitized["properties"]):
                 excluded_count += 1
                 continue
@@ -547,6 +648,9 @@ def main() -> None:
         "Not scored",
     ]:
         print(f"  {band}: {lot_counts.get(band, 0):,}")
+
+    project_matched = sum(1 for item in features if item["properties"].get("project_name"))
+    print(f"EPP project_name matches in public bundle: {project_matched:,}")
 
     collection = {
         "type": "FeatureCollection",
