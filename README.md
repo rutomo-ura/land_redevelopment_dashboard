@@ -6,7 +6,7 @@ The Vacant Land Redevelopment Explorer is an interactive URA map for exploring P
 
 - Dashboard: <https://rutomo-ura.github.io/land_redevelopment_dashboard/>
 - Ownership view: <https://rutomo-ura.github.io/land_redevelopment_dashboard/ownership>
-- URA Maps item: <https://urap.maps.arcgis.com/home/item.html?id=3cd3519a816342b181443725f0d226d3#overview>
+- URA Maps item: <https://urap.maps.arcgis.com/home/item.html?id=012020b806e74ca6b59606d38f2e318a#overview>
 - Source web map: <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2>
 
 The URA Maps item is a separate `Document Link` to the GitHub Pages dashboard. It does not replace, modify, or depend on the LandCare monitoring app.
@@ -104,7 +104,7 @@ Commit the resulting public files under `docs/` only after QA passes. GitHub Pag
 
 - The current URA ArcGIS GeoJSON item is not publicly retrievable without authentication. The app therefore falls back to the public GitHub Pages bundle for anonymous visitors.
 - A hosted ArcGIS feature layer is not yet configured. Publishing one would provide the strongest ArcGIS-native, queryable source and should be placed in `parcelFeatureServiceUrl` after QA.
-- The ArcGIS Online Document Link item needs public sharing if the URA Maps entry itself should open for anonymous users; its item metadata and thumbnail are maintained separately from the web deployment.
+- The ArcGIS Online Document Link is public and points to the GitHub Pages dashboard; its item metadata and thumbnail are maintained separately from the web deployment.
 - Dashboard data remains a review aid, not an acquisition, legal, ownership, or redevelopment eligibility determination. Source records and local context must be confirmed before action.
 
 ## Repository Guide

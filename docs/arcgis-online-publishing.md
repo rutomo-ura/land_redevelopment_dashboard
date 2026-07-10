@@ -3,7 +3,7 @@
 This project should be available in two places, matching the LandCare monitoring pattern:
 
 - Public web app: <https://rutomo-ura.github.io/land_redevelopment_dashboard/>
-- URA Maps ArcGIS entry: <https://urap.maps.arcgis.com/home/item.html?id=3cd3519a816342b181443725f0d226d3>
+- URA Maps ArcGIS entry: <https://urap.maps.arcgis.com/home/item.html?id=012020b806e74ca6b59606d38f2e318a#overview>
 
 ## Current ArcGIS Content
 
@@ -12,17 +12,17 @@ This project should be available in two places, matching the LandCare monitoring
 | Portal | <https://urap.maps.arcgis.com> |
 | Source web map | <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2> |
 | Source web map item ID | `19022018e35b4b72a2d30cba2d56c8e2` |
-| URA Maps web app item | <https://urap.maps.arcgis.com/home/item.html?id=3cd3519a816342b181443725f0d226d3> |
-| URA Maps web app item ID | `3cd3519a816342b181443725f0d226d3` |
+| URA Maps web app item | <https://urap.maps.arcgis.com/home/item.html?id=012020b806e74ca6b59606d38f2e318a#overview> |
+| URA Maps web app item ID | `012020b806e74ca6b59606d38f2e318a` |
 | URA Maps target URL | <https://rutomo-ura.github.io/land_redevelopment_dashboard/> |
 | Parcel GeoJSON item | <https://urap.maps.arcgis.com/home/item.html?id=c013cc3b5df54a79ae51cccd2baa224f> |
 | Parcel data URL | <https://urap.maps.arcgis.com/sharing/rest/content/items/c013cc3b5df54a79ae51cccd2baa224f/data> |
 
 ## URA Maps App Shell
 
-Use the existing ArcGIS Online Document Link item `Vacant Land Map - Web App` as the public URA Maps entry for this dashboard. This is a separate vacant-land item and should not replace or edit the LandCare monitoring dashboard.
+Use the ArcGIS Online Document Link item `Vacant Land Redevelopment Explorer` as the public URA Maps entry for this dashboard. This is a separate vacant-land item and should not replace or edit the LandCare monitoring dashboard.
 
-1. In ArcGIS Online, open `Vacant Land Map - Web App`.
+1. In ArcGIS Online, open `Vacant Land Redevelopment Explorer`.
 2. In Settings, keep the Document Link URL set to `https://rutomo-ura.github.io/land_redevelopment_dashboard/`.
 3. Share the item to the intended audience. Use `Everyone` if the public GitHub Pages app should be reachable without a URA login.
 4. Keep `docs/data/layer_sources.json` pointed at this item through `arcgisAppItemId`, `arcgisAppUrl`, and `arcgisAppTargetUrl`.
