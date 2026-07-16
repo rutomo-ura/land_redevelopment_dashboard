@@ -232,6 +232,15 @@ const TABLE_FILTER_FIELDS = [
   { key: "council_district_label", label: "Council" }
 ];
 
+const PRIMARY_TABLE_FILTER_KEYS = new Set([
+  "use_group",
+  "vacant_flag",
+  "ownership_group",
+  "prior_band",
+  "vacant_lot_score_band",
+  "city_neighborhood"
+]);
+
 const VACANT_FILTER_ITEMS = [
   { value: "Vacant land", label: "Vacant land", color: "#e97827" },
   { value: "Vacant structure", label: "Vacant structure", color: "#c54036" },
@@ -360,6 +369,7 @@ const nodes = {
   tableClearCheckedButton: document.getElementById("tableClearCheckedButton"),
   tableCheckedCount: document.getElementById("tableCheckedCount"),
   tableFilterBar: document.getElementById("tableFilterBar"),
+  tableActiveFilterCount: document.getElementById("tableActiveFilterCount"),
   spreadsheetHead: document.getElementById("spreadsheetHead"),
   spreadsheetBody: document.getElementById("spreadsheetBody"),
   tablePrevPage: document.getElementById("tablePrevPage"),
@@ -1452,22 +1462,55 @@ function formatTableCell(key, value) {
 function renderTableFilterBar() {
   if (!nodes.tableFilterBar) return;
   const base = filteredFeatures();
-  nodes.tableFilterBar.innerHTML = TABLE_FILTER_FIELDS.map((filter) => {
+  const advancedWasOpen = nodes.tableFilterBar.querySelector(".advanced-filter-disclosure")?.open || false;
+  const renderFilter = (filter) => {
     const options = uniqueSortedValues(base, filter.key);
     const active = tableState.filters[filter.key];
     const selected = active.size === 1 ? [...active][0] : "";
     return `
       <label class="table-filter-group">
         <span>${escapeHtml(filter.label)}</span>
-        <select data-table-filter="${escapeHtml(filter.key)}">
-          <option value="">All</option>
+        <select data-table-filter="${escapeHtml(filter.key)}" aria-label="Filter by ${escapeHtml(filter.label)}">
+          <option value="">Any ${escapeHtml(filter.label.toLowerCase())}</option>
           ${options.map((value) => `
             <option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(value)}</option>
           `).join("")}
         </select>
       </label>
     `;
-  }).join("");
+  };
+
+  const primaryFilters = TABLE_FILTER_FIELDS.filter((filter) => PRIMARY_TABLE_FILTER_KEYS.has(filter.key));
+  const advancedFilters = TABLE_FILTER_FIELDS.filter((filter) => !PRIMARY_TABLE_FILTER_KEYS.has(filter.key));
+  const activeFilters = TABLE_FILTER_FIELDS.filter((filter) => tableState.filters[filter.key]?.size);
+  const activeAdvancedCount = advancedFilters.filter((filter) => tableState.filters[filter.key]?.size).length;
+  const keepAdvancedOpen = advancedWasOpen || activeAdvancedCount > 0;
+
+  nodes.tableFilterBar.innerHTML = `
+    <div class="table-filter-section">
+      <div class="table-filter-section-title">
+        <span>Common filters</span>
+        <span>Best place to start</span>
+      </div>
+      <div class="table-filter-grid">
+        ${primaryFilters.map(renderFilter).join("")}
+      </div>
+    </div>
+    <details class="advanced-filter-disclosure" ${keepAdvancedOpen ? "open" : ""}>
+      <summary>More filters <span>${activeAdvancedCount ? `${activeAdvancedCount} active` : `${advancedFilters.length} additional fields`}</span></summary>
+      <div class="table-filter-grid">
+        ${advancedFilters.map(renderFilter).join("")}
+      </div>
+    </details>
+  `;
+
+  if (nodes.tableActiveFilterCount) {
+    const count = activeFilters.length;
+    nodes.tableActiveFilterCount.textContent = count
+      ? `${count} table filter${count === 1 ? "" : "s"} applied`
+      : "No table filters applied";
+    nodes.tableActiveFilterCount.classList.toggle("has-filters", count > 0);
+  }
 
   nodes.tableFilterBar.querySelectorAll("select[data-table-filter]").forEach((select) => {
     select.addEventListener("change", () => {
@@ -1790,6 +1833,7 @@ function clearTableFilters() {
   TABLE_FILTER_FIELDS.forEach((filter) => {
     tableState.filters[filter.key] = new Set();
   });
+  nodes.tableFilterBar?.querySelector(".advanced-filter-disclosure")?.removeAttribute("open");
   tableState.search = "";
   tableState.page = 1;
   if (nodes.tableSearchInput) nodes.tableSearchInput.value = "";
@@ -2440,12 +2484,20 @@ if (nodes.tableExportButton) {
 }
 if (nodes.tableColumnsButton) {
   nodes.tableColumnsButton.addEventListener("click", () => {
+    closeTableMenus();
     renderChecklist(nodes.columnPickerList, tableState.visibleColumns);
     openModal(nodes.columnPickerModal);
   });
 }
+
+function closeTableMenus(except = null) {
+  document.querySelectorAll(".table-menu[open]").forEach((menu) => {
+    if (menu !== except) menu.removeAttribute("open");
+  });
+}
 if (nodes.tableDictionaryButton) {
   nodes.tableDictionaryButton.addEventListener("click", () => {
+    closeTableMenus();
     if (nodes.dataDictionarySearch) nodes.dataDictionarySearch.value = "";
     renderDataDictionary();
     openModal(nodes.dataDictionaryModal);
@@ -2457,11 +2509,27 @@ if (nodes.dataDictionarySearch) {
 }
 if (nodes.tableSourcesButton) {
   nodes.tableSourcesButton.addEventListener("click", () => {
+    closeTableMenus();
     renderSourceFreshness();
     openModal(nodes.sourceFreshnessModal);
   });
 }
 if (nodes.tableClearFilters) nodes.tableClearFilters.addEventListener("click", clearTableFilters);
+
+document.querySelectorAll(".table-menu").forEach((menu) => {
+  menu.addEventListener("toggle", () => {
+    if (menu.open) closeTableMenus(menu);
+  });
+});
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".table-menu")) closeTableMenus();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeTableMenus();
+});
+
 if (nodes.tableSearchInput) {
   nodes.tableSearchInput.addEventListener("input", () => {
     tableState.search = nodes.tableSearchInput.value || "";

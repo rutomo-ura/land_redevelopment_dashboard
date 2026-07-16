@@ -174,30 +174,68 @@
     <section class="table-view" id="tableView" aria-label="Parcel spreadsheet table">
       <div class="table-toolbar">
         <div class="table-toolbar-main">
-          <div>
+          <div class="table-workspace-heading">
+            <span class="table-eyebrow">Parcel workspace</span>
             <strong id="tableRowCount">0 parcels</strong>
-            <span class="table-toolbar-note">Starts from current map filters / custom list · Check rows → Show checked on map → Export PDF</span>
+            <span class="table-toolbar-note">Search, narrow the list, then select parcels for a map or PDF.</span>
           </div>
           <label class="table-search">
-            <span>Search</span>
-            <input id="tableSearchInput" type="search" placeholder="PIN, owner, EPP project, or neighborhood" />
+            <span>Search this list</span>
+            <input id="tableSearchInput" type="search" placeholder="Try a PIN, owner, project, or neighborhood" />
           </label>
         </div>
         <div class="table-toolbar-actions">
-          <span class="table-checked-count" id="tableCheckedCount">0 checked</span>
-          <button class="small-button" id="tableSelectPageButton" type="button">Check page</button>
-          <button class="small-button" id="tableClearCheckedButton" type="button" disabled>Clear checks</button>
-          <button class="primary-button" id="tableShowCheckedMapButton" type="button" disabled>Show checked on map</button>
-          <button class="primary-button" id="tableExportCheckedPdfButton" type="button" disabled>Export checked PDF</button>
-          <button class="small-button" id="tableClearFilters" type="button">Clear table filters</button>
-          <button class="small-button info-button" id="tableDictionaryButton" type="button" aria-haspopup="dialog"><span aria-hidden="true">i</span> Data dictionary</button>
-          <button class="small-button" id="tableSourcesButton" type="button" aria-haspopup="dialog">Sources &amp; freshness</button>
-          <button class="small-button" id="tableColumnsButton" type="button">Columns</button>
+          <div class="table-selection-actions" aria-label="Selected parcel actions">
+            <span class="table-action-label">Selected parcels</span>
+            <span class="table-checked-count" id="tableCheckedCount">0 checked</span>
+            <button class="small-button" id="tableSelectPageButton" type="button">Select this page</button>
+            <button class="small-button quiet-button" id="tableClearCheckedButton" type="button" disabled>Clear selection</button>
+            <button class="primary-button" id="tableShowCheckedMapButton" type="button" disabled>View on map</button>
+            <button class="small-button" id="tableExportCheckedPdfButton" type="button" disabled>Export selected PDF</button>
+          </div>
+          <div class="table-utility-actions" aria-label="Table utilities">
+            <details class="table-menu" id="tableHelpMenu">
+              <summary class="small-button info-button">Help &amp; data</summary>
+              <div class="table-menu-popover table-help-popover">
+                <p class="table-menu-intro">New to the dataset? Start here before interpreting a field or acting on a record.</p>
+                <button class="table-menu-item" id="tableDictionaryButton" type="button" aria-haspopup="dialog">
+                  <strong>Understand the columns</strong>
+                  <span>Plain-language definitions and the source for every field.</span>
+                </button>
+                <button class="table-menu-item" id="tableSourcesButton" type="button" aria-haspopup="dialog">
+                  <strong>Check data freshness</strong>
+                  <span>See each source and when its current snapshot was updated.</span>
+                </button>
+              </div>
+            </details>
+            <details class="table-menu" id="tableOptionsMenu">
+              <summary class="small-button">Table options</summary>
+              <div class="table-menu-popover compact-menu-popover">
+                <button class="table-menu-item" id="tableColumnsButton" type="button">
+                  <strong>Choose visible columns</strong>
+                  <span>Show only the fields useful for your review.</span>
+                </button>
+              </div>
+            </details>
+          </div>
           <button class="primary-button" id="tableExportButton" type="button">Export XLSX</button>
         </div>
       </div>
 
-      <div class="table-filter-bar" id="tableFilterBar"></div>
+      <section class="table-filter-panel" aria-labelledby="tableFilterTitle">
+        <div class="table-filter-heading">
+          <div>
+            <span class="table-eyebrow">Step 1</span>
+            <h2 id="tableFilterTitle">Narrow the parcel list</h2>
+            <p>Start with the common filters. Open “More filters” only when you need a specific program or source field.</p>
+          </div>
+          <div class="table-filter-status">
+            <span id="tableActiveFilterCount">No table filters applied</span>
+            <button class="small-button quiet-button" id="tableClearFilters" type="button">Reset filters</button>
+          </div>
+        </div>
+        <div class="table-filter-bar" id="tableFilterBar"></div>
+      </section>
 
       <div class="spreadsheet-wrap">
         <table class="spreadsheet-table" id="spreadsheetTable">
@@ -240,14 +278,15 @@
       <div class="modal-card wide-modal" role="dialog" aria-modal="true" aria-labelledby="dataDictionaryTitle">
         <div class="modal-head">
           <div>
-            <h2 id="dataDictionaryTitle">Data dictionary</h2>
-            <p>Definitions and lineage for every selectable parcel-table column.</p>
+            <span class="modal-eyebrow">Data guide</span>
+            <h2 id="dataDictionaryTitle">Understand the table columns</h2>
+            <p>Use this guide when a label or value is unfamiliar. Each row explains what the field means and where it came from.</p>
           </div>
           <button class="small-button" type="button" data-close-modal="dataDictionaryModal">Close</button>
         </div>
         <label class="dictionary-search">
-          <span>Search columns</span>
-          <input id="dataDictionarySearch" type="search" placeholder="Column, description, or source" />
+          <span>Find a field</span>
+          <input id="dataDictionarySearch" type="search" placeholder="Search a column name, meaning, or source" />
         </label>
         <div class="dictionary-table-wrap">
           <table class="dictionary-table">
@@ -266,8 +305,9 @@
       <div class="modal-card source-modal" role="dialog" aria-modal="true" aria-labelledby="sourceFreshnessTitle">
         <div class="modal-head">
           <div>
-            <h2 id="sourceFreshnessTitle">Sources &amp; freshness</h2>
-            <p>Latest source snapshot included in this published parcel bundle.</p>
+            <span class="modal-eyebrow">Data guide</span>
+            <h2 id="sourceFreshnessTitle">Check data freshness</h2>
+            <p>These dates show the source snapshots included in the dashboard you are viewing.</p>
           </div>
           <button class="small-button" type="button" data-close-modal="sourceFreshnessModal">Close</button>
         </div>
