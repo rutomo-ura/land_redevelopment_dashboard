@@ -11,6 +11,15 @@ The Vacant Land Redevelopment Explorer is an interactive URA map for exploring P
 
 The URA Maps item is a separate `Document Link` to the GitHub Pages dashboard. It does not replace, modify, or depend on the LandCare monitoring app.
 
+## Start Here
+
+| Need | Read this |
+| --- | --- |
+| Launch the dashboard from URA Maps | [ArcGIS Online publishing notes](docs/arcgis-online-publishing.md) |
+| Operate, refresh, and hand off the released product | [v1.0 operational handover](docs/v1.0-operational-handover.md) |
+| Verify the current public data release | [Latest ownership QA](docs/latest_ownership_qa.md) |
+| Understand sources, transformations, and fallbacks | [Architecture and data flow](docs/landcare-webapp-patterns-for-vacant-land.md) |
+
 ## Current Product State
 
 The deployed dashboard currently provides:

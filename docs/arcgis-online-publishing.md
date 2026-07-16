@@ -28,7 +28,17 @@ Use the ArcGIS Online Document Link item `Vacant Land Redevelopment Explorer` as
 4. Keep `docs/data/layer_sources.json` pointed at this item through `arcgisAppItemId`, `arcgisAppUrl`, and `arcgisAppTargetUrl`.
 5. Keep the source web map URL in `webmapUrl` so staff can still open the underlying ArcGIS Map Viewer item.
 
-The app header's `URA Maps` button opens the ArcGIS-hosted vacant-land entry. If that URL is removed from config, it falls back to the source web map.
+The deployed dashboard is intentionally the embedded experience. The ArcGIS Online Document Link is the URA Maps entry point, while the dashboard itself loads the configured ArcGIS parcel item when it is publicly accessible and otherwise uses the reviewed public bundle. No outbound URA Maps button is required in the app shell.
+
+## Launch Gate
+
+Before announcing a release, verify all three public paths in an incognito browser:
+
+1. The GitHub Pages dashboard URL loads without an ArcGIS sign-in prompt.
+2. The URA Maps Document Link item opens the same dashboard URL.
+3. The dashboard's parcel layer, filters, Table view, and one PDF/XLSX export work from that URL.
+
+If the Document Link URL changes, update `arcgisAppTargetUrl` in both `docs/data/layer_sources.json` and `webmap/data/layer_sources.json` in the same release.
 
 ## Optional Hosted Feature Layer
 

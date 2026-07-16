@@ -1,5 +1,5 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
-const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260709p";
+const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260710";
 
 const signalModes = {
   tax: {
