@@ -701,6 +701,8 @@ def load_epp_attributes(
         print(f"Loaded EPP attributes from Postgres ({len(by_pin):,} PINs)")
         return by_pin
     except Exception as pg_exc:  # noqa: BLE001
+        if os.environ.get("REQUIRE_POSTGRES_EPP") == "1":
+            raise RuntimeError(f"Required Postgres EPP refresh failed: {pg_exc}") from pg_exc
         print(f"Postgres EPP load failed ({pg_exc}); trying FeatureServer fallback")
 
     try:

@@ -1,5 +1,6 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
 const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260710";
+const REFRESH_MANIFEST_URL = "data/refresh_manifest.json";
 
 const signalModes = {
   tax: {
@@ -150,6 +151,7 @@ const DATA_SOURCES = [
   { key: "boundaries", label: "WPRDC City neighborhoods and 2022 Council districts", lastUpdated: "July 16, 2026" },
   { key: "derived", label: "Dashboard build pipeline", lastUpdated: "July 16, 2026" }
 ];
+let dataSources = DATA_SOURCES.map((source) => ({ ...source }));
 
 const TABLE_COLUMN_DETAILS = {
   par_pin: ["Canonical 16-character Allegheny County parcel identifier.", "vacant"],
@@ -1713,10 +1715,33 @@ function renderChecklist(container, selectedSet) {
   });
 }
 
+function formatSourceDate(value) {
+  if (!value) return "Not available";
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  }).format(date);
+}
+
+async function loadRefreshManifest() {
+  const response = await fetch(`${REFRESH_MANIFEST_URL}?v=${Date.now()}`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Refresh manifest failed with ${response.status}`);
+  const manifest = await response.json();
+  if (!Array.isArray(manifest.sources)) throw new Error("Refresh manifest has no sources array");
+  dataSources = manifest.sources.map((source) => ({
+    key: source.key,
+    label: source.label,
+    lastUpdated: formatSourceDate(source.lastUpdated)
+  }));
+}
+
 function renderDataDictionary(query = "") {
   if (!nodes.dataDictionaryBody) return;
   const normalizedQuery = query.trim().toLowerCase();
-  const sourceLabels = new Map(DATA_SOURCES.map((source) => [source.key, source.label]));
+  const sourceLabels = new Map(dataSources.map((source) => [source.key, source.label]));
   const matchingColumns = TABLE_COLUMNS.filter((column) => {
     const [description = "", sourceKey = "derived"] = TABLE_COLUMN_DETAILS[column.key] || [];
     const haystack = `${column.key} ${column.label} ${description} ${sourceLabels.get(sourceKey) || ""}`.toLowerCase();
@@ -1736,7 +1761,7 @@ function renderDataDictionary(query = "") {
 
 function renderSourceFreshness() {
   if (!nodes.sourceFreshnessBody) return;
-  nodes.sourceFreshnessBody.innerHTML = DATA_SOURCES.map((source) => `<tr>
+  nodes.sourceFreshnessBody.innerHTML = dataSources.map((source) => `<tr>
     <td>${escapeHtml(source.label)}</td>
     <td><time>${escapeHtml(source.lastUpdated)}</time></td>
   </tr>`).join("");
@@ -2516,6 +2541,9 @@ require([
     try {
       setMapLoadingProgress(16, "Reading layer sources...");
       layerSources = await loadLayerSources();
+      await loadRefreshManifest().catch((error) => {
+        console.warn("Refresh manifest unavailable; using bundled fallback dates.", error);
+      });
       let map = null;
 
       try {

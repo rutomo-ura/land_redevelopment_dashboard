@@ -17,6 +17,7 @@ The URA Maps dashboard is the single ArcGIS front door and embeds the GitHub Pag
 | --- | --- |
 | Launch the dashboard from URA Maps | [ArcGIS Online publishing notes](docs/arcgis-online-publishing.md) |
 | Operate, refresh, and hand off the released product | [v1.0 operational handover](docs/v1.0-operational-handover.md) |
+| Configure the 7:30 AM secured-VM refresh | [Daily refresh VM operations](docs/daily-refresh-vm-operations.md) |
 | Verify the current public data release | [Latest ownership QA](docs/latest_ownership_qa.md) |
 | Understand sources, transformations, and fallbacks | [Architecture and data flow](docs/landcare-webapp-patterns-for-vacant-land.md) |
 
@@ -85,11 +86,16 @@ Ownership QA is independent of the public GeoJSON: the Ownership Overview refere
 
 ## Refresh And Publish
 
+Production uses the secured Windows GIS VM at 7:30 AM Eastern. The scheduled pipeline refreshes PostgreSQL, Tolemi, EPP, PLI, and boundary inputs; rebuilds both app data copies; writes `refresh_manifest.json`; runs fail-closed QA; and pushes changed data to `main`. See [Daily refresh VM operations](docs/daily-refresh-vm-operations.md) for setup, verification, logs, and recovery.
+
 Run the data refresh from approved internal access, then rebuild and validate before publishing the staff-review files:
 
 ```powershell
 # Read-only internal extract
 powershell -ExecutionPolicy Bypass -File scripts\export_postgres_snapshot.ps1
+
+# Current Tolemi screening extract
+node scripts\export_tolemi_building_tax_status.mjs
 
 # Public-safe bundle and boundary summaries
 python scripts\build_public_web_geojson.py
@@ -98,6 +104,11 @@ python scripts\enrich_public_boundaries.py
 # Ownership reference refresh and QA
 python scripts\update_ownership_reference_summary.py
 python scripts\validate_ownership_refresh.py
+
+# Browser freshness manifest and daily fail-closed QA
+python scripts\write_refresh_manifest.py --qa-status RUNNING
+python scripts\validate_daily_refresh.py --expected-date (Get-Date -Format yyyy-MM-dd)
+python scripts\write_refresh_manifest.py --qa-status PASS
 ```
 
 Commit the resulting public files under `docs/` only after QA passes. GitHub Pages deploys from `main` and serves the dashboard directly; the ArcGIS Online Dashboard embeds that same app. Publishing details are in [docs/arcgis-online-publishing.md](docs/arcgis-online-publishing.md).

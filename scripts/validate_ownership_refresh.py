@@ -178,7 +178,7 @@ def main() -> None:
         f"| Missing geometries | {len(missing_geometry):,} |",
         "",
         "Ownership reference source: Ownership Overview layer, grouped by `inventory_type`.",
-        "Dashboard ownership groups are validated separately against the 29,783-parcel dashboard subset.",
+        f"Dashboard ownership groups are validated separately against the {len(features):,}-parcel dashboard subset.",
     ]
     QA_MARKDOWN.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))
