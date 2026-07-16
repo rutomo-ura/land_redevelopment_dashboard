@@ -116,6 +116,26 @@ const TABLE_COLUMNS = [
   { key: "pli_hazard_band", label: "PLI band", defaultVisible: false, exportDefault: true },
   { key: "pli_hazard_score", label: "PLI score", defaultVisible: false, exportDefault: true },
   { key: "condemned_flag", label: "Condemned flag", defaultVisible: false, exportDefault: true },
+  { key: "condemned_score_band", label: "Condemned score band", defaultVisible: false, exportDefault: true },
+  { key: "tax_delinquent_3yr", label: "Tax delinquent 3+ years", defaultVisible: true, exportDefault: true },
+  { key: "tax_prior_years_canonical", label: "Canonical tax years", defaultVisible: true, exportDefault: true },
+  { key: "tax_owed_band", label: "Tax owed band", defaultVisible: true, exportDefault: true },
+  { key: "tax_source", label: "Tax source", defaultVisible: false, exportDefault: true },
+  { key: "tax_address", label: "Tax parcel address", defaultVisible: false, exportDefault: true },
+  { key: "tax_ward", label: "Tax ward", defaultVisible: false, exportDefault: true },
+  { key: "tolemi_address", label: "Tolemi address", defaultVisible: false, exportDefault: true },
+  { key: "tolemi_tax_status", label: "Tolemi tax status", defaultVisible: false, exportDefault: true },
+  { key: "tolemi_property_type", label: "Tolemi property type", defaultVisible: false, exportDefault: true },
+  { key: "tolemi_usps_vacant", label: "USPS vacant", defaultVisible: true, exportDefault: true },
+  { key: "tolemi_open_code_violations", label: "Open code violation date(s)", defaultVisible: true, exportDefault: true },
+  { key: "tolemi_condemnation", label: "Tolemi condemnation", defaultVisible: false, exportDefault: true },
+  { key: "tolemi_structure_score", label: "Structure score", defaultVisible: false, exportDefault: true },
+  { key: "pli_latest_inspection_result", label: "PLI inspection result", defaultVisible: false, exportDefault: true },
+  { key: "pli_inspection_status", label: "PLI inspection status", defaultVisible: false, exportDefault: true },
+  { key: "pli_record_number", label: "PLI record", defaultVisible: false, exportDefault: true },
+  { key: "pli_create_date", label: "PLI created", defaultVisible: false, exportDefault: true },
+  { key: "pli_ward", label: "PLI ward", defaultVisible: false, exportDefault: true },
+  { key: "source_coverage", label: "Joined sources", defaultVisible: false, exportDefault: true },
   { key: "council_district", label: "Council ID", defaultVisible: false, exportDefault: false },
   { key: "centroid_lat", label: "Lat", defaultVisible: false, exportDefault: true },
   { key: "centroid_lng", label: "Lon", defaultVisible: false, exportDefault: true }
@@ -126,7 +146,10 @@ const TABLE_FILTER_FIELDS = [
   { key: "vacant_flag", label: "Vacant" },
   { key: "ownership_group", label: "Ownership" },
   { key: "prior_band", label: "Tax delinquency" },
+  { key: "tax_delinquent_3yr", label: "Canonical 3+ year tax" },
+  { key: "tax_owed_band", label: "Tax owed band" },
   { key: "vacant_lot_score_band", label: "Lot score" },
+  { key: "tolemi_usps_vacant", label: "USPS vacant" },
   { key: "project_name", label: "EPP project" },
   { key: "epp_inventory_type", label: "EPP inventory" },
   { key: "epp_current_status", label: "EPP status" },
@@ -864,7 +887,7 @@ function sourceFreshnessLabel(source) {
   if (source === "feature-service") return "URA ArcGIS feature layer";
   if (source === "arcgis-geojson-url") return "URA ArcGIS GeoJSON URL";
   if (source === "arcgis-geojson-item") return "URA ArcGIS GeoJSON item";
-  return "Public GeoJSON bundle";
+  return "Staff-review GeoJSON bundle";
 }
 
 function parcelLayerConfig() {
@@ -880,7 +903,7 @@ function parcelLayerConfig() {
 
 async function loadFeaturesFromGeoJsonUrl(url) {
   const response = await fetch(url);
-  if (!response.ok) throw new Error(`Public GeoJSON failed with ${response.status}`);
+  if (!response.ok) throw new Error(`Staff-review GeoJSON failed with ${response.status}`);
   const contentType = response.headers.get("content-type") || "";
   if (contentType.includes("text/html")) {
     throw new Error("GeoJSON request returned an HTML page");
@@ -1314,7 +1337,12 @@ function tableRows() {
         props.epp_current_status,
         props.epp_inventory_type,
         props.city_neighborhood,
-        props.usedesc
+        props.usedesc,
+        props.tax_address,
+        props.tolemi_address,
+        props.tolemi_tax_status,
+        props.tax_owed_band,
+        props.source_coverage
       ].map((value) => String(value || "").toLowerCase()).join(" ");
       return haystack.includes(search);
     });
@@ -2076,13 +2104,13 @@ async function loadPublicData() {
   } catch (error) {
     console.error(error);
     hideMapLoadingOverlay();
-    setStatus("Parcel data did not load. Check the URA ArcGIS layer or public bundle path.", false);
+    setStatus("Parcel data did not load. Check the URA ArcGIS layer or staff-review bundle path.", false);
   }
 }
 
 async function createParcelLayerFromArcGIS(GeoJSONLayer, FeatureLayer) {
-  // Public GitHub Pages must not hit private org ArcGIS items (login modal + missing fields).
-  // Prefer a public FeatureServer when configured; otherwise use the local public GeoJSON bundle.
+  // GitHub Pages must not hit private org ArcGIS items (login modal + missing fields).
+  // Prefer an approved FeatureServer when configured; otherwise use the local staff-review bundle.
   if (layerSources.parcelFeatureServiceUrl) {
     try {
       const layer = new FeatureLayer({
@@ -2092,7 +2120,7 @@ async function createParcelLayerFromArcGIS(GeoJSONLayer, FeatureLayer) {
       await layer.load();
       return { layer, source: "feature-service" };
     } catch (error) {
-      console.warn("URA ArcGIS feature service unavailable; using public GeoJSON bundle.", error);
+      console.warn("URA ArcGIS feature service unavailable; using staff-review GeoJSON bundle.", error);
     }
   }
 
@@ -2372,8 +2400,8 @@ require([
         parcelLayer = arcgisResult.layer;
         parcelDataSource = arcgisResult.source;
       } catch (error) {
-        console.warn("URA ArcGIS parcel layer unavailable; using public GeoJSON fallback.", error);
-        setMapLoadingProgress(28, "Using public GeoJSON parcel bundle...");
+        console.warn("URA ArcGIS parcel layer unavailable; using staff-review GeoJSON fallback.", error);
+        setMapLoadingProgress(28, "Using staff-review GeoJSON parcel bundle...");
         const fallbackResult = await createParcelLayerFallback(GeoJSONLayer);
         parcelLayer = fallbackResult.layer;
         parcelDataSource = fallbackResult.source;

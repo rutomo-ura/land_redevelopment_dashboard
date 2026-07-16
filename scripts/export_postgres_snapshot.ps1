@@ -35,6 +35,7 @@ $candidatesCsv = Join-Path $OutDir "high_priority_candidates.csv"
 $candidatesJson = Join-Path $OutDir "high_priority_candidates.json"
 $broadGeoJson = Join-Path $OutDir "vacant_land_broad.geojson"
 $focusedGeoJson = Join-Path $OutDir "vacant_land_focused.geojson"
+$tax3yrCsv = Join-Path $OutDir "live_postgres_tax_delinquency_3yr.csv"
 
 $summaryQuery = @"
 COPY (
@@ -141,6 +142,28 @@ COPY (
 ) TO STDOUT
 "@
 
+$tax3yrQuery = @"
+COPY (
+    SELECT
+        pin,
+        address,
+        billing_city,
+        current_delq,
+        current_delq_pi,
+        prior_years,
+        prior_delq_tax,
+        prior_delq_pi,
+        total_owed,
+        state_description,
+        neighborhood,
+        council_district,
+        ward,
+        longitude,
+        latitude
+    FROM gis.city_tax_delinquent_3yr
+) TO STDOUT WITH CSV HEADER
+"@
+
 $psqlArgs = @(
     "-h", $HostName,
     "-p", $Port,
@@ -157,9 +180,11 @@ $psqlArgs = @(
 & $resolvedPsql @psqlArgs -c "BEGIN READ ONLY;" -c $candidatesJsonQuery -c "ROLLBACK;" | Set-Content -LiteralPath $candidatesJson -Encoding UTF8
 & $resolvedPsql @psqlArgs -c "BEGIN READ ONLY;" -c $broadGeoJsonQuery -c "ROLLBACK;" | Set-Content -LiteralPath $broadGeoJson -Encoding UTF8
 & $resolvedPsql @psqlArgs -c "BEGIN READ ONLY;" -c $focusedGeoJsonQuery -c "ROLLBACK;" | Set-Content -LiteralPath $focusedGeoJson -Encoding UTF8
+& $resolvedPsql @psqlArgs -c "BEGIN READ ONLY;" -c $tax3yrQuery -c "ROLLBACK;" | Set-Content -LiteralPath $tax3yrCsv -Encoding UTF8
 
 Write-Output "Wrote $summaryCsv"
 Write-Output "Wrote $candidatesCsv"
 Write-Output "Wrote $candidatesJson"
 Write-Output "Wrote $broadGeoJson"
 Write-Output "Wrote $focusedGeoJson"
+Write-Output "Wrote $tax3yrCsv"

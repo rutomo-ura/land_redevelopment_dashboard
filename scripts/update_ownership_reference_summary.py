@@ -71,14 +71,14 @@ def build_summary(rows: list[dict[str, object]]) -> dict[str, object]:
         )
 
     return {
-        "source": {
+        "referenceSource": {
             "name": "Ownership Overview",
             "serviceUrl": OWNERSHIP_SERVICE_URL.replace("/query", ""),
             "groupField": "inventory_type",
             "areaField": "parcel_sqft",
         },
-        "groups": groups,
-        "kpis": {
+        "referenceGroups": groups,
+        "referenceKpis": {
             "referencePublicParcels": sum(group["value"] for group in groups),
             "referencePublicAcres": round(sum(group["acres"] for group in groups), 2),
         },
@@ -86,8 +86,12 @@ def build_summary(rows: list[dict[str, object]]) -> dict[str, object]:
 
 
 def main() -> None:
-    summary = build_summary(fetch_reference_rows())
-    text = json.dumps(summary, ensure_ascii=False, indent=2)
+    reference_summary = build_summary(fetch_reference_rows())
+    existing = {}
+    if OUTPUTS[0].exists():
+        existing = json.loads(OUTPUTS[0].read_text(encoding="utf-8-sig"))
+    existing.update(reference_summary)
+    text = json.dumps(existing, ensure_ascii=False, indent=2)
 
     for output in OUTPUTS:
         output.parent.mkdir(parents=True, exist_ok=True)

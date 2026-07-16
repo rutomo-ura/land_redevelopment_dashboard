@@ -35,14 +35,17 @@ The generated files are in the ignored `exports/` folder:
 | Taxable vacant land parcels | 18,977 |
 | Broad fallback GeoJSON features | 24,228 |
 | Focused high-priority GeoJSON features | 3,358 |
-| Public multi-use web GeoJSON features | 30,259 |
+| Dashboard-eligible web GeoJSON features | 29,783 |
 | Default residential web view features | 20,663 |
 | Commercial web view features | 1,561 |
-| Public/control grouped parcels: City, URA, PLB, HACP | 9,596 |
-| Public or institutional grouped parcels | 10,562 |
-| Private/other parcels with 3+ prior years | 5,264 |
-| Parcels assigned to City neighborhoods | 30,051 |
-| Parcels assigned to Council districts | 30,061 |
+| Public/control grouped parcels: City, URA, PLB, HACP | 9,583 |
+| Public or institutional grouped parcels | 10,518 |
+| Canonical PostgreSQL 3+ year tax matches | 5,322 |
+| Tolemi parcel matches | 5,292 |
+| EPP parcel matches | 14,763 |
+| PLI parcel matches | 533 |
+| Parcels assigned to City neighborhoods | 29,599 |
+| Parcels assigned to Council districts | 29,606 |
 
 ## Prior-Year Bands For Broad Fallback Layer
 
@@ -107,6 +110,6 @@ python scripts\build_public_web_geojson.py
 python scripts\enrich_public_boundaries.py
 ```
 
-The first script omits owner names, derives `prior_band`, and assigns a public `use_group` from county assessment `usedesc`. The second script downloads authoritative WPRDC City neighborhood and 2022 Council district boundaries, assigns parcels by geometry centroid, and writes `boundary_analysis.json` for the native charts.
+The first script builds the internal staff-review parcel bundle, derives `prior_band`, assigns `use_group`, joins canonical three-plus-year tax records from PostgreSQL, adds selected Tolemi and PLI screening context, and joins EPP attributes. Exact delinquency balances are intentionally reduced to bands because PostgreSQL and Tolemi totals do not reconcile. The second script downloads authoritative WPRDC City neighborhood and 2022 Council district boundaries, assigns parcels by geometry centroid, and writes `boundary_analysis.json` for the native charts.
 
-The public bundle now also includes `ownership_group` and `control_path`. These are public-safe groupings derived from internal owner fields and assessment descriptions; raw owner names remain excluded from GitHub Pages data.
+The staff-review bundle includes `ownership_group`, `control_path`, and raw owner names. GitHub Pages has no application authentication, so protected operational fields and detailed account-level records must remain outside this deployment until it moves behind access control.

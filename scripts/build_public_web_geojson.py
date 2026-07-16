@@ -36,6 +36,7 @@ WPRDC_CONDEMNED_URL = (
     "https://data.wprdc.org/datastore/dump/0a963f26-eb4b-4325-bbbc-3ddf6a871410"
 )
 TOLEMI_TAX_STATUS_CSV = REPO_ROOT / "exports" / "tolemi_building_tax_delinquency_status.csv"
+POSTGRES_TAX_3YR_CSV = REPO_ROOT / "exports" / "live_postgres_tax_delinquency_3yr.csv"
 EPP_ATTR_CACHE = REPO_ROOT / "exports" / "epp_parcel_attributes.csv"
 EPP_FEATURE_SERVICE_URL = (
     "https://services1.arcgis.com/0DMNBNaacQNEfN4H/arcgis/rest/services/"
@@ -107,6 +108,25 @@ PUBLIC_FIELDS = [
     "pli_hazard_band",
     "tax_sale_vacant_lot_score",
     "vacant_lot_score_band",
+    "tax_delinquent_3yr",
+    "tax_prior_years_canonical",
+    "tax_owed_band",
+    "tax_source",
+    "tax_address",
+    "tax_ward",
+    "tolemi_address",
+    "tolemi_tax_status",
+    "tolemi_property_type",
+    "tolemi_usps_vacant",
+    "tolemi_open_code_violations",
+    "tolemi_condemnation",
+    "tolemi_structure_score",
+    "pli_latest_inspection_result",
+    "pli_inspection_status",
+    "pli_record_number",
+    "pli_create_date",
+    "pli_ward",
+    "source_coverage",
     "centroid_lat",
     "centroid_lng",
 ]
@@ -390,6 +410,28 @@ def parse_tolemi_score(raw: object) -> float | None:
         return None
 
 
+def parse_integer(raw: object) -> int | None:
+    number = parse_tolemi_score(raw)
+    return None if number is None else int(number)
+
+
+def tax_owed_band(raw: object) -> str:
+    amount = parse_tolemi_score(raw)
+    if amount is None:
+        return "Not in 3+ year extract"
+    if amount < 1_000:
+        return "Under $1k"
+    if amount < 5_000:
+        return "$1k-$5k"
+    if amount < 10_000:
+        return "$5k-$10k"
+    if amount < 25_000:
+        return "$10k-$25k"
+    if amount < 50_000:
+        return "$25k-$50k"
+    return "$50k+"
+
+
 def ensure_wprdc_condemned_csv(path: Path = WPRDC_CONDEMNED_CACHE) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and path.stat().st_size > 0:
@@ -400,39 +442,73 @@ def ensure_wprdc_condemned_csv(path: Path = WPRDC_CONDEMNED_CACHE) -> Path:
     return path
 
 
-def load_pli_hazard_by_pin(path: Path | None = None) -> dict[str, int]:
+def load_pli_hazard_by_pin(path: Path | None = None) -> dict[str, dict[str, object]]:
     csv_path = ensure_wprdc_condemned_csv(path or WPRDC_CONDEMNED_CACHE)
-    best: dict[str, int] = {}
+    best: dict[str, dict[str, object]] = {}
     with csv_path.open(encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
             pin = normalize_pin(row.get("parcel_id"))
             score = normalize_pli_score(row.get("latest_inspection_score"))
-            if not pin or score is None:
+            if not pin:
                 continue
             previous = best.get(pin)
-            if previous is None or score > previous:
-                best[pin] = score
+            previous_score = previous.get("score") if previous else None
+            if previous is None or (score or -1) > (previous_score or -1):
+                best[pin] = {
+                    "score": score,
+                    "latest_inspection_result": _clean_text(row.get("latest_inspection_result")),
+                    "inspection_status": _clean_text(row.get("inspection_status")),
+                    "record_number": _clean_text(row.get("record_number")),
+                    "create_date": _clean_text(row.get("create_date")),
+                    "ward": _clean_text(row.get("ward")),
+                }
     return best
 
 
-def load_tolemi_vacant_lot_scores(path: Path = TOLEMI_TAX_STATUS_CSV) -> dict[str, float]:
+def load_tolemi_vacant_lot_scores(path: Path = TOLEMI_TAX_STATUS_CSV) -> dict[str, dict[str, object]]:
     if not path.exists():
-        print(f"Tolemi export not found at {path}; vacant-lot scores will be Not scored")
+        print(f"Tolemi export not found at {path}; Tolemi fields will be blank")
         return {}
 
-    best: dict[str, float] = {}
+    best: dict[str, dict[str, object]] = {}
     with path.open(encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
             pin = normalize_tolemi_pin(row.get("parcel_id"))
-            score = parse_tolemi_score(row.get("tax_sale_vacant_lot_score"))
-            if not pin or score is None:
+            if not pin:
                 continue
-            previous = best.get(pin)
-            if previous is None or score > previous:
-                best[pin] = score
+            best[pin] = {
+                "address": _clean_text(row.get("address") or row.get("street_address")),
+                "tax_status": _clean_text(row.get("tax_delinquency_status")),
+                "property_type": _clean_text(row.get("property_type")),
+                "usps_vacant": _clean_text(row.get("usps_is_flagged_vacant")),
+                "open_code_violations": _clean_text(row.get("code_violations_open")),
+                "condemnation": _clean_text(row.get("condemnation_yes_no") or row.get("condemnations_by_type")),
+                "structure_score": parse_tolemi_score(row.get("tax_sale_structure_score")),
+                "vacant_lot_score": parse_tolemi_score(row.get("tax_sale_vacant_lot_score")),
+            }
     return best
+
+
+def load_postgres_tax_3yr(path: Path = POSTGRES_TAX_3YR_CSV) -> dict[str, dict[str, object]]:
+    if not path.exists():
+        print(f"PostgreSQL 3+ year tax export not found at {path}; canonical tax fields will be blank")
+        return {}
+    by_pin: dict[str, dict[str, object]] = {}
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            pin = normalize_pin(row.get("pin"))
+            if not pin:
+                continue
+            by_pin[pin] = {
+                "prior_years": parse_integer(row.get("prior_years")),
+                "owed_band": tax_owed_band(row.get("total_owed")),
+                "address": _clean_text(row.get("address")),
+                "ward": _clean_text(row.get("ward")),
+            }
+    return by_pin
 
 
 def _clean_text(value: object) -> str | None:
@@ -641,9 +717,10 @@ def load_features(path: Path) -> list[dict[str, object]]:
     return data.get("features", [])
 
 
-def apply_pli_hazard(properties: dict[str, object], pli_by_pin: dict[str, int]) -> None:
+def apply_pli_hazard(properties: dict[str, object], pli_by_pin: dict[str, dict[str, object]]) -> None:
     pin = normalize_pin(properties.get("par_pin"))
-    score = pli_by_pin.get(pin)
+    attrs = pli_by_pin.get(pin) or {}
+    score = attrs.get("score")
     band = pli_hazard_band(score)
     properties["pli_hazard_score"] = score
     properties["pli_hazard_band"] = band
@@ -657,16 +734,51 @@ def apply_pli_hazard(properties: dict[str, object], pli_by_pin: dict[str, int]) 
         properties["condemned_flag"] = "Not flagged"
         properties["condemned_status"] = "Not flagged"
         properties["condemned_score_band"] = "Not scored"
+    properties["pli_latest_inspection_result"] = attrs.get("latest_inspection_result")
+    properties["pli_inspection_status"] = attrs.get("inspection_status")
+    properties["pli_record_number"] = attrs.get("record_number")
+    properties["pli_create_date"] = attrs.get("create_date")
+    properties["pli_ward"] = attrs.get("ward")
 
 
 def apply_tolemi_vacant_lot_score(
     properties: dict[str, object],
-    tolemi_by_pin: dict[str, float],
+    tolemi_by_pin: dict[str, dict[str, object]],
 ) -> None:
     pin = normalize_pin(properties.get("par_pin"))
-    score = tolemi_by_pin.get(pin)
+    attrs = tolemi_by_pin.get(pin) or {}
+    score = attrs.get("vacant_lot_score") if attrs else parse_tolemi_score(
+        properties.get("tax_sale_vacant_lot_score")
+    )
     properties["tax_sale_vacant_lot_score"] = None if score is None else round(score, 2)
     properties["vacant_lot_score_band"] = vacant_lot_score_band(score)
+    if attrs:
+        properties["tolemi_address"] = attrs.get("address")
+        properties["tolemi_tax_status"] = attrs.get("tax_status")
+        properties["tolemi_property_type"] = attrs.get("property_type")
+        properties["tolemi_usps_vacant"] = attrs.get("usps_vacant")
+        properties["tolemi_open_code_violations"] = attrs.get("open_code_violations")
+        properties["tolemi_condemnation"] = attrs.get("condemnation")
+        properties["tolemi_structure_score"] = attrs.get("structure_score")
+
+
+def apply_postgres_tax_3yr(
+    properties: dict[str, object],
+    postgres_tax_by_pin: dict[str, dict[str, object]],
+) -> None:
+    pin = normalize_pin(properties.get("par_pin"))
+    attrs = postgres_tax_by_pin.get(pin) or {}
+    if not postgres_tax_by_pin:
+        properties.setdefault("tax_delinquent_3yr", "No")
+        properties.setdefault("tax_owed_band", "Not in 3+ year extract")
+        return
+    matched = bool(attrs)
+    properties["tax_delinquent_3yr"] = "Yes" if matched else "No"
+    properties["tax_prior_years_canonical"] = attrs.get("prior_years")
+    properties["tax_owed_band"] = attrs.get("owed_band") or "Not in 3+ year extract"
+    properties["tax_source"] = "PostgreSQL gis.city_tax_delinquent_3yr" if matched else None
+    properties["tax_address"] = attrs.get("address")
+    properties["tax_ward"] = attrs.get("ward")
 
 
 def apply_epp_attributes(
@@ -738,8 +850,9 @@ def apply_centroid(properties: dict[str, object], geometry: dict[str, object] | 
 
 def sanitize_feature(
     feature: dict[str, object],
-    pli_by_pin: dict[str, int],
-    tolemi_by_pin: dict[str, float],
+    pli_by_pin: dict[str, dict[str, object]],
+    tolemi_by_pin: dict[str, dict[str, object]],
+    postgres_tax_by_pin: dict[str, dict[str, object]],
     epp_by_pin: dict[str, dict[str, object]],
 ) -> dict[str, object]:
     properties = dict(feature.get("properties") or {})
@@ -756,7 +869,19 @@ def sanitize_feature(
         properties["propertyowner"] = str(properties.get("propertyowner") or "").strip() or None
     apply_pli_hazard(properties, pli_by_pin)
     apply_tolemi_vacant_lot_score(properties, tolemi_by_pin)
+    apply_postgres_tax_3yr(properties, postgres_tax_by_pin)
     apply_epp_attributes(properties, epp_by_pin)
+    coverage = ["Vacant land"]
+    pin = normalize_pin(properties.get("par_pin"))
+    if pin in postgres_tax_by_pin:
+        coverage.append("PostgreSQL tax")
+    if pin in tolemi_by_pin:
+        coverage.append("Tolemi")
+    if pin in pli_by_pin:
+        coverage.append("PLI")
+    if pin in epp_by_pin:
+        coverage.append("EPP")
+    properties["source_coverage"] = " | ".join(coverage)
     apply_centroid(properties, feature.get("geometry") if isinstance(feature.get("geometry"), dict) else None)
 
     return {
@@ -780,19 +905,45 @@ def source_paths() -> list[Path]:
 
 def main() -> None:
     pli_by_pin = load_pli_hazard_by_pin()
-    print(f"Loaded {len(pli_by_pin):,} WPRDC PINs with PLI hazard scores 1-4")
+    print(f"Loaded {len(pli_by_pin):,} WPRDC PLI parcel records")
     tolemi_by_pin = load_tolemi_vacant_lot_scores()
-    print(f"Loaded {len(tolemi_by_pin):,} Tolemi PINs with vacant-lot scores")
+    print(f"Loaded {len(tolemi_by_pin):,} Tolemi parcel records")
+    postgres_tax_by_pin = load_postgres_tax_3yr()
+    print(f"Loaded {len(postgres_tax_by_pin):,} PostgreSQL 3+ year tax records")
     epp_by_pin = load_epp_attributes(refresh=True)
     print(f"Loaded {len(epp_by_pin):,} EPP PINs with parcel attributes")
 
     features_by_pin: dict[str, dict[str, object]] = {}
+    existing_by_pin: dict[str, dict[str, object]] = {}
+    if EXISTING_PUBLIC_SOURCE.exists():
+        existing_by_pin = {
+            normalize_pin((feature.get("properties") or {}).get("par_pin")): feature
+            for feature in load_features(EXISTING_PUBLIC_SOURCE)
+            if normalize_pin((feature.get("properties") or {}).get("par_pin"))
+        }
     excluded_count = 0
 
     for source in source_paths():
         print(f"Reading {source}")
         for feature in load_features(source):
-            sanitized = sanitize_feature(feature, pli_by_pin, tolemi_by_pin, epp_by_pin)
+            source_properties = dict(feature.get("properties") or {})
+            source_pin = normalize_pin(source_properties.get("par_pin"))
+            existing = existing_by_pin.get(source_pin) or {}
+            if existing:
+                merged_properties = dict(existing.get("properties") or {})
+                merged_properties.update(source_properties)
+                feature = {
+                    **feature,
+                    "geometry": feature.get("geometry") or existing.get("geometry"),
+                    "properties": merged_properties,
+                }
+            sanitized = sanitize_feature(
+                feature,
+                pli_by_pin,
+                tolemi_by_pin,
+                postgres_tax_by_pin,
+                epp_by_pin,
+            )
             if not include_dashboard_feature(sanitized["properties"]):
                 excluded_count += 1
                 continue

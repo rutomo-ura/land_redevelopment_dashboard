@@ -30,9 +30,9 @@ The deployed dashboard currently provides:
 - Property-use and vacant-status filters, bookmarks, summary metrics, charts, a review table, custom lists, and PDF/XLSX exports.
 - Ownership colors aligned to the requested convention: City Owned is yellow, URA Owned is cyan blue, and PLB Owned is dark green.
 - Tax bands shown as `11+ prior years` red, `5-10 prior years` orange, and `1-4 prior years` yellow.
-- A public-safe fallback data bundle for when an ArcGIS service is unavailable.
+- A staff-review fallback data bundle for when an ArcGIS service is unavailable.
 
-The public multi-use bundle contains 30,259 features. After dashboard exclusions for infrastructure, rail, and right-of-way polygons, the map presents 29,783 eligible parcels. The default residential view contains 20,663 parcels, including 3,603 with 11+ prior years, 843 with 5-10 prior years, and 1,962 with 1-4 prior years.
+The dashboard bundle presents 29,783 eligible parcels after excluding 476 infrastructure, rail, and right-of-way polygons. The default residential view contains 20,663 parcels, including 3,603 with 11+ prior years, 843 with 5-10 prior years, and 1,962 with 1-4 prior years.
 
 ## How It Works
 
@@ -50,7 +50,7 @@ flowchart LR
 
     D1["Hosted feature layer, when configured"] --> L["Parcel source loader"]
     D2["URA ArcGIS GeoJSON URL or portal item"] --> L
-    D3["Public GitHub Pages GeoJSON fallback"] --> L
+    D3["Staff-review GitHub Pages GeoJSON fallback"] --> L
     L --> UI
 ```
 
@@ -66,7 +66,7 @@ flowchart TD
     T["Tolemi vacant-lot score"] --> B["build_public_web_geojson.py"]
     O["Ownership Overview reference layer"] --> OQ["update_ownership_reference_summary.py\nvalidate_ownership_refresh.py"]
     E --> B
-    B --> G["Public multi-use GeoJSON\nprior band | use group | ownership group | control path"]
+    B --> G["Staff-review parcel GeoJSON\nPostgreSQL tax | Tolemi | EPP | PLI | boundaries"]
     G --> X["enrich_public_boundaries.py"]
     X --> C["Neighborhood and Council summaries\nchart-ready JSON"]
     OQ --> QA["Ownership QA\nIDs | geometries | reference counts"]
@@ -77,13 +77,15 @@ flowchart TD
     PUB --> AG["ArcGIS GeoJSON item / optional hosted feature layer"]
 ```
 
-The public web layer is intentionally derived rather than copied directly from the internal database. The build removes raw owner names and connection details, derives `prior_band` from tax history, maps county assessment `usedesc` values to a public `use_group`, and stores public-safe `ownership_group` and `control_path` values. Centroid joins against authoritative WPRDC City neighborhood and 2022 Council boundaries supply the chart summaries.
+The current GitHub Pages layer is an internal staff-review bundle. It excludes database connection details and unreconciled parcel-level dollar balances, but it includes owner names, EPP workflow attributes, canonical three-plus-year PostgreSQL tax signals, Tolemi screening fields, PLI inspection context, and public-safe ownership/control groupings. Centroid joins against authoritative WPRDC City neighborhood and 2022 Council boundaries supply the chart summaries. Because GitHub Pages does not provide application authentication, do not treat this URL as a confidential internal system; use an authenticated host before adding protected operational data.
+
+The table exposes every nonredundant field in the current 61-field parcel bundle through its visible-column and XLSX export pickers. See [the table data coverage audit](docs/table-data-coverage.md) for source coverage, freshness, exclusions, and remaining gaps.
 
 Ownership QA is independent of the public GeoJSON: the Ownership Overview reference layer is the source of truth for ownership summary checks. The latest recorded validation passed with zero ownership-summary mismatches, duplicate parcel IDs, missing parcel IDs, or missing geometries. See [docs/latest_ownership_qa.md](docs/latest_ownership_qa.md) and [docs/latest_export_summary.md](docs/latest_export_summary.md) for the recorded output.
 
 ## Refresh And Publish
 
-Run the data refresh from approved internal access, then rebuild and validate before publishing public files:
+Run the data refresh from approved internal access, then rebuild and validate before publishing the staff-review files:
 
 ```powershell
 # Read-only internal extract
