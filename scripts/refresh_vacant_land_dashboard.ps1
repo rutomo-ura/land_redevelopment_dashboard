@@ -79,6 +79,19 @@ try {
       [Environment]::SetEnvironmentVariable($name.Trim(), $value.Trim(), "Process")
     }
   }
+  # Reuse the established LandCare VM credential names without duplicating secrets.
+  $postgresAliases = @{
+    PGHOST = "PG_HOST"
+    PGDATABASE = "PG_DB"
+    PGUSER = "PG_USER"
+    PGPASSWORD = "PG_PASSWORD"
+  }
+  foreach ($targetName in $postgresAliases.Keys) {
+    if (-not [Environment]::GetEnvironmentVariable($targetName, "Process")) {
+      $aliasValue = [Environment]::GetEnvironmentVariable($postgresAliases[$targetName], "Process")
+      if ($aliasValue) { [Environment]::SetEnvironmentVariable($targetName, $aliasValue, "Process") }
+    }
+  }
   $env:REQUIRE_POSTGRES_EPP = "1"
 
   $trackedDataChanges = git status --porcelain --untracked-files=no -- $publishPaths
