@@ -1,7 +1,6 @@
 param(
   [string]$RepoRoot = "C:\srv\GISWebApp\land_redevelopment_dashboard",
   [string]$Python = "$RepoRoot\.venv\Scripts\python.exe",
-  [string]$Node = "C:\Program Files\nodejs\node.exe",
   [string]$Psql = "C:\Program Files\PostgreSQL\17\bin\psql.exe",
   [string]$LogRoot = "C:\srv\logs\land-redevelopment-dashboard",
   [string]$Branch = "main",
@@ -25,6 +24,7 @@ $commitBefore = ""
 $commitAfter = ""
 $publishedDataChanges = $false
 $parcelCount = $null
+$publishPaths = @("docs/data", "webmap/data", "docs/latest_ownership_qa.md")
 
 function Get-GitCommit {
   $commit = git rev-parse HEAD 2>$null
@@ -81,8 +81,8 @@ try {
   }
   $env:REQUIRE_POSTGRES_EPP = "1"
 
-  $trackedChanges = git status --porcelain --untracked-files=no
-  if ($trackedChanges) { throw "Tracked working tree is not clean; refusing automated refresh." }
+  $trackedDataChanges = git status --porcelain --untracked-files=no -- $publishPaths
+  if ($trackedDataChanges) { throw "Published data paths are not clean; refusing automated refresh." }
 
   Invoke-Checked "Pull latest repository changes" { git pull --ff-only origin $Branch }
 
@@ -91,9 +91,6 @@ try {
     if ($launcher) { & py -3 -m venv (Join-Path $RepoRoot ".venv") }
     else { & python -m venv (Join-Path $RepoRoot ".venv") }
     if ($LASTEXITCODE -ne 0) { throw "Python virtual environment creation failed." }
-  }
-  if (-not (Test-Path -LiteralPath $Node)) {
-    $Node = (Get-Command node -ErrorAction Stop).Source
   }
   if (-not (Test-Path -LiteralPath $Psql)) {
     $Psql = (Get-Command psql -ErrorAction Stop).Source
@@ -106,7 +103,7 @@ try {
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\export_postgres_snapshot.ps1 -PsqlPath $Psql -OutDir exports
   }
   Invoke-Checked "Export current Tolemi screening data" {
-    & $Node scripts\export_tolemi_building_tax_status.mjs
+    & $Python scripts\export_tolemi_building_tax_status.py
   }
 
   $pliCache = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot "exports\wprdc_condemned_properties.csv"))
@@ -128,9 +125,18 @@ try {
   $parcelCount = $manifest.parcelCount
 
   Invoke-Checked "Stage validated dashboard data" {
-    git add docs/data webmap/data docs/latest_ownership_qa.md
+    git add -- $publishPaths
   }
-  git diff --cached --quiet -- docs/data webmap/data docs/latest_ownership_qa.md
+  $stagedPaths = @(git diff --cached --name-only)
+  $unexpectedPaths = @($stagedPaths | Where-Object {
+    $_ -ne "docs/latest_ownership_qa.md" -and
+    -not $_.StartsWith("docs/data/") -and
+    -not $_.StartsWith("webmap/data/")
+  })
+  if ($unexpectedPaths.Count -gt 0) {
+    throw "Refusing to publish staged files outside the data allowlist: $($unexpectedPaths -join ', ')"
+  }
+  git diff --cached --quiet -- $publishPaths
   if ($LASTEXITCODE -eq 0) {
     $commitAfter = Get-GitCommit
     $outcome = "unchanged"
@@ -142,7 +148,7 @@ try {
 
   $stamp = Get-Date -Format "yyyy-MM-dd HH:mm"
   Invoke-Checked "Commit refreshed dashboard data" {
-    git commit -m "Refresh vacant land dashboard data $stamp" -- docs/data webmap/data docs/latest_ownership_qa.md
+    git commit -m "Refresh vacant land dashboard data $stamp" -- $publishPaths
   }
   Invoke-Checked "Push refreshed dashboard data" { git push origin $Branch }
   $publishedDataChanges = $true

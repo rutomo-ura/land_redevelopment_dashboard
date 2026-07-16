@@ -26,7 +26,7 @@ The browser's **Sources & freshness** panel reads `data/refresh_manifest.json` w
 ## One-time VM setup
 
 1. Clone the repository to `C:\srv\GISWebApp\land_redevelopment_dashboard`.
-2. Install Git, Python 3, Node.js, and the PostgreSQL client.
+2. Install Git, Python 3, and the PostgreSQL client. Node.js is not required.
 3. Copy `.env.example` to `.env` and fill in the approved read-only PostgreSQL account.
 4. Ensure the scheduled-task service account has repository read/write access and can reach PostgreSQL, Tolemi, WPRDC, ArcGIS REST, and GitHub.
 5. Run one manual refresh, review its status, then register the task.
@@ -72,7 +72,7 @@ A healthy run has `status: success`, `outcome: published` or `unchanged`, a same
 | Daily status history | `C:\srv\logs\land-redevelopment-dashboard\daily-refresh-status-YYYY-MM-DD.json` |
 | Full transcript | `C:\srv\logs\land-redevelopment-dashboard\daily-refresh-YYYY-MM-DD.log` |
 
-The pipeline fails closed. It does not publish if the tracked worktree is dirty, PostgreSQL/EPP refresh fails, a required source artifact is missing or more than two days old, docs/webmap outputs differ, the parcel count falls below 20,000, parcel PINs duplicate, geometries are missing, ownership QA fails, or Git push fails.
+The VM is a data worker, not an application runner. It never starts or builds the frontend. The pipeline fails closed if a published data path is already dirty, PostgreSQL/EPP refresh fails, a required source artifact is missing or more than two days old, docs/webmap outputs differ, the parcel count falls below 20,000, parcel PINs duplicate, geometries are missing, ownership QA fails, or Git push fails. Its Git publish allowlist is limited to `docs/data`, `webmap/data`, and `docs/latest_ownership_qa.md`; staged app or documentation changes stop publication.
 
 ## GitHub Actions role
 

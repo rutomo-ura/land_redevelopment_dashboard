@@ -94,8 +94,8 @@ Run the data refresh from approved internal access, then rebuild and validate be
 # Read-only internal extract
 powershell -ExecutionPolicy Bypass -File scripts\export_postgres_snapshot.ps1
 
-# Current Tolemi screening extract
-node scripts\export_tolemi_building_tax_status.mjs
+# Current Tolemi screening extract (Python-only VM worker)
+python scripts\export_tolemi_building_tax_status.py
 
 # Public-safe bundle and boundary summaries
 python scripts\build_public_web_geojson.py
