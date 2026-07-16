@@ -141,6 +141,77 @@ const TABLE_COLUMNS = [
   { key: "centroid_lng", label: "Lon", defaultVisible: false, exportDefault: true }
 ];
 
+const DATA_SOURCES = [
+  { key: "vacant", label: "Vacant-land parcel and assessment bundle", lastUpdated: "July 16, 2026" },
+  { key: "epp", label: "PostgreSQL gis.epp_parcels_full", lastUpdated: "July 16, 2026" },
+  { key: "tax", label: "PostgreSQL gis.city_tax_delinquent_3yr", lastUpdated: "June 17, 2026" },
+  { key: "tolemi", label: "Tolemi BuildingBlocks export", lastUpdated: "June 17, 2026" },
+  { key: "pli", label: "WPRDC Condemned and Dead-End Properties", lastUpdated: "July 9, 2026" },
+  { key: "boundaries", label: "WPRDC City neighborhoods and 2022 Council districts", lastUpdated: "July 16, 2026" },
+  { key: "derived", label: "Dashboard build pipeline", lastUpdated: "July 16, 2026" }
+];
+
+const TABLE_COLUMN_DETAILS = {
+  par_pin: ["Canonical 16-character Allegheny County parcel identifier.", "vacant"],
+  parcel_label: ["Human-readable parcel label or address supplied with the vacant-land record.", "vacant"],
+  propertyowner: ["Property owner name for internal staff review; confirm before action.", "vacant"],
+  project_name: ["Name of the EPP project associated with the parcel.", "epp"],
+  vacant_flag: ["Vacancy classification derived from parcel and structure context.", "epp"],
+  epp_property_class: ["Property class recorded in EPP.", "epp"],
+  epp_inventory_type: ["Inventory category recorded in EPP.", "epp"],
+  epp_current_status: ["Current workflow or disposition status recorded in EPP.", "epp"],
+  use_group: ["Dashboard property-use grouping derived from the assessment use description.", "derived"],
+  usedesc: ["County assessment property-use description.", "vacant"],
+  prior_band: ["Screening band derived from prior_years; not final tax-sale eligibility.", "derived"],
+  prior_years: ["Prior tax years recorded on the vacant-land source record.", "vacant"],
+  taxdesc: ["Tax-status description on the vacant-land source record.", "vacant"],
+  ownership_group: ["Public-safe owner classification used for dashboard screening.", "derived"],
+  control_path: ["Screening category describing the parcel's likely ownership or control route.", "derived"],
+  vacant_lot_score_band: ["Dashboard band derived from the Tolemi tax-sale vacant-lot score.", "derived"],
+  tax_sale_vacant_lot_score: ["Tolemi screening score for tax-sale vacant-lot review.", "tolemi"],
+  city_neighborhood: ["City neighborhood assigned by parcel-centroid spatial join.", "boundaries"],
+  council_district_label: ["Display label for the 2022 Council district assigned by parcel centroid.", "boundaries"],
+  par_calcacreag: ["Calculated parcel acreage.", "vacant"],
+  fairmarkettotal: ["Total county-assessed fair market value.", "vacant"],
+  epp_neighborhood: ["Neighborhood label stored in EPP; may differ from the boundary-derived neighborhood.", "epp"],
+  epp_council_district: ["Council district value stored in EPP.", "epp"],
+  epp_census_tract: ["Census tract value stored in EPP.", "epp"],
+  epp_parcel_number: ["Parcel-number field stored in EPP.", "epp"],
+  epp_mapblocklot: ["Map/block/lot identifier stored in EPP.", "epp"],
+  epp_parcel_sqft: ["Parcel area in square feet stored in EPP.", "epp"],
+  epp_zoned_as: ["Zoning label stored in EPP; verify against the current zoning source.", "epp"],
+  epp_tags: ["Tags attached to the parcel in EPP.", "epp"],
+  epp_property_maint_mgr_name: ["Property maintenance manager name stored in EPP.", "epp"],
+  epp_published: ["EPP published indicator.", "epp"],
+  epp_mod_dt: ["Most recent modification timestamp stored in EPP.", "epp"],
+  pli_hazard_band: ["Dashboard hazard band derived from the retained PLI record.", "derived"],
+  pli_hazard_score: ["Screening score derived from PLI condemned-property context.", "derived"],
+  condemned_flag: ["Indicates a matched condemned-property record.", "pli"],
+  condemned_score_band: ["Dashboard band summarizing condemned-property screening severity.", "derived"],
+  tax_delinquent_3yr: ["Canonical flag for a parcel matched to the PostgreSQL 3+ year delinquency extract.", "tax"],
+  tax_prior_years_canonical: ["Prior-year count from the canonical PostgreSQL delinquency extract.", "tax"],
+  tax_owed_band: ["Banded amount owed from PostgreSQL; exact balances are intentionally excluded.", "tax"],
+  tax_source: ["Source label for the canonical tax match.", "tax"],
+  tax_address: ["Parcel address from the canonical tax extract.", "tax"],
+  tax_ward: ["Ward recorded in the canonical tax extract.", "tax"],
+  tolemi_address: ["Parcel address in the Tolemi export.", "tolemi"],
+  tolemi_tax_status: ["Tax-status label in the Tolemi export.", "tolemi"],
+  tolemi_property_type: ["Tolemi property type, such as land or structure.", "tolemi"],
+  tolemi_usps_vacant: ["USPS vacancy indicator supplied through Tolemi.", "tolemi"],
+  tolemi_open_code_violations: ["Date or dates of open code violations supplied through Tolemi.", "tolemi"],
+  tolemi_condemnation: ["Condemnation context supplied through Tolemi.", "tolemi"],
+  tolemi_structure_score: ["Structure screening score supplied through Tolemi.", "tolemi"],
+  pli_latest_inspection_result: ["Latest retained PLI inspection result.", "pli"],
+  pli_inspection_status: ["Status of the retained PLI inspection record.", "pli"],
+  pli_record_number: ["Record identifier for the retained PLI match.", "pli"],
+  pli_create_date: ["Creation date of the retained PLI record.", "pli"],
+  pli_ward: ["Ward recorded on the retained PLI record.", "pli"],
+  source_coverage: ["Pipe-separated list of source datasets matched to the parcel during the build.", "derived"],
+  council_district: ["Numeric identifier for the 2022 Council district assigned by parcel centroid.", "boundaries"],
+  centroid_lat: ["Latitude of the parcel geometry centroid used by the dashboard.", "derived"],
+  centroid_lng: ["Longitude of the parcel geometry centroid used by the dashboard.", "derived"]
+};
+
 const TABLE_FILTER_FIELDS = [
   { key: "use_group", label: "Property Use" },
   { key: "vacant_flag", label: "Vacant" },
@@ -278,6 +349,8 @@ const nodes = {
   tableSearchInput: document.getElementById("tableSearchInput"),
   tableClearFilters: document.getElementById("tableClearFilters"),
   tableColumnsButton: document.getElementById("tableColumnsButton"),
+  tableDictionaryButton: document.getElementById("tableDictionaryButton"),
+  tableSourcesButton: document.getElementById("tableSourcesButton"),
   tableExportButton: document.getElementById("tableExportButton"),
   tableShowCheckedMapButton: document.getElementById("tableShowCheckedMapButton"),
   tableExportCheckedPdfButton: document.getElementById("tableExportCheckedPdfButton"),
@@ -295,6 +368,11 @@ const nodes = {
   columnPickerList: document.getElementById("columnPickerList"),
   columnPickerSelectAll: document.getElementById("columnPickerSelectAll"),
   columnPickerSelectNone: document.getElementById("columnPickerSelectNone"),
+  dataDictionaryModal: document.getElementById("dataDictionaryModal"),
+  dataDictionarySearch: document.getElementById("dataDictionarySearch"),
+  dataDictionaryBody: document.getElementById("dataDictionaryBody"),
+  sourceFreshnessModal: document.getElementById("sourceFreshnessModal"),
+  sourceFreshnessBody: document.getElementById("sourceFreshnessBody"),
   exportColumnsModal: document.getElementById("exportColumnsModal"),
   exportColumnsList: document.getElementById("exportColumnsList"),
   exportColumnsSelectAll: document.getElementById("exportColumnsSelectAll"),
@@ -1635,6 +1713,35 @@ function renderChecklist(container, selectedSet) {
   });
 }
 
+function renderDataDictionary(query = "") {
+  if (!nodes.dataDictionaryBody) return;
+  const normalizedQuery = query.trim().toLowerCase();
+  const sourceLabels = new Map(DATA_SOURCES.map((source) => [source.key, source.label]));
+  const matchingColumns = TABLE_COLUMNS.filter((column) => {
+    const [description = "", sourceKey = "derived"] = TABLE_COLUMN_DETAILS[column.key] || [];
+    const haystack = `${column.key} ${column.label} ${description} ${sourceLabels.get(sourceKey) || ""}`.toLowerCase();
+    return !normalizedQuery || haystack.includes(normalizedQuery);
+  });
+  nodes.dataDictionaryBody.innerHTML = matchingColumns.length
+    ? matchingColumns.map((column) => {
+      const [description = "Dashboard parcel field.", sourceKey = "derived"] = TABLE_COLUMN_DETAILS[column.key] || [];
+      return `<tr>
+        <td><strong>${escapeHtml(column.label)}</strong><code>${escapeHtml(column.key)}</code></td>
+        <td>${escapeHtml(description)}</td>
+        <td>${escapeHtml(sourceLabels.get(sourceKey) || "Dashboard build pipeline")}</td>
+      </tr>`;
+    }).join("")
+    : `<tr><td colspan="3" class="dictionary-empty">No matching columns.</td></tr>`;
+}
+
+function renderSourceFreshness() {
+  if (!nodes.sourceFreshnessBody) return;
+  nodes.sourceFreshnessBody.innerHTML = DATA_SOURCES.map((source) => `<tr>
+    <td>${escapeHtml(source.label)}</td>
+    <td><time>${escapeHtml(source.lastUpdated)}</time></td>
+  </tr>`).join("");
+}
+
 function openModal(modal) {
   if (!modal) return;
   modal.classList.remove("is-hidden");
@@ -2310,6 +2417,23 @@ if (nodes.tableColumnsButton) {
   nodes.tableColumnsButton.addEventListener("click", () => {
     renderChecklist(nodes.columnPickerList, tableState.visibleColumns);
     openModal(nodes.columnPickerModal);
+  });
+}
+if (nodes.tableDictionaryButton) {
+  nodes.tableDictionaryButton.addEventListener("click", () => {
+    if (nodes.dataDictionarySearch) nodes.dataDictionarySearch.value = "";
+    renderDataDictionary();
+    openModal(nodes.dataDictionaryModal);
+    nodes.dataDictionarySearch?.focus();
+  });
+}
+if (nodes.dataDictionarySearch) {
+  nodes.dataDictionarySearch.addEventListener("input", () => renderDataDictionary(nodes.dataDictionarySearch.value));
+}
+if (nodes.tableSourcesButton) {
+  nodes.tableSourcesButton.addEventListener("click", () => {
+    renderSourceFreshness();
+    openModal(nodes.sourceFreshnessModal);
   });
 }
 if (nodes.tableClearFilters) nodes.tableClearFilters.addEventListener("click", clearTableFilters);

@@ -4,6 +4,8 @@
 
 The table is now comprehensive for the fields in the current dashboard parcel bundle: one row per parcel PIN, 29,783 unique rows, 61 joined fields, and no duplicate or missing parcel IDs or geometries. The column picker and XLSX export expose every nonredundant bundle field; only three implementation flags (`is_vacant`, `is_condemned`, and the duplicate `condemned_status`) remain outside the picker because their labeled equivalents are already present.
 
+The table toolbar includes a searchable **Data dictionary** with the displayed column name, raw field key, description, and source for all 58 selectable columns. **Sources & freshness** lists the extract or cache date included in the published build; these dates do not claim that the upstream systems are live or current beyond that snapshot.
+
 It is not a complete copy of every raw source column. The build intentionally selects decision-useful fields, excludes infrastructure/right-of-way parcels, omits database connection details, and converts unreconciled delinquency dollar totals into bands.
 
 ## Joined Source Coverage

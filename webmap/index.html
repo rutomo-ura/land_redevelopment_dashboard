@@ -190,6 +190,8 @@
           <button class="primary-button" id="tableShowCheckedMapButton" type="button" disabled>Show checked on map</button>
           <button class="primary-button" id="tableExportCheckedPdfButton" type="button" disabled>Export checked PDF</button>
           <button class="small-button" id="tableClearFilters" type="button">Clear table filters</button>
+          <button class="small-button info-button" id="tableDictionaryButton" type="button" aria-haspopup="dialog"><span aria-hidden="true">i</span> Data dictionary</button>
+          <button class="small-button" id="tableSourcesButton" type="button" aria-haspopup="dialog">Sources &amp; freshness</button>
           <button class="small-button" id="tableColumnsButton" type="button">Columns</button>
           <button class="primary-button" id="tableExportButton" type="button">Export XLSX</button>
         </div>
@@ -230,6 +232,54 @@
           <button class="small-button" id="columnPickerSelectAll" type="button">Select all</button>
           <button class="small-button" id="columnPickerSelectNone" type="button">Select none</button>
           <button class="primary-button" type="button" data-close-modal="columnPickerModal">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop is-hidden" id="dataDictionaryModal" aria-hidden="true">
+      <div class="modal-card wide-modal" role="dialog" aria-modal="true" aria-labelledby="dataDictionaryTitle">
+        <div class="modal-head">
+          <div>
+            <h2 id="dataDictionaryTitle">Data dictionary</h2>
+            <p>Definitions and lineage for every selectable parcel-table column.</p>
+          </div>
+          <button class="small-button" type="button" data-close-modal="dataDictionaryModal">Close</button>
+        </div>
+        <label class="dictionary-search">
+          <span>Search columns</span>
+          <input id="dataDictionarySearch" type="search" placeholder="Column, description, or source" />
+        </label>
+        <div class="dictionary-table-wrap">
+          <table class="dictionary-table">
+            <thead><tr><th>Column</th><th>Description</th><th>Source</th></tr></thead>
+            <tbody id="dataDictionaryBody"></tbody>
+          </table>
+        </div>
+        <div class="modal-actions dictionary-footer">
+          <p>Screening definitions only. Confirm source records before operational, legal, tax-sale, or zoning decisions.</p>
+          <button class="primary-button" type="button" data-close-modal="dataDictionaryModal">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop is-hidden" id="sourceFreshnessModal" aria-hidden="true">
+      <div class="modal-card source-modal" role="dialog" aria-modal="true" aria-labelledby="sourceFreshnessTitle">
+        <div class="modal-head">
+          <div>
+            <h2 id="sourceFreshnessTitle">Sources &amp; freshness</h2>
+            <p>Latest source snapshot included in this published parcel bundle.</p>
+          </div>
+          <button class="small-button" type="button" data-close-modal="sourceFreshnessModal">Close</button>
+        </div>
+        <div class="dictionary-table-wrap">
+          <table class="dictionary-table source-freshness-table">
+            <thead><tr><th>Source</th><th>Last update</th></tr></thead>
+            <tbody id="sourceFreshnessBody"></tbody>
+          </table>
+        </div>
+        <div class="modal-actions dictionary-footer">
+          <p>Dates describe the extract or cache in the current build, not the upstream system's live state.</p>
+          <button class="primary-button" type="button" data-close-modal="sourceFreshnessModal">Done</button>
         </div>
       </div>
     </div>
