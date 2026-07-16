@@ -6,10 +6,10 @@ The Vacant Land Redevelopment Explorer is an interactive URA map for exploring P
 
 - Dashboard: <https://rutomo-ura.github.io/land_redevelopment_dashboard/>
 - Ownership view: <https://rutomo-ura.github.io/land_redevelopment_dashboard/ownership>
-- URA Maps item: <https://urap.maps.arcgis.com/home/item.html?id=012020b806e74ca6b59606d38f2e318a#overview>
+- URA Maps dashboard: <https://urap.maps.arcgis.com/apps/dashboards/9552e95d319b4e2180219ae66b3c8d65>
 - Source web map: <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2>
 
-The URA Maps item is a separate `Document Link` to the GitHub Pages dashboard. It does not replace, modify, or depend on the LandCare monitoring app.
+The URA Maps dashboard is the single ArcGIS front door and embeds the GitHub Pages application. It does not replace, modify, or depend on the LandCare monitoring app.
 
 ## Start Here
 
@@ -98,7 +98,7 @@ python scripts\update_ownership_reference_summary.py
 python scripts\validate_ownership_refresh.py
 ```
 
-Commit the resulting public files under `docs/` only after QA passes. GitHub Pages deploys from `main` and serves the dashboard directly. The ArcGIS Online Document Link item should continue to target that same dashboard URL; publishing details are in [docs/arcgis-online-publishing.md](docs/arcgis-online-publishing.md).
+Commit the resulting public files under `docs/` only after QA passes. GitHub Pages deploys from `main` and serves the dashboard directly; the ArcGIS Online Dashboard embeds that same app. Publishing details are in [docs/arcgis-online-publishing.md](docs/arcgis-online-publishing.md).
 
 ## Accomplished
 
@@ -113,7 +113,7 @@ Commit the resulting public files under `docs/` only after QA passes. GitHub Pag
 
 - The current URA ArcGIS GeoJSON item is not publicly retrievable without authentication. The app therefore falls back to the public GitHub Pages bundle for anonymous visitors.
 - A hosted ArcGIS feature layer is not yet configured. Publishing one would provide the strongest ArcGIS-native, queryable source and should be placed in `parcelFeatureServiceUrl` after QA.
-- The ArcGIS Online Document Link is public and points to the GitHub Pages dashboard; its item metadata and thumbnail are maintained separately from the web deployment.
+- The ArcGIS Online Dashboard is the public URA Maps front door and embeds the GitHub Pages dashboard; its item metadata and thumbnail are maintained separately from the web deployment.
 - Dashboard data remains a review aid, not an acquisition, legal, ownership, or redevelopment eligibility determination. Source records and local context must be confirmed before action.
 
 ## Repository Guide

@@ -1,44 +1,36 @@
 # ArcGIS Online Publishing Notes
 
-This project should be available in two places, matching the LandCare monitoring pattern:
+This project follows the LandCare monitoring pattern: a source-controlled GitHub Pages application embedded inside one ArcGIS Dashboard used as the URA Maps front door.
 
 - Public web app: <https://rutomo-ura.github.io/land_redevelopment_dashboard/>
-- URA Maps ArcGIS entry: <https://urap.maps.arcgis.com/home/item.html?id=012020b806e74ca6b59606d38f2e318a#overview>
+- URA Maps dashboard: <https://urap.maps.arcgis.com/apps/dashboards/9552e95d319b4e2180219ae66b3c8d65>
 
 ## Current ArcGIS Content
 
 | Role | Value |
 |---|---|
 | Portal | <https://urap.maps.arcgis.com> |
+| Public front door | [Vacant Land Redevelopment Explorer Dashboard](https://urap.maps.arcgis.com/apps/dashboards/9552e95d319b4e2180219ae66b3c8d65) |
+| Dashboard item ID | `9552e95d319b4e2180219ae66b3c8d65` |
+| Embedded app URL | <https://rutomo-ura.github.io/land_redevelopment_dashboard/> |
 | Source web map | <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2> |
 | Source web map item ID | `19022018e35b4b72a2d30cba2d56c8e2` |
-| URA Maps web app item | <https://urap.maps.arcgis.com/home/item.html?id=012020b806e74ca6b59606d38f2e318a#overview> |
-| URA Maps web app item ID | `012020b806e74ca6b59606d38f2e318a` |
-| URA Maps target URL | <https://rutomo-ura.github.io/land_redevelopment_dashboard/> |
 | Parcel GeoJSON item | <https://urap.maps.arcgis.com/home/item.html?id=c013cc3b5df54a79ae51cccd2baa224f> |
 | Parcel data URL | <https://urap.maps.arcgis.com/sharing/rest/content/items/c013cc3b5df54a79ae51cccd2baa224f/data> |
 
-## URA Maps App Shell
+## ArcGIS Dashboard Shell
 
-Use the ArcGIS Online Document Link item `Vacant Land Redevelopment Explorer` as the public URA Maps entry for this dashboard. This is a separate vacant-land item and should not replace or edit the LandCare monitoring dashboard.
+Use `Vacant Land Redevelopment Explorer Dashboard` as the only public URA Maps entry. It embeds the GitHub Pages application and should be shared with the intended audience; use `Everyone` when the dashboard is expected to work without a URA login.
 
-1. In ArcGIS Online, open `Vacant Land Redevelopment Explorer`.
-2. In Settings, keep the Document Link URL set to `https://rutomo-ura.github.io/land_redevelopment_dashboard/`.
-3. Share the item to the intended audience. Use `Everyone` if the public GitHub Pages app should be reachable without a URA login.
-4. Keep `docs/data/layer_sources.json` pointed at this item through `arcgisAppItemId`, `arcgisAppUrl`, and `arcgisAppTargetUrl`.
-5. Keep the source web map URL in `webmapUrl` so staff can still open the underlying ArcGIS Map Viewer item.
-
-The deployed dashboard is intentionally the embedded experience. The ArcGIS Online Document Link is the URA Maps entry point, while the dashboard itself loads the configured ArcGIS parcel item when it is publicly accessible and otherwise uses the reviewed public bundle. No outbound URA Maps button is required in the app shell.
+Keep `docs/data/layer_sources.json` and `webmap/data/layer_sources.json` aligned with the Dashboard item ID and URL. Keep `webmapUrl` so staff can access the underlying ArcGIS Map Viewer item.
 
 ## Launch Gate
 
-Before announcing a release, verify all three public paths in an incognito browser:
+Before announcing a release, verify all three paths in an incognito browser:
 
-1. The GitHub Pages dashboard URL loads without an ArcGIS sign-in prompt.
-2. The URA Maps Document Link item opens the same dashboard URL.
-3. The dashboard's parcel layer, filters, Table view, and one PDF/XLSX export work from that URL.
-
-If the Document Link URL changes, update `arcgisAppTargetUrl` in both `docs/data/layer_sources.json` and `webmap/data/layer_sources.json` in the same release.
+1. The GitHub Pages dashboard loads without an ArcGIS sign-in prompt.
+2. The ArcGIS Dashboard loads and displays the embedded app.
+3. The app's parcel layer, filters, Table view, and one PDF/XLSX export work from the embedded experience.
 
 ## Optional Hosted Feature Layer
 
