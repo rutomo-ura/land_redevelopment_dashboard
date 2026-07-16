@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "app": "vacant-land-redevelopment-explorer",
-  "generatedAt": "2026-07-16T14:08:56.554212-04:00",
+  "generatedAt": "2026-07-16T14:11:43.814287-04:00",
   "generatedOn": "2026-07-16",
   "timezone": "America/New_York",
-  "qaStatus": "PASS",
+  "qaStatus": "BASELINE",
   "parcelCount": 29783,
   "sources": [
     {

@@ -41,7 +41,7 @@ def feature_count(path: Path) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--qa-status", choices=["RUNNING", "PASS"], default="RUNNING")
+    parser.add_argument("--qa-status", choices=["BASELINE", "RUNNING", "PASS"], default="RUNNING")
     args = parser.parse_args()
 
     now = datetime.now().astimezone()
