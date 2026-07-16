@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "app": "vacant-land-redevelopment-explorer",
-  "generatedAt": "2026-07-16T14:11:43.814287-04:00",
+  "generatedAt": "2026-07-16T15:16:49.231028-04:00",
   "generatedOn": "2026-07-16",
   "timezone": "America/New_York",
-  "qaStatus": "BASELINE",
-  "parcelCount": 29783,
+  "qaStatus": "PASS",
+  "parcelCount": 29786,
   "sources": [
     {
       "key": "vacant",
@@ -22,19 +22,19 @@
     {
       "key": "tax",
       "label": "PostgreSQL gis.city_tax_delinquent_3yr",
-      "lastUpdated": "2026-06-17",
+      "lastUpdated": "2026-07-16",
       "artifact": "exports/live_postgres_tax_delinquency_3yr.csv"
     },
     {
       "key": "tolemi",
       "label": "Tolemi BuildingBlocks export",
-      "lastUpdated": "2026-06-17",
+      "lastUpdated": "2026-07-16",
       "artifact": "exports/tolemi_building_tax_delinquency_status.csv"
     },
     {
       "key": "pli",
       "label": "WPRDC Condemned and Dead-End Properties",
-      "lastUpdated": "2026-07-09",
+      "lastUpdated": "2026-07-16",
       "artifact": "exports/wprdc_condemned_properties.csv"
     },
     {

@@ -2,24 +2,24 @@
   "groups": [
     {
       "label": "City Owned",
-      "value": 8748,
-      "acres": 4375.46,
-      "longPriorParcels": 2,
-      "threePlusPriorParcels": 23
+      "value": 8734,
+      "acres": 4374.38,
+      "longPriorParcels": 3,
+      "threePlusPriorParcels": 27
     },
     {
       "label": "URA Owned",
-      "value": 817,
-      "acres": 403.95,
+      "value": 814,
+      "acres": 403.71,
       "longPriorParcels": 6,
       "threePlusPriorParcels": 19
     },
     {
       "label": "PLB Owned",
-      "value": 14,
-      "acres": 8.32,
+      "value": 15,
+      "acres": 8.31,
       "longPriorParcels": 0,
-      "threePlusPriorParcels": 4
+      "threePlusPriorParcels": 3
     },
     {
       "label": "HACP Owned",
@@ -30,46 +30,46 @@
     },
     {
       "label": "Other Public / Institutional",
-      "value": 935,
-      "acres": 838.0,
-      "longPriorParcels": 9,
-      "threePlusPriorParcels": 17
+      "value": 932,
+      "acres": 837.12,
+      "longPriorParcels": 8,
+      "threePlusPriorParcels": 16
     },
     {
       "label": "Private / Other",
-      "value": 19265,
-      "acres": 8140.6,
-      "longPriorParcels": 3649,
-      "threePlusPriorParcels": 5259
+      "value": 19287,
+      "acres": 8142.64,
+      "longPriorParcels": 3644,
+      "threePlusPriorParcels": 5257
     }
   ],
   "controlPaths": [
     {
       "label": "Existing public control",
-      "value": 9583
+      "value": 9567
     },
     {
       "label": "Public or institutional review",
-      "value": 935
+      "value": 932
     },
     {
       "label": "Private acquisition review",
-      "value": 5216
+      "value": 5214
     },
     {
       "label": "Private or monitor",
-      "value": 14049
+      "value": 14073
     }
   ],
   "kpis": {
-    "publicControlledParcels": 9583,
-    "publicOrInstitutionalParcels": 10518,
-    "privateThreePlusPriorParcels": 5259
+    "publicControlledParcels": 9567,
+    "publicOrInstitutionalParcels": 10499,
+    "privateThreePlusPriorParcels": 5257
   },
   "topPublicNeighborhoods": [
     {
       "label": "Hazelwood",
-      "value": 592,
+      "value": 591,
       "priorYearsMedian": 0.0,
       "commercialParcels": 15,
       "publicInstitutionalParcels": 365
@@ -83,7 +83,7 @@
     },
     {
       "label": "Homewood North",
-      "value": 470,
+      "value": 471,
       "priorYearsMedian": 0.0,
       "commercialParcels": 10,
       "publicInstitutionalParcels": 236

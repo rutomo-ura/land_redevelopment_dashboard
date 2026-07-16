@@ -15,10 +15,10 @@
     }
   },
   "assignmentCounts": {
-    "council_assigned": 29606,
-    "council_unassigned": 177,
-    "neighborhood_assigned": 29599,
-    "neighborhood_unassigned": 184
+    "council_assigned": 29610,
+    "council_unassigned": 176,
+    "neighborhood_assigned": 29603,
+    "neighborhood_unassigned": 183
   },
   "neighborhoods": [
     {
@@ -37,14 +37,14 @@
     },
     {
       "label": "Homewood North",
-      "value": 1244,
+      "value": 1245,
       "priorYearsMedian": 0.0,
       "commercialParcels": 22,
       "publicInstitutionalParcels": 236
     },
     {
       "label": "Lincoln-Lemington-Belmar",
-      "value": 1054,
+      "value": 1055,
       "priorYearsMedian": 0.0,
       "commercialParcels": 24,
       "publicInstitutionalParcels": 215
@@ -72,7 +72,7 @@
     },
     {
       "label": "Beechview",
-      "value": 789,
+      "value": 790,
       "priorYearsMedian": 0.0,
       "commercialParcels": 52,
       "publicInstitutionalParcels": 158
@@ -100,40 +100,40 @@
     },
     {
       "label": "Sheraden",
-      "value": 730,
+      "value": 731,
       "priorYearsMedian": 0.0,
-      "commercialParcels": 14,
+      "commercialParcels": 15,
       "publicInstitutionalParcels": 317
     }
   ],
   "councilDistricts": [
     {
       "label": "D9",
-      "value": 5879,
+      "value": 5881,
       "priorYearsMedian": 0.0,
       "commercialParcels": 238,
       "publicInstitutionalParcels": 998
     },
     {
       "label": "D6",
-      "value": 5200,
+      "value": 5201,
       "priorYearsMedian": 0.0,
       "commercialParcels": 289,
       "publicInstitutionalParcels": 1201
     },
     {
       "label": "D2",
-      "value": 4402,
+      "value": 4404,
       "priorYearsMedian": 0.0,
-      "commercialParcels": 253,
+      "commercialParcels": 254,
       "publicInstitutionalParcels": 1462
     },
     {
       "label": "D1",
-      "value": 3536,
+      "value": 3531,
       "priorYearsMedian": 0.0,
-      "commercialParcels": 170,
-      "publicInstitutionalParcels": 1063
+      "commercialParcels": 169,
+      "publicInstitutionalParcels": 1058
     },
     {
       "label": "D3",
@@ -151,21 +151,21 @@
     },
     {
       "label": "D4",
-      "value": 2321,
+      "value": 2322,
       "priorYearsMedian": 0.0,
       "commercialParcels": 134,
       "publicInstitutionalParcels": 540
     },
     {
       "label": "D7",
-      "value": 1406,
+      "value": 1408,
       "priorYearsMedian": 0.0,
       "commercialParcels": 141,
       "publicInstitutionalParcels": 263
     },
     {
       "label": "D8",
-      "value": 348,
+      "value": 349,
       "priorYearsMedian": 0.0,
       "commercialParcels": 45,
       "publicInstitutionalParcels": 72
