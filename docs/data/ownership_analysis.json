@@ -4,8 +4,8 @@
       "label": "City Owned",
       "value": 8734,
       "acres": 4374.38,
-      "longPriorParcels": 3,
-      "threePlusPriorParcels": 27
+      "longPriorParcels": 2,
+      "threePlusPriorParcels": 24
     },
     {
       "label": "URA Owned",
@@ -40,7 +40,7 @@
       "value": 19287,
       "acres": 8142.64,
       "longPriorParcels": 3644,
-      "threePlusPriorParcels": 5257
+      "threePlusPriorParcels": 5251
     }
   ],
   "controlPaths": [
@@ -54,17 +54,17 @@
     },
     {
       "label": "Private acquisition review",
-      "value": 5214
+      "value": 5208
     },
     {
       "label": "Private or monitor",
-      "value": 14073
+      "value": 14079
     }
   ],
   "kpis": {
     "publicControlledParcels": 9567,
     "publicOrInstitutionalParcels": 10499,
-    "privateThreePlusPriorParcels": 5257
+    "privateThreePlusPriorParcels": 5251
   },
   "topPublicNeighborhoods": [
     {
@@ -140,7 +140,7 @@
     {
       "label": "URA Owned",
       "value": 1471,
-      "acres": 707.44,
+      "acres": 707.29,
       "source": "Ownership Overview reference layer"
     },
     {
@@ -152,6 +152,6 @@
   ],
   "referenceKpis": {
     "referencePublicParcels": 13900,
-    "referencePublicAcres": 6914.23
+    "referencePublicAcres": 6914.08
   }
 }
