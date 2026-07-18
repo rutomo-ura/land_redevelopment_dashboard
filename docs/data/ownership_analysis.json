@@ -139,8 +139,8 @@
     },
     {
       "label": "URA Owned",
-      "value": 1471,
-      "acres": 707.29,
+      "value": 1472,
+      "acres": 707.34,
       "source": "Ownership Overview reference layer"
     },
     {
@@ -151,7 +151,7 @@
     }
   ],
   "referenceKpis": {
-    "referencePublicParcels": 13900,
-    "referencePublicAcres": 6914.08
+    "referencePublicParcels": 13901,
+    "referencePublicAcres": 6914.13
   }
 }
