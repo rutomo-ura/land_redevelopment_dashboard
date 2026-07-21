@@ -874,7 +874,7 @@ body.is-table-view .table-view {
 
 .table-toolbar-main {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(300px, 520px);
+  grid-template-columns: minmax(210px, 0.8fr) minmax(230px, 0.85fr) minmax(300px, 1.25fr);
   gap: 24px;
   align-items: end;
 }
@@ -890,6 +890,34 @@ body.is-table-view .table-view {
   margin-top: 3px;
   color: #687985;
   font-size: 12px;
+}
+
+.table-universe,
+.table-search {
+  display: grid;
+  gap: 5px;
+}
+
+.table-universe > span,
+.table-search > span {
+  color: #5f7480;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.table-universe select {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 34px 0 10px;
+  color: #142935;
+  font: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  background: #ffffff;
+  border: 1px solid #c9d7df;
+  border-radius: 8px;
 }
 
 .table-toolbar-actions {

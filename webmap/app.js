@@ -301,6 +301,7 @@ const state = {
 };
 
 const tableState = {
+  universe: "all",
   search: "",
   filters: Object.fromEntries(TABLE_FILTER_FIELDS.map((item) => [item.key, new Set()])),
   visibleColumns: new Set(TABLE_COLUMNS.filter((item) => item.defaultVisible).map((item) => item.key)),
@@ -357,6 +358,8 @@ const nodes = {
   mapView: document.getElementById("mapView"),
   tableView: document.getElementById("tableView"),
   tableRowCount: document.getElementById("tableRowCount"),
+  tableUniverseSelect: document.getElementById("tableUniverseSelect"),
+  tableUniverseNote: document.getElementById("tableUniverseNote"),
   tableSearchInput: document.getElementById("tableSearchInput"),
   tableClearFilters: document.getElementById("tableClearFilters"),
   tableColumnsButton: document.getElementById("tableColumnsButton"),
@@ -1402,9 +1405,33 @@ function uniqueSortedValues(features, field) {
   return [...values].sort((a, b) => a.localeCompare(b));
 }
 
+function featureIsEpp(feature) {
+  const coverage = String(getProp(feature, "source_coverage") || "")
+    .split("|")
+    .map((value) => value.trim());
+  return coverage.includes("EPP") || Boolean(String(getProp(feature, "epp_parcel_number") || "").trim());
+}
+
+function tableUniverseFeatures() {
+  if (tableState.universe === "epp") return allFeatures.filter(featureIsEpp);
+  if (tableState.universe === "map") return filteredFeatures();
+  return allFeatures;
+}
+
+function updateTableUniverseUi() {
+  if (nodes.tableUniverseSelect) nodes.tableUniverseSelect.value = tableState.universe;
+  if (!nodes.tableUniverseNote) return;
+  const notes = {
+    all: "Complete published bundle: vacant-land candidates plus every matched EPP parcel.",
+    epp: "Every parcel matched to the current EPP extract, including non-vacant records.",
+    map: "Only parcels passing the active Map filters, checked-map preview, and custom list."
+  };
+  nodes.tableUniverseNote.textContent = notes[tableState.universe] || notes.all;
+}
+
 function tableRows() {
   const search = tableState.search.trim().toLowerCase();
-  let rows = filteredFeatures().filter((feature) => {
+  let rows = tableUniverseFeatures().filter((feature) => {
     const props = featureProps(feature);
     return TABLE_FILTER_FIELDS.every((filter) => {
       const active = tableState.filters[filter.key];
@@ -1461,7 +1488,7 @@ function formatTableCell(key, value) {
 
 function renderTableFilterBar() {
   if (!nodes.tableFilterBar) return;
-  const base = filteredFeatures();
+  const base = tableUniverseFeatures();
   const advancedWasOpen = nodes.tableFilterBar.querySelector(".advanced-filter-disclosure")?.open || false;
   const renderFilter = (filter) => {
     const options = uniqueSortedValues(base, filter.key);
@@ -1823,6 +1850,7 @@ function closeModal(modal) {
 }
 
 function renderTableView() {
+  updateTableUniverseUi();
   renderTableFilterBar();
   renderSpreadsheet();
   renderChecklist(nodes.columnPickerList, tableState.visibleColumns);
@@ -1868,8 +1896,15 @@ function exportTableXlsx() {
     { Field: "Generated", Value: new Date().toLocaleString() },
     { Field: "App", Value: APP_TITLE },
     { Field: "Mode", Value: "Internal staff use" },
+    {
+      Field: "Table universe",
+      Value: nodes.tableUniverseSelect?.selectedOptions?.[0]?.textContent || tableState.universe
+    },
     { Field: "Map signal", Value: signalModes[state.signalMode].label },
-    { Field: "Active filters", Value: activeFilterSummary().join(" | ") },
+    {
+      Field: "Active map filters",
+      Value: tableState.universe === "map" ? activeFilterSummary().join(" | ") : "Not applied to this table export"
+    },
     { Field: "Custom list", Value: state.customList?.fileName || "(none)" },
     { Field: "Table search", Value: tableState.search || "(none)" },
     { Field: "Row count", Value: rows.length }
@@ -1878,7 +1913,7 @@ function exportTableXlsx() {
   XLSX.utils.book_append_sheet(workbook, infoSheet, "Export_Info");
 
   const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
-  XLSX.writeFile(workbook, `vacant_land_export_${stamp}.xlsx`);
+  XLSX.writeFile(workbook, `land_redevelopment_export_${stamp}.xlsx`);
   closeModal(nodes.exportColumnsModal);
   if (nodes.exportStatus) {
     nodes.exportStatus.textContent = `Exported ${formatNumber(rows.length)} rows`;
@@ -2535,6 +2570,21 @@ if (nodes.tableSearchInput) {
     tableState.search = nodes.tableSearchInput.value || "";
     tableState.page = 1;
     renderSpreadsheet();
+  });
+}
+if (nodes.tableUniverseSelect) {
+  nodes.tableUniverseSelect.addEventListener("change", () => {
+    tableState.universe = ["all", "epp", "map"].includes(nodes.tableUniverseSelect.value)
+      ? nodes.tableUniverseSelect.value
+      : "all";
+    TABLE_FILTER_FIELDS.forEach((filter) => {
+      tableState.filters[filter.key] = new Set();
+    });
+    tableState.search = "";
+    tableState.page = 1;
+    if (nodes.tableSearchInput) nodes.tableSearchInput.value = "";
+    clearCheckedParcels();
+    renderTableView();
   });
 }
 if (nodes.tablePrevPage) {

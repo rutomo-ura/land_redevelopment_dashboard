@@ -31,6 +31,7 @@
 **Comparison History**
 - Iteration 1: replaced the flat action strip and fifteen always-visible filters with grouped actions, a Help & data menu, six common filters, and progressive disclosure for nine advanced filters.
 - Post-fix evidence: desktop, open-menu, modal, active-filter, advanced-filter, and 640px responsive states were captured and checked. No P0/P1/P2 issue remained.
+- Universe extension: added an explicit Table universe selector without changing the Map defaults. Browser interaction checks passed, and post-rebase data/count checks against the July 21 refresh confirmed 29,786 rows for the complete published bundle, 14,765 rows for EPP only, and 6,866 rows for the current default Map results. The EPP universe includes `Not vacant` and `Vacant structure`, confirming that non-vacant EPP records are reachable.
 
 **Implementation Checklist**
 - JavaScript syntax checks passed for `docs/app.js` and `webmap/app.js`.
@@ -38,6 +39,7 @@
 - `docs/` and `webmap/` copies are byte-identical.
 - `git diff --check` passed.
 - Browser-rendered table controls and primary interactions passed.
+- The Table universe selector fits the toolbar at desktop width and stacks to one 335px column without toolbar overflow at the narrow viewport check.
 
 **Follow-up Polish**
 - Consider measuring which advanced filters staff actually use after launch; rarely used fields could later move into a specialized “Source fields” submenu.

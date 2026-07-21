@@ -2,7 +2,7 @@
 
 ## Answer
 
-The table is now comprehensive for the fields in the current dashboard parcel bundle: one row per parcel PIN, 29,783 unique rows, 61 joined fields, and no duplicate or missing parcel IDs or geometries. The column picker and XLSX export expose every nonredundant bundle field; only three implementation flags (`is_vacant`, `is_condemned`, and the duplicate `condemned_status`) remain outside the picker because their labeled equivalents are already present.
+The table is comprehensive for the fields in the current dashboard parcel bundle: one row per parcel PIN, 29,786 unique rows, 61 joined fields, and no duplicate or missing parcel IDs or geometries. The **Table universe** selector defaults to the complete published bundle and can switch to all 14,765 EPP parcels, including 1,929 EPP records classified as non-vacant or vacant structure, or to the current Map results. Map filters remain independent so the map can keep its vacancy-screening defaults. The column picker and XLSX export expose every nonredundant bundle field; only three implementation flags (`is_vacant`, `is_condemned`, and the duplicate `condemned_status`) remain outside the picker because their labeled equivalents are already present.
 
 The table toolbar includes a searchable **Data dictionary** with the displayed column name, raw field key, description, and source for all 58 selectable columns. **Sources & freshness** lists the extract or cache date included in the published build; these dates do not claim that the upstream systems are live or current beyond that snapshot.
 
@@ -10,18 +10,18 @@ It is not a complete copy of every raw source column. The build intentionally se
 
 ## Joined Source Coverage
 
-| Source | Parcel grain used | Dashboard matches | Coverage of 29,783 parcels | Table contribution | Source snapshot |
+| Source | Parcel grain used | Dashboard matches | Coverage of 29,786 parcels | Table contribution | Source snapshot |
 | --- | --- | ---: | ---: | --- | --- |
-| `gis.calculated_vacant_land` / assessment export | One vacant-land parcel per `par_pin` | 29,783 | 100.0% | PIN, owner, use, tax description/prior years, acreage, fair market value | Current rebuilt bundle, July 16, 2026 |
-| `gis.city_tax_delinquent_3yr` PostgreSQL extract | One delinquent parcel per PIN | 5,322 | 17.9% | Canonical 3+ year flag, canonical prior years, owed band, tax address and ward, source label | June 17, 2026 |
-| Tolemi BuildingBlocks export | One parcel per normalized PIN | 5,292 | 17.8% | Tax status, USPS vacancy, code-violation date, condemnation context, structure and vacant-lot scores | June 17, 2026 |
-| `gis.epp_parcels_full` | One EPP parcel per PIN | 14,763 | 49.6% | Project, inventory/status/class, EPP geography, zoning, tags, maintenance manager, publication and modification fields | Refreshed from PostgreSQL July 16, 2026 |
-| WPRDC Condemned and Dead-End Properties | Potentially multiple records per PIN; highest hazard record retained | 533 | 1.8% | PLI score/band, inspection result/status, record, created date, ward | July 9, 2026 cache |
-| WPRDC City neighborhoods and 2022 Council districts | Centroid spatial join | 29,599 / 29,606 | 99.4% | Authoritative dashboard neighborhood and Council district | Refreshed July 16, 2026 |
+| `gis.calculated_vacant_land` / assessment export | One parcel per `par_pin` in the published candidate bundle | 29,786 | 100.0% | PIN, owner, use, tax description/prior years, acreage, fair market value | Current rebuilt bundle, July 21, 2026 |
+| `gis.city_tax_delinquent_3yr` PostgreSQL extract | One delinquent parcel per PIN | 5,312 | 17.8% | Canonical 3+ year flag, canonical prior years, owed band, tax address and ward, source label | July 21, 2026 |
+| Tolemi BuildingBlocks export | One parcel per normalized PIN | 5,289 | 17.8% | Tax status, USPS vacancy, code-violation date, condemnation context, structure and vacant-lot scores | July 21, 2026 |
+| `gis.epp_parcels_full` | One EPP parcel per PIN | 14,765 | 49.6% | Project, inventory/status/class, EPP geography, zoning, tags, maintenance manager, publication and modification fields | Refreshed from PostgreSQL July 21, 2026 |
+| WPRDC Condemned and Dead-End Properties | Potentially multiple records per PIN; highest hazard record retained | 534 | 1.8% | PLI score/band, inspection result/status, record, created date, ward | July 21, 2026 cache |
+| WPRDC City neighborhoods and 2022 Council districts | Centroid spatial join | 29,603 / 29,610 | 99.4% | Authoritative dashboard neighborhood and Council district | Refreshed July 21, 2026 |
 
 ## Quality Findings
 
-- Parcel grain is stable: 29,783 rows and 29,783 distinct normalized PINs.
+- Parcel grain is stable: 29,786 rows and 29,786 distinct normalized PINs.
 - Ownership QA passes with zero summary mismatches, duplicate IDs, missing IDs, or missing geometries.
 - PostgreSQL is the canonical source for the 3+ year delinquency flag. Tolemi is retained for complementary screening context.
 - PostgreSQL and Tolemi dollar totals differ materially in the June 17 reconciliation. The dashboard therefore publishes an owed-value band from PostgreSQL instead of either raw total.

@@ -177,8 +177,16 @@
           <div class="table-workspace-heading">
             <span class="table-eyebrow">Parcel workspace</span>
             <strong id="tableRowCount">0 parcels</strong>
-            <span class="table-toolbar-note">Search, narrow the list, then select parcels for a map or PDF.</span>
+            <span class="table-toolbar-note" id="tableUniverseNote">All parcels available in the published dashboard bundle.</span>
           </div>
+          <label class="table-universe">
+            <span>Table universe</span>
+            <select id="tableUniverseSelect" aria-describedby="tableUniverseNote">
+              <option value="all">All published parcels</option>
+              <option value="epp">EPP parcels only</option>
+              <option value="map">Current map results</option>
+            </select>
+          </label>
           <label class="table-search">
             <span>Search this list</span>
             <input id="tableSearchInput" type="search" placeholder="Try a PIN, owner, project, or neighborhood" />

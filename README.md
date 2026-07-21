@@ -33,7 +33,7 @@ The deployed dashboard currently provides:
 - Tax bands shown as `11+ prior years` red, `5-10 prior years` orange, and `1-4 prior years` yellow.
 - A staff-review fallback data bundle for when an ArcGIS service is unavailable.
 
-The dashboard bundle presents 29,783 eligible parcels after excluding 476 infrastructure, rail, and right-of-way polygons. The default residential view contains 20,663 parcels, including 3,603 with 11+ prior years, 843 with 5-10 prior years, and 1,962 with 1-4 prior years.
+The dashboard bundle presents 29,786 eligible parcels after excluding infrastructure, rail, and right-of-way polygons. The default vacancy-screening Map view contains 6,866 residential or commercial parcels, including 569 with 11+ prior years, 152 with 5-10 prior years, and 274 with 1-4 prior years. The Table can independently show the complete published bundle or all EPP records.
 
 ## How It Works
 
@@ -80,7 +80,7 @@ flowchart TD
 
 The current GitHub Pages layer is an internal staff-review bundle. It excludes database connection details and unreconciled parcel-level dollar balances, but it includes owner names, EPP workflow attributes, canonical three-plus-year PostgreSQL tax signals, Tolemi screening fields, PLI inspection context, and public-safe ownership/control groupings. Centroid joins against authoritative WPRDC City neighborhood and 2022 Council boundaries supply the chart summaries. Because GitHub Pages does not provide application authentication, do not treat this URL as a confidential internal system; use an authenticated host before adding protected operational data.
 
-The table exposes every nonredundant field in the current 61-field parcel bundle through its visible-column and XLSX export pickers. See [the table data coverage audit](docs/table-data-coverage.md) for source coverage, freshness, exclusions, and remaining gaps.
+The table exposes every nonredundant field in the current 61-field parcel bundle through its visible-column and XLSX export pickers. Its **Table universe** control defaults to all 29,786 published parcels and can be narrowed to all 14,765 EPP parcels (including non-vacant records) or to the current Map results. The Map retains its vacancy-screening defaults, so changing the Table universe does not silently change the map. See [the table data coverage audit](docs/table-data-coverage.md) for source coverage, freshness, exclusions, and remaining gaps.
 
 Ownership QA is independent of the public GeoJSON: the Ownership Overview reference layer is the source of truth for ownership summary checks. The latest recorded validation passed with zero ownership-summary mismatches, duplicate parcel IDs, missing parcel IDs, or missing geometries. See [docs/latest_ownership_qa.md](docs/latest_ownership_qa.md) and [docs/latest_export_summary.md](docs/latest_export_summary.md) for the recorded output.
 
