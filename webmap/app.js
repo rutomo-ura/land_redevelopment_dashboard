@@ -1,6 +1,7 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
 const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260710";
 const REFRESH_MANIFEST_URL = "data/refresh_manifest.json";
+const PARCEL_LABEL_MIN_SCALE = 2000;
 
 const signalModes = {
   tax: {
@@ -983,10 +984,34 @@ function sourceFreshnessLabel(source) {
   return "Staff-review GeoJSON bundle";
 }
 
+function parcelLabelingInfo() {
+  return [{
+    labelExpressionInfo: {
+      expression: "When(!IsEmpty($feature.parcel_label), $feature.parcel_label, $feature.par_pin)"
+    },
+    labelPlacement: "always-horizontal",
+    minScale: PARCEL_LABEL_MIN_SCALE,
+    deconflictionStrategy: "none",
+    symbol: {
+      type: "text",
+      color: "#102f3f",
+      haloColor: "#ffffff",
+      haloSize: 1.5,
+      font: {
+        family: "Arial",
+        size: 8,
+        weight: "bold"
+      }
+    }
+  }];
+}
+
 function parcelLayerConfig() {
   return {
     title: layerSources?.parcelLayerTitle || "Vacant land parcels",
     outFields: ["*"],
+    labelsVisible: true,
+    labelingInfo: parcelLabelingInfo(),
     popupTemplate: {
       title: "{parcel_label}",
       content: buildPopupContent
@@ -2374,13 +2399,8 @@ async function createParcelLayerFromArcGIS(GeoJSONLayer, FeatureLayer) {
 async function createParcelLayerFallback(GeoJSONLayer) {
   const layer = new GeoJSONLayer({
     url: layerSources.parcelLocalGeoJsonUrl || layerSources.parcelGeoJsonUrl,
-    title: layerSources.parcelLayerTitle || "Vacant land parcels",
-    outFields: ["*"],
+    ...parcelLayerConfig(),
     renderer: uniqueValueRenderer(signalColorField(), signalRendererItems()),
-    popupTemplate: {
-      title: "{parcel_label}",
-      content: buildPopupContent
-    }
   });
   await layer.load();
   return { layer, source: "geojson" };

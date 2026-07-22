@@ -27,11 +27,13 @@
 - Reset clears search and all filters and returns advanced filters to the collapsed default state.
 - Native select labels expose specific accessible names such as “Filter by Ownership.”
 - No new browser console errors were observed. Existing ArcGIS GeoJSON field-inference warnings remain unrelated to this UI change.
+- Close-zoom parcel labels use the readable parcel label with a canonical PIN fallback and a white halo for contrast on both available basemaps.
 
 **Comparison History**
 - Iteration 1: replaced the flat action strip and fifteen always-visible filters with grouped actions, a Help & data menu, six common filters, and progressive disclosure for nine advanced filters.
 - Post-fix evidence: desktop, open-menu, modal, active-filter, advanced-filter, and 640px responsive states were captured and checked. No P0/P1/P2 issue remained.
 - Universe extension: added an explicit Table universe selector without changing the Map defaults. Browser interaction checks passed, and post-rebase data/count checks against the July 21 refresh confirmed 29,786 rows for the complete published bundle, 14,765 rows for EPP only, and 6,866 rows for the current default Map results. The EPP universe includes `Not vacant` and `Vacant structure`, confirming that non-vacant EPP records are reachable.
+- Parcel-label extension: labels stay hidden above 1:2,000 and render directly on close-zoom polygons. A browser check with four adjacent Homewood parcels displayed `125-D-712`, `125-D-713`, `125-D-711`, and `125-D-71`; all four remained identifiable and no new console errors appeared.
 
 **Implementation Checklist**
 - JavaScript syntax checks passed for `docs/app.js` and `webmap/app.js`.

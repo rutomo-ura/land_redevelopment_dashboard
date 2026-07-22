@@ -28,6 +28,7 @@ The deployed dashboard currently provides:
 - An ArcGIS Maps SDK parcel map with a residential default view.
 - One parcel-color rule: parcels always follow the selected map signal.
 - Map signals for tax delinquency, ownership, and Tolemi vacant-lot score.
+- Close-zoom parcel labels that show the readable parcel ID directly on each polygon, with PIN fallback.
 - Property-use and vacant-status filters, bookmarks, summary metrics, charts, a review table, custom lists, and PDF/XLSX exports.
 - Ownership colors aligned to the requested convention: City Owned is yellow, URA Owned is cyan blue, and PLB Owned is dark green.
 - Tax bands shown as `11+ prior years` red, `5-10 prior years` orange, and `1-4 prior years` yellow.
