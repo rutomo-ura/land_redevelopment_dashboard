@@ -67,6 +67,16 @@
           <div class="filter-list" id="vacantFilters"></div>
           <h3 id="signalFilterHeading">Tax Delinquency</h3>
           <div class="filter-list" id="signalFilters"></div>
+          <h3>Council District</h3>
+          <div class="district-filter">
+            <label class="district-filter-label" for="councilDistrictSelect">
+              <span class="sr-only">Council District</span>
+              <select id="councilDistrictSelect" aria-label="Council District">
+                <option value="">All</option>
+              </select>
+            </label>
+            <button class="small-button" id="zoomToDistrictButton" type="button">Zoom To District</button>
+          </div>
         </section>
 
         <section class="panel">
@@ -400,6 +410,6 @@
 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script src="https://js.arcgis.com/4.30/"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=district-zoom-20260723c"></script>
   </body>
 </html>

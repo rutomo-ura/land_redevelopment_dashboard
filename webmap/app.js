@@ -1,7 +1,11 @@
 const APP_TITLE = "Vacant Land Redevelopment Explorer";
 const LAYER_SOURCES_URL = "data/layer_sources.json?v=redevelopment-explorer-20260710";
 const REFRESH_MANIFEST_URL = "data/refresh_manifest.json";
+const BOUNDARY_ANALYSIS_URL = "data/boundary_analysis.json";
+const COUNCIL_DISTRICT_SERVICE_URL =
+  "https://services1.arcgis.com/YZCmUqbcsUpOKfj7/arcgis/rest/services/CouncilDistricts2022/FeatureServer/0";
 const PARCEL_LABEL_MIN_SCALE = 2000;
+const CITYWIDE_VIEW = { center: [-79.9959, 40.4406], zoom: 12 };
 
 const signalModes = {
   tax: {
@@ -295,6 +299,7 @@ const state = {
     ownership: new Set(signalModes.ownership.categories.map((item) => item.value)),
     vacantLotScore: new Set(signalModes.vacantLotScore.categories.map((item) => item.value))
   },
+  councilDistrict: "",
   customList: null,
   checkedMapPins: null,
   checkedExportPins: null,
@@ -323,6 +328,8 @@ const nodes = {
   vacantFilters: document.getElementById("vacantFilters"),
   signalFilters: document.getElementById("signalFilters"),
   signalFilterHeading: document.getElementById("signalFilterHeading"),
+  councilDistrictSelect: document.getElementById("councilDistrictSelect"),
+  zoomToDistrictButton: document.getElementById("zoomToDistrictButton"),
   sideLegend: document.getElementById("sideLegend"),
   mapLegend: document.getElementById("mapLegend"),
   mapStatus: document.getElementById("mapStatus"),
@@ -408,10 +415,13 @@ let parcelDataSource = "geojson";
 let view = null;
 let parcelLayer = null;
 let parcelLayerView = null;
+let councilDistrictLayer = null;
+let districtHighlightLayer = null;
 let reactiveUtilsRef = null;
 let locationToAddressRef = null;
 let customListWorkbook = null;
 let customListDraft = null;
+let councilDistrictLabels = [];
 
 const REVERSE_GEOCODE_URL = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
@@ -718,8 +728,11 @@ async function zoomToPins(pins) {
   for (let i = 0; i < pins.length; i += chunkSize) {
     const chunk = pins.slice(i, i + chunkSize);
     const where = `par_pin IN (${chunk.map((pin) => `'${sqlEscape(pin)}'`).join(",")})`;
-    const result = await parcelLayer.queryExtent({ where });
-    if (!result?.extent) continue;
+    const result = await parcelLayer.queryExtent({
+      where,
+      outSpatialReference: view.spatialReference
+    });
+    if (!result?.extent || !Number.isFinite(result.extent.xmin)) continue;
     extent = extent ? extent.union(result.extent) : result.extent.clone();
   }
   if (extent) {
@@ -730,6 +743,166 @@ async function zoomToPins(pins) {
 async function zoomToCustomList() {
   if (!state.customList?.matchedPins?.length) return;
   await zoomToPins(state.customList.matchedPins);
+}
+
+function clearDistrictHighlight() {
+  if (districtHighlightLayer) districtHighlightLayer.removeAll();
+}
+
+function refreshCouncilDistrictOptions() {
+  const fromParcels = new Set();
+  allFeatures.forEach((feature) => {
+    const label = getProp(feature, "council_district_label");
+    if (label) fromParcels.add(String(label));
+  });
+  const labels = (councilDistrictLabels.length ? councilDistrictLabels : [...fromParcels])
+    .slice()
+    .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+  if (!nodes.councilDistrictSelect) return;
+  const current = state.councilDistrict || "";
+  nodes.councilDistrictSelect.innerHTML = [
+    `<option value="">All</option>`,
+    ...labels.map((label) => `<option value="${escapeHtml(label)}">${escapeHtml(label)}</option>`)
+  ].join("");
+  nodes.councilDistrictSelect.value = labels.includes(current) ? current : "";
+  state.councilDistrict = nodes.councilDistrictSelect.value;
+}
+
+async function loadCouncilDistrictLabels() {
+  try {
+    const response = await fetch(BOUNDARY_ANALYSIS_URL);
+    if (!response.ok) throw new Error(`boundary_analysis failed: ${response.status}`);
+    const data = await response.json();
+    const fromSummary = (data.councilDistricts || [])
+      .map((row) => row.label)
+      .filter(Boolean);
+    if (fromSummary.length) {
+      councilDistrictLabels = fromSummary;
+      return;
+    }
+  } catch (error) {
+    console.warn("Could not load council district labels from boundary_analysis.json", error);
+  }
+  councilDistrictLabels = ["D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9"];
+}
+
+function extentFromLoadedFeatures(features) {
+  let xmin = Infinity;
+  let ymin = Infinity;
+  let xmax = -Infinity;
+  let ymax = -Infinity;
+  let found = false;
+
+  const visit = (coords) => {
+    if (!Array.isArray(coords) || !coords.length) return;
+    if (typeof coords[0] === "number") {
+      const [x, y] = coords;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      xmin = Math.min(xmin, x);
+      ymin = Math.min(ymin, y);
+      xmax = Math.max(xmax, x);
+      ymax = Math.max(ymax, y);
+      found = true;
+      return;
+    }
+    coords.forEach(visit);
+  };
+
+  features.forEach((feature) => {
+    const geometry = feature?.geometry;
+    if (!geometry) return;
+    if (geometry.type === "Point" && Array.isArray(geometry.coordinates)) {
+      visit(geometry.coordinates);
+      return;
+    }
+    visit(geometry.coordinates);
+  });
+
+  if (!found || xmax <= xmin || ymax <= ymin) return null;
+  return {
+    type: "extent",
+    xmin,
+    ymin,
+    xmax,
+    ymax,
+    spatialReference: { wkid: 4326 }
+  };
+}
+
+async function highlightCouncilDistrict(districtLabel) {
+  clearDistrictHighlight();
+  if (!districtHighlightLayer || !councilDistrictLayer || !districtLabel) return;
+  try {
+    const result = await councilDistrictLayer.queryFeatures({
+      where: `DIST_NAME = '${sqlEscape(districtLabel)}'`,
+      outFields: ["DIST_NAME", "DIST_ID"],
+      returnGeometry: true,
+      outSpatialReference: view.spatialReference
+    });
+    const graphic = result?.features?.[0];
+    if (!graphic?.geometry) return;
+    districtHighlightLayer.add({
+      geometry: graphic.geometry,
+      symbol: {
+        type: "simple-fill",
+        color: [0, 152, 211, 0.08],
+        outline: { color: [0, 108, 159, 0.95], width: 2.25 }
+      },
+      attributes: graphic.attributes
+    });
+  } catch (error) {
+    console.warn("Could not highlight council district boundary.", error);
+  }
+}
+
+async function zoomToCouncilDistrict(districtLabel) {
+  if (!view) return;
+  if (!districtLabel) {
+    clearDistrictHighlight();
+    await view.goTo(CITYWIDE_VIEW, { duration: 650 }).catch(() => {});
+    return;
+  }
+
+  await highlightCouncilDistrict(districtLabel);
+
+  // Zoom to the filtered parcel cluster (WGS84 center/zoom — same path as bookmarks).
+  const parcelExtent = extentFromLoadedFeatures(filteredFeatures());
+  if (parcelExtent) {
+    const center = [
+      (parcelExtent.xmin + parcelExtent.xmax) / 2,
+      (parcelExtent.ymin + parcelExtent.ymax) / 2
+    ];
+    const span = Math.max(
+      parcelExtent.xmax - parcelExtent.xmin,
+      parcelExtent.ymax - parcelExtent.ymin
+    );
+    let zoom = 15;
+    if (span > 0.18) zoom = 12;
+    else if (span > 0.1) zoom = 13;
+    else if (span > 0.05) zoom = 14;
+    else if (span > 0.025) zoom = 15;
+    else if (span > 0.012) zoom = 16;
+    else zoom = 17;
+    await view.goTo({ center, zoom }, { duration: 700 }).catch(() => {});
+    return;
+  }
+
+  // Fallback: official district boundary geometry already projected into the view SR.
+  const highlightGraphic = districtHighlightLayer?.graphics?.items?.[0]
+    || (districtHighlightLayer?.graphics?.length ? districtHighlightLayer.graphics.getItemAt(0) : null);
+  if (highlightGraphic?.geometry) {
+    await view.goTo(highlightGraphic.geometry, { duration: 700 }).catch(() => {});
+    return;
+  }
+
+  setStatus(`No map extent found for ${districtLabel}.`, false);
+}
+
+async function applyCouncilDistrictSelection({ zoom = true } = {}) {
+  const nextValue = nodes.councilDistrictSelect?.value || "";
+  state.councilDistrict = nextValue;
+  applyDashboardState();
+  if (zoom) await zoomToCouncilDistrict(nextValue);
 }
 
 function renderPdfOptionsChecklist() {
@@ -1090,6 +1263,11 @@ function featureMatchesActiveFilters(feature) {
   const vacantFlag = props.vacant_flag || "Not in EPP";
   if (!state.activeVacantFlags.has(vacantFlag)) return false;
 
+  if (state.councilDistrict) {
+    const district = props.council_district_label || "";
+    if (district !== state.councilDistrict) return false;
+  }
+
   const signalValue = signalValueForFeature(feature);
   return state.activeSignalValues[state.signalMode].has(signalValue);
 }
@@ -1129,6 +1307,7 @@ function buildWhereClause() {
     buildCustomListPinClause(),
     buildInClause("use_group", state.activeUseGroups, useGroupItems.map((item) => item.value)),
     buildInClause("vacant_flag", state.activeVacantFlags, VACANT_FILTER_ITEMS.map((item) => item.value)),
+    state.councilDistrict ? `council_district_label = '${sqlEscape(state.councilDistrict)}'` : null,
     buildInClause(mode.field, state.activeSignalValues[state.signalMode], signalValues)
   ].filter(Boolean);
   return clauses.length ? clauses.join(" AND ") : "1=1";
@@ -1954,6 +2133,9 @@ function resetFilters() {
   Object.entries(signalModes).forEach(([key, mode]) => {
     state.activeSignalValues[key] = new Set(mode.categories.map((item) => item.value));
   });
+  state.councilDistrict = "";
+  if (nodes.councilDistrictSelect) nodes.councilDistrictSelect.value = "";
+  clearDistrictHighlight();
   // Keep custom list / checked map preview; only reset map filter checklists.
   applyDashboardState();
 }
@@ -2090,6 +2272,7 @@ function activeFilterSummary() {
     ? `All ${mode.label.toLowerCase()} categories`
     : [...state.activeSignalValues[state.signalMode]].join(", ");
   const summary = [mode.label, useText, vacantText, signalText];
+  if (state.councilDistrict) summary.push(`Council ${state.councilDistrict}`);
   if (state.customList?.matchedCount) {
     summary.unshift(
       `Custom list: ${state.customList.fileName} (${formatNumber(state.customList.matchedCount)} joined PINs)`
@@ -2333,6 +2516,8 @@ async function loadPublicData() {
     allFeatures = allFeatures.filter(isDashboardParcel);
     useGroupItems = useItems(allFeatures);
     state.activeUseGroups = new Set(defaultUseGroupValues());
+    await loadCouncilDistrictLabels();
+    refreshCouncilDistrictOptions();
     updateSourceFreshness(
       `${sourceFreshnessLabel(parcelDataSource)} | ${formatNumber(allFeatures.length)} parcels | Source review required before action`
     );
@@ -2434,6 +2619,16 @@ document.addEventListener("click", (event) => {
 });
 
 nodes.resetFilters.addEventListener("click", resetFilters);
+if (nodes.councilDistrictSelect) {
+  nodes.councilDistrictSelect.addEventListener("change", () => {
+    applyCouncilDistrictSelection({ zoom: true }).catch((error) => console.error(error));
+  });
+}
+if (nodes.zoomToDistrictButton) {
+  nodes.zoomToDistrictButton.addEventListener("click", () => {
+    applyCouncilDistrictSelection({ zoom: true }).catch((error) => console.error(error));
+  });
+}
 nodes.exportPdfButton.addEventListener("click", () => {
   openPdfOptionsModal({ checkedOnly: Boolean(state.checkedMapPins?.size) });
 });
@@ -2664,6 +2859,7 @@ require([
   "esri/views/MapView",
   "esri/layers/GeoJSONLayer",
   "esri/layers/FeatureLayer",
+  "esri/layers/GraphicsLayer",
   "esri/widgets/Home",
   "esri/widgets/Search",
   "esri/widgets/BasemapToggle",
@@ -2671,7 +2867,7 @@ require([
   "esri/widgets/Legend",
   "esri/core/reactiveUtils",
   "esri/rest/locator"
-], (Map, MapView, GeoJSONLayer, FeatureLayer, Home, Search, BasemapToggle, Expand, Legend, reactiveUtils, locator) => {
+], (Map, MapView, GeoJSONLayer, FeatureLayer, GraphicsLayer, Home, Search, BasemapToggle, Expand, Legend, reactiveUtils, locator) => {
   reactiveUtilsRef = reactiveUtils;
   locationToAddressRef = locator.locationToAddress;
 
@@ -2697,17 +2893,36 @@ require([
         parcelDataSource = fallbackResult.source;
       }
 
+      councilDistrictLayer = new FeatureLayer({
+        url: COUNCIL_DISTRICT_SERVICE_URL,
+        title: "Council districts 2022",
+        outFields: ["DIST_ID", "DIST_NAME"],
+        listMode: "hide",
+        legendEnabled: false,
+        visible: false
+      });
+      districtHighlightLayer = new GraphicsLayer({
+        title: "Selected council district",
+        listMode: "hide",
+        legendEnabled: false
+      });
+      councilDistrictLayer.load().catch((error) => {
+        console.warn("Council district boundary layer failed to load; parcel extents will be used for zoom.", error);
+        councilDistrictLayer = null;
+      });
+
       map = new Map({
         basemap: "topo-vector",
-        layers: [parcelLayer]
+        layers: [parcelLayer, districtHighlightLayer]
       });
+      if (councilDistrictLayer) map.add(councilDistrictLayer, 0);
 
       setMapLoadingProgress(36, "Creating map view...");
       view = new MapView({
         container: "viewDiv",
         map,
-        center: [-79.9959, 40.4406],
-        zoom: 12,
+        center: CITYWIDE_VIEW.center,
+        zoom: CITYWIDE_VIEW.zoom,
         constraints: {
           minZoom: 10
         },
