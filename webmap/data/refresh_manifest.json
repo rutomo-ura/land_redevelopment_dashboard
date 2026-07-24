@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "app": "vacant-land-redevelopment-explorer",
-  "generatedAt": "2026-07-23T07:31:40.163585-04:00",
-  "generatedOn": "2026-07-23",
+  "generatedAt": "2026-07-24T07:31:54.463959-04:00",
+  "generatedOn": "2026-07-24",
   "timezone": "America/New_York",
   "qaStatus": "PASS",
   "parcelCount": 29786,
@@ -10,43 +10,43 @@
     {
       "key": "vacant",
       "label": "Vacant-land parcel and assessment bundle",
-      "lastUpdated": "2026-07-23",
+      "lastUpdated": "2026-07-24",
       "artifact": "docs/data/vacant_land_triage.geojson"
     },
     {
       "key": "epp",
       "label": "PostgreSQL gis.epp_parcels_full",
-      "lastUpdated": "2026-07-23",
+      "lastUpdated": "2026-07-24",
       "artifact": "exports/epp_parcel_attributes.csv"
     },
     {
       "key": "tax",
       "label": "PostgreSQL gis.city_tax_delinquent_3yr",
-      "lastUpdated": "2026-07-23",
+      "lastUpdated": "2026-07-24",
       "artifact": "exports/live_postgres_tax_delinquency_3yr.csv"
     },
     {
       "key": "tolemi",
       "label": "Tolemi BuildingBlocks export",
-      "lastUpdated": "2026-07-23",
+      "lastUpdated": "2026-07-24",
       "artifact": "exports/tolemi_building_tax_delinquency_status.csv"
     },
     {
       "key": "pli",
       "label": "WPRDC Condemned and Dead-End Properties",
-      "lastUpdated": "2026-07-23",
+      "lastUpdated": "2026-07-24",
       "artifact": "exports/wprdc_condemned_properties.csv"
     },
     {
       "key": "boundaries",
       "label": "WPRDC City neighborhoods and 2022 Council districts",
-      "lastUpdated": "2026-07-23",
+      "lastUpdated": "2026-07-24",
       "artifact": "docs/data/boundary_analysis.json"
     },
     {
       "key": "derived",
       "label": "Dashboard build pipeline",
-      "lastUpdated": "2026-07-23",
+      "lastUpdated": "2026-07-24",
       "artifact": "docs/data/vacant_land_triage.geojson"
     }
   ]
