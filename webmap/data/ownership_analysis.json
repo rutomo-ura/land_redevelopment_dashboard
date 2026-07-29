@@ -145,13 +145,13 @@
     },
     {
       "label": "PLB Owned",
-      "value": 85,
-      "acres": 12.45,
+      "value": 84,
+      "acres": 12.4,
       "source": "Ownership Overview reference layer"
     }
   ],
   "referenceKpis": {
-    "referencePublicParcels": 13902,
-    "referencePublicAcres": 6914.13
+    "referencePublicParcels": 13901,
+    "referencePublicAcres": 6914.08
   }
 }
