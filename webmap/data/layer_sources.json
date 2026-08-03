@@ -7,7 +7,7 @@
   "arcgisAppItemId": "9552e95d319b4e2180219ae66b3c8d65",
   "arcgisAppTitle": "Vacant Land Redevelopment Explorer Dashboard",
   "arcgisAppUrl": "https://urap.maps.arcgis.com/home/item.html?id=9552e95d319b4e2180219ae66b3c8d65#overview",
-  "arcgisAppTargetUrl": "https://rutomo-ura.github.io/land_redevelopment_dashboard/",
+  "arcgisAppTargetUrl": "https://ura-gis.github.io/land_redevelopment_dashboard/",
   "arcgisDashboardUrl": "https://urap.maps.arcgis.com/apps/dashboards/9552e95d319b4e2180219ae66b3c8d65",
   "parcelLayerItemId": "c013cc3b5df54a79ae51cccd2baa224f",
   "parcelLayerTitle": "Vacant Land Redevelopment Parcels",

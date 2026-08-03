@@ -138,7 +138,7 @@ Potential dashboard modules:
 
 ## References
 
-- Live GitHub Pages app: <https://rutomo-ura.github.io/land_redevelopment_dashboard/>
+- Live GitHub Pages app: <https://ura-gis.github.io/land_redevelopment_dashboard/>
 - ArcGIS Map Viewer: <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2>
 - City tax delinquency map reference: <https://urap.maps.arcgis.com/apps/instant/interactivelegend/index.html?appid=8e8964cd0d6649c796742003e1d84a1c>
 - Ownership overview reference: <https://urap.maps.arcgis.com/apps/instant/sidebar/index.html?appid=ec07466480c6491185acc2c514901446>

@@ -2,6 +2,12 @@ name: Weekly Data Refresh
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run the refresh and QA without committing or pushing data"
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: "0 11 * * 1"
 
@@ -64,6 +70,7 @@ jobs:
             outputs/qa/*.csv
 
       - name: Commit refreshed public data
+        if: ${{ github.event_name == 'schedule' || inputs.dry_run != true }}
         shell: bash
         run: |
           if git diff --quiet -- docs webmap; then
@@ -75,3 +82,7 @@ jobs:
           git add docs/data webmap/data docs/latest_ownership_qa.md
           git commit -m "Refresh public dashboard data"
           git push
+
+      - name: Report dry run
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        run: echo "Dry run complete; QA artifacts were produced and no commit was pushed."

@@ -2,7 +2,7 @@
 
 This project follows the LandCare monitoring pattern: a source-controlled GitHub Pages application embedded inside one ArcGIS Dashboard used as the URA Maps front door.
 
-- Staff-review web app: <https://rutomo-ura.github.io/land_redevelopment_dashboard/>
+- Staff-review web app: <https://ura-gis.github.io/land_redevelopment_dashboard/>
 - URA Maps dashboard: <https://urap.maps.arcgis.com/apps/dashboards/9552e95d319b4e2180219ae66b3c8d65>
 
 ## Current ArcGIS Content
@@ -12,7 +12,7 @@ This project follows the LandCare monitoring pattern: a source-controlled GitHub
 | Portal | <https://urap.maps.arcgis.com> |
 | ArcGIS front door | [Vacant Land Redevelopment Explorer Dashboard](https://urap.maps.arcgis.com/apps/dashboards/9552e95d319b4e2180219ae66b3c8d65) |
 | Dashboard item ID | `9552e95d319b4e2180219ae66b3c8d65` |
-| Embedded app URL | <https://rutomo-ura.github.io/land_redevelopment_dashboard/> |
+| Embedded app URL | <https://ura-gis.github.io/land_redevelopment_dashboard/> |
 | Source web map | <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2> |
 | Source web map item ID | `19022018e35b4b72a2d30cba2d56c8e2` |
 | Parcel GeoJSON item | <https://urap.maps.arcgis.com/home/item.html?id=c013cc3b5df54a79ae51cccd2baa224f> |

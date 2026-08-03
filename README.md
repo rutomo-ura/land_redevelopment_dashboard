@@ -4,8 +4,8 @@ The Vacant Land Redevelopment Explorer is an interactive URA map for exploring P
 
 ## Live Entries
 
-- Dashboard: <https://rutomo-ura.github.io/land_redevelopment_dashboard/>
-- Ownership view: <https://rutomo-ura.github.io/land_redevelopment_dashboard/ownership>
+- Dashboard: <https://ura-gis.github.io/land_redevelopment_dashboard/>
+- Ownership view: <https://ura-gis.github.io/land_redevelopment_dashboard/ownership>
 - URA Maps dashboard: <https://urap.maps.arcgis.com/apps/dashboards/9552e95d319b4e2180219ae66b3c8d65>
 - Source web map: <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2>
 
@@ -15,6 +15,8 @@ The URA Maps dashboard is the single ArcGIS front door and embeds the GitHub Pag
 
 | Need | Read this |
 | --- | --- |
+| Start the handover or orient a new GIS analyst | [HANDOVER.md](HANDOVER.md) |
+| Give Codex the repository operating rules | [AGENTS.md](AGENTS.md) |
 | Launch the dashboard from URA Maps | [ArcGIS Online publishing notes](docs/arcgis-online-publishing.md) |
 | Operate, refresh, and hand off the released product | [v1.0 operational handover](docs/v1.0-operational-handover.md) |
 | Configure the 7:30 AM secured-VM refresh | [Daily refresh VM operations](docs/daily-refresh-vm-operations.md) |
