@@ -6,7 +6,7 @@ overview now lives in the repository root `README.md`.
 
 ## Published Links
 
-- GitHub Pages web app: <https://rutomo-ura.github.io/land_redevelopment_dashboard/>
+- GitHub Pages web app: <https://ura-gis.github.io/land_redevelopment_dashboard/>
 - ArcGIS Map Viewer: <https://urap.maps.arcgis.com/apps/mapviewer/index.html?webmap=19022018e35b4b72a2d30cba2d56c8e2>
 
 > **Current deployment note (July 2026):** this tutorial describes the earlier public-safe prototype. The active GitHub Pages dashboard is now a staff-review build that includes owner names and EPP workflow attributes. See [the operational handover](v1.0-operational-handover.md) and [table data coverage audit](table-data-coverage.md) before publishing or sharing.
